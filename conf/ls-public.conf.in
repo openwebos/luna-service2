@@ -1,0 +1,42 @@
+# @@@LICENSE
+#
+#      Copyright (c) 2008-2012 Hewlett-Packard Development Company, L.P.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# LICENSE@@@
+
+[General]
+LocalSocketDirectory=@CONF_GENERAL_LOCAL_SOCKET_DIRECTORY@
+PidDirectory=@CONF_GENERAL_PID_DIRECTORY@
+LogServiceStatus=@CONF_GENERAL_LOG_SERVICE_STATUS@
+ConnectTimeout=@CONF_GENERAL_CONNECT_TIMEOUT@
+
+[Watchdog]
+Timeout=@CONF_WATCHDOG_TIMEOUT@
+FailureMode=@CONF_FAILURE_MODE@
+
+[Dynamic Services]
+Directories=@CONF_DYNAMIC_SERVICES_DIRECTORIES_PUB@
+ExecPrefix=@CONF_DYNAMIC_SERVICES_EXEC_PREFIX@
+LaunchTimeout=@CONF_DYNAMIC_SERVICES_LAUNCH_TIMEOUT@
+
+[Security]
+Enabled=@CONF_SECURITY_ENABLED@
+Directories=@CONF_SECURITY_DIRECTORIES_PUB@
+MonitorExePath=@CONF_SECURITY_MONITOR_EXE_PATH@
+SysMgrExePath=@CONF_SECURITY_SYSMGR_EXE_PATH@
+JsServiceExePath=@CONF_SECURITY_JS_SERVICE_EXE_PATH@
+MojoAppExePath=@CONF_SECURITY_MOJO_APP_EXE_PATH@
+MojoAppsAllowAllOutboundByDefault=@CONF_SECURITY_MOJO_APPS_ALLOW_OUTBOUND_BY_DEFAULT@
+AllowNullOutboundByDefault=@CONF_SECURITY_ALLOW_NULL_OUTBOUND_BY_DEFAULT@

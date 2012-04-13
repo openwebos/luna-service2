@@ -1,0 +1,119 @@
+#!/bin/sh
+# @@@LICENSE
+#
+#      Copyright (c) 2008-2012 Hewlett-Packard Development Company, L.P.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# LICENSE@@@
+
+UPSTART_PUB=/etc/event.d/ls-hubd_public
+UPSTART_PRV=/etc/event.d/ls-hubd_private
+
+TETHER="false"
+TETHER_STATUS="disabled"
+SCAN_SERVICES="false"
+
+grep -qs "ls-hubd \-n" $UPSTART_PUB 
+if [ "$?" -eq 0 ] ; then
+    TETHER_STATUS="enabled"
+fi
+    
+echo "Current tether status: $TETHER_STATUS"
+
+case x$1 in
+    xenable-tether)
+        TETHER="true"
+        ;;
+    xdisable-tether)
+        TETHER="false"
+        ;;
+    xscan-services)
+        SCAN_SERVICES="true"
+        ;;
+
+    *)
+        echo "Options:"
+        echo "     enable-tether            turn on tethering (reboots)"
+        echo "     disable-tether           turn off tethering (reboots)"
+        echo "     scan-services            tell the hub to rescan for dynamic services"
+        exit 0
+esac
+
+if [ "x$SCAN_SERVICES" = "xtrue" ]
+then
+    PRV_TMP=`mktemp -t`
+    PUB_TMP=`mktemp -t`
+
+    # private
+    luna-send -n 2 palm://com.palm.bus/signal/addmatch '{"category":"/com/palm/hub/control","method":"configScanComplete"}' > ${PRV_TMP} &
+    
+    PRV_PID="$!"
+
+    # public
+    luna-send -n 2 -P palm://com.palm.bus/signal/addmatch '{"category":"/com/palm/hub/control","method":"configScanComplete"}' > ${PUB_TMP} &
+   
+    PUB_PID="$!"
+
+    # wait for subscribe success return from hub
+    while [ 1 ]
+    do
+        PUB_LINE_CNT=`sed -n '$=' ${PUB_TMP}`
+        PRV_LINE_CNT=`sed -n '$=' ${PRV_TMP}`
+
+        if [ "x${PRV_LINE_CNT}" = "x" ]
+        then
+            PRV_LINE_CNT="0"
+        fi
+
+        if [ "x${PUB_LINE_CNT}" = "x" ]
+        then
+            PUB_LINE_CNT="0"
+        fi
+        
+        if [ "${PRV_LINE_CNT}" -eq 1 -a "${PUB_LINE_CNT}" -eq 1 ]
+        then
+            break
+        else
+            # sleep for 10 ms if we have usleep, otherwise 1 second
+            usleep 10000 > /dev/null 2>&1 || sleep 1
+        fi
+    done
+
+    echo "telling hub to rescan for dynamic services"
+    for i in $(pidof ls-hubd); do
+        kill -HUP $i
+    done
+
+    wait ${PRV_PID} ${PUB_PID}
+
+    rm -f ${PRV_TMP} ${PUB_TMP}
+fi
+
+if [ "x$TETHER_STATUS" = "xenabled" ] && [ "x$TETHER" = "xfalse" ]; then
+    echo "disabling tethering"
+    rootfs_open -t
+    sed -i 's/\(.*ls-hubd.*\)-n \(.*\)/\1\2/' $UPSTART_PUB
+    sed -i 's/\(.*ls-hubd.*\)-n \(.*\)/\1\2/' $UPSTART_PRV
+    sync
+    usbnet disable
+    reboot
+elif [ "x$TETHER_STATUS" = "xdisabled" ] && [ "x$TETHER" = "xtrue" ]; then
+    echo "enabling tethering"
+    rootfs_open -t
+    sed -i 's/\(.*ls-hubd\) \(.*\)/\1 -n \2/' $UPSTART_PUB 
+    sed -i 's/\(.*ls-hubd\) \(.*\)/\1 -n \2/' $UPSTART_PRV
+    sync
+    usbnet enable
+    reboot
+fi

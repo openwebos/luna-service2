@@ -911,7 +911,6 @@ _LSTransportMessageBodyExpand(_LSTransportMessage *message, unsigned long bytes_
     bool need_realloc = false;
     unsigned long alloc_body_size = _LSTransportMessageGetAllocBodySize(message);
     unsigned long body_size = _LSTransportMessageGetBodySize(message);
-    _LSTransportMessage *ret = message;
     
     _LSTransportMessageRaw *raw = _LSTransportMessageGetRawMessage(message);
 
@@ -933,7 +932,6 @@ _LSTransportMessageBodyExpand(_LSTransportMessage *message, unsigned long bytes_
         {
             new_body_size = 0;
             alloc_body_size = 0;
-            ret = NULL;
             g_critical("Unable to re-allocate message body, OOM");
         }
         

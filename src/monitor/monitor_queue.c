@@ -156,7 +156,7 @@ _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, 
         if (debug_output)
         {
             char last = g_queue_is_empty(print_queue) ? 'L' : ' ';
-            fprintf(stdout, "[%c%c%c %llu]\t", _OutOfOrder(hash_table, item->message) ? 'X' : ' ', first, last, _LSTransportMessageGetMonitorSerial(item->message));
+            fprintf(stdout, "[%c%c%c %"PRIu64"]\t", _OutOfOrder(hash_table, item->message) ? 'X' : ' ', first, last, _LSTransportMessageGetMonitorSerial(item->message));
         }
 
         _LSMonitorMessagePrint(item->message, &item->timestamp, queue->public);

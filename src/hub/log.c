@@ -21,7 +21,7 @@
 #include <glib.h>
 #include "log.h"
 
-#include <PmLogLib.h>
+#include <PmLogLib/PmLogLib.h>
 static PmLogContext hub_log_context;
 
 static int

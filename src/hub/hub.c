@@ -90,6 +90,7 @@ const char* service_group_names[] = {
     "D-BUS Service",
     "DBUS Service",
     "Palm Service",
+    "Luna Service",
 };
 
 /**< FIXME: workaround for non-conformant media service */
@@ -949,7 +950,7 @@ DynamicServiceInitStateMap(LSError *lserror)
    @verbatim
    Example:
 
-   [Palm Service]
+   [Luna Service]
    Name=com.palm.foo
    Exec=/path/to/executable
    @endverbatim

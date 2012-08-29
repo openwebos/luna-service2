@@ -372,4 +372,4 @@ _LSTransportGetCredentials(int fd, _LSTransportCred *cred, LSError *lserror)
     return true;
 }
 
-/**< @} END OF LunaServiceTransportSecurity */
+/*< @} END OF LunaServiceTransportSecurity */

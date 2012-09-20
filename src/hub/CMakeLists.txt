@@ -31,6 +31,6 @@ set(HUB_SRCS
 add_definitions(-DG_LOG_DOMAIN="LunaServiceHub")
 
 add_executable(ls-hubd ${HUB_SRCS})
-target_link_libraries(ls-hubd ${LS2_LIBRARY_NAME} ${PMLOGLIB_LDFLAGS} ${MEMCPY_LIBRARIES})
+target_link_libraries(ls-hubd ${LS2_LIBRARY_NAME} ${PMLOGLIB_LDFLAGS})
 
 install(TARGETS ls-hubd DESTINATION bin ${RESTRICTED_PERMS})

@@ -123,9 +123,6 @@ if (TARGET_DEVICE OR TARGET_EMULATOR)
 
         # Only root (owner) will be permitted access to certain binaries on device
         set(RESTRICTED_PERMS PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
-   
-        # Custom (faster) memcpy library 
-        find_library(MEMCPY_LIBRARIES memcpy)
     else ()
         # Emulator
         add_definitions(-DTARGET_EMULATOR)

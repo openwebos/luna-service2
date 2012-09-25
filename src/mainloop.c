@@ -25,7 +25,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 #include "lunaservice-custom-priv.h"
 
 #include "base.h"

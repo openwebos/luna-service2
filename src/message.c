@@ -24,9 +24,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-
-#include "lunaservice.h"
-#include "lunaservice-errors.h"
+#include <luna-service2/lunaservice.h>
 
 #include "base.h"
 #include "message.h"

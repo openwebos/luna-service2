@@ -15,6 +15,7 @@
 * limitations under the License.
 *
 * LICENSE@@@ */
+
 #include <glib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -22,8 +23,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <cjson/json.h>
-
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 
 #if (defined(__APPLE__) && defined(__MACH__)) || defined(WIN32)
 #	include <clock_gettime_implementation.h>

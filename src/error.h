@@ -23,7 +23,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 
 /**
  * @defgroup LunaServiceErrorInternal   LunaServiceErrorInternal

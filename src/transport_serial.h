@@ -22,7 +22,7 @@
 
 #include <pthread.h>
 #include <glib.h>
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 
 typedef struct LSTransportSerialMapEntry {
     LSMessageToken serial;  /**< global serial */

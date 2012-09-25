@@ -15,13 +15,12 @@
 * limitations under the License.
 *
 * LICENSE@@@ */
+
 #include <glib.h>
 #include <stdio.h>
 #include <unistd.h>
-
 #include <cjson/json.h>
-
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 
 #define JSON_ERROR(x) (!x || is_error(x)) 
 

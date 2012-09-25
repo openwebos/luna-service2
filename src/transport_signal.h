@@ -20,7 +20,7 @@
 #ifndef _TRANSPORT_SIGNAL_H_
 #define _TRANSPORT_SIGNAL_H_
 
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 #include "transport.h"
 
 #define SERVICE_STATUS_CATEGORY  "_private_service_status"    /**< category used for special service status signal registration */

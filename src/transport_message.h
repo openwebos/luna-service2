@@ -21,7 +21,7 @@
 #define _TRANSPORT_MESSAGE_H_
 
 #include <sys/uio.h>
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 //#include "transport_client.h"
 
 #include "transport_shm.h"

@@ -20,7 +20,7 @@
 #ifndef _TRANSPORT_HANDLERS_H_
 #define _TRANSPORT_HANDLERS_H_
 
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 #include "transport_message.h"
 #include "transport_client.h"
 

@@ -30,8 +30,7 @@
 
 #include <cjson/json.h>
 
-#include "lunaservice.h"
-#include "lunaservice-errors.h"
+#include <luna-service2/lunaservice.h>
 
 //#include "callmap.h"
 #include "transport.h"

@@ -21,7 +21,7 @@
 #define _SECURITY_H
 
 #include <stdbool.h>
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 #include "transport_message.h"
 
 typedef enum {

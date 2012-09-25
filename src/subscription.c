@@ -22,7 +22,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 #include "message.h"
 #include "base.h"
 #include "subscription.h"

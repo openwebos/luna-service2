@@ -25,7 +25,7 @@
 #include <pthread.h>
 #include <glib.h>
 
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 #include "error.h"
 
 typedef struct LSTransport _LSTransport;

@@ -26,7 +26,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "lunaservice.h"
+#include <luna-service2/lunaservice.h>
 
 #include "base.h"
 #include "message.h"

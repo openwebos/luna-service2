@@ -95,8 +95,13 @@ endmacro()
 # PROJECT_SOURCE_DIR is a cmake provided variable.
 # See http://www.cmake.org/cmake/help/cmake2.6docs.html#variable:PROJECT_SOURCE_DIR
 # for more info
+#
+# For now, we add both public and public/luna-service2 so the the component builds
+# after moving the files. The next commit will remove the second include_directories()
+# and this comment.
 include_directories("${PROJECT_SOURCE_DIR}/src")
-include_directories("${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/include/public")
+include_directories("${PROJECT_SOURCE_DIR}/include/public/luna-service2")
 include_directories("${PROJECT_SOURCE_DIR}/include/private")
 
 

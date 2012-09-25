@@ -59,8 +59,8 @@ target_link_libraries(${LS2_LIBRARY_NAME} ${LIBRARIES})
 set_target_properties(${LS2_LIBRARY_NAME} PROPERTIES VERSION ${LS2_LIBRARY_VERSION} SOVERSION ${LS2_API_VERSION_MAJOR})
 
 install(TARGETS ${LS2_LIBRARY_NAME} DESTINATION lib)
-install(FILES ${CMAKE_SOURCE_DIR}/include/lunaservice-errors.h DESTINATION include/${LS2_LIBRARY_NAME})
-install(FILES ${CMAKE_SOURCE_DIR}/include/lunaservice.h DESTINATION include/${LS2_LIBRARY_NAME})
+install(FILES ${CMAKE_SOURCE_DIR}/include/public/luna-service2/lunaservice-errors.h DESTINATION include/${LS2_LIBRARY_NAME})
+install(FILES ${CMAKE_SOURCE_DIR}/include/public/luna-service2/lunaservice.h DESTINATION include/${LS2_LIBRARY_NAME})
 
 configure_file (${LS2_LIBRARY_NAME}.pc.in
                 ${PROJECT_BINARY_DIR}/config/${LS2_LIBRARY_NAME}.pc @ONLY)

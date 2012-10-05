@@ -44,7 +44,12 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 if (NOT DEFINED ENV{PKG_CONFIG_PATH})
-    set(ENV{PKG_CONFIG_PATH} "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+    # cmake-modules-webos installs .pc files to /usr/local/webos/usr/share/pkgconfig
+    # in a standalone build. As a result, a standalone build of LS2 is unable
+    # to locate PmLogLib. This  line adds that path to the PKG_CONFIG_PATH
+    # environment variable. It is a temporary workaround until LS2 is converted
+    # to use cmake-modules-webos.    
+    set(ENV{PKG_CONFIG_PATH} "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/webos/usr/share/pkgconfig")
 endif ()
 
 message ("")

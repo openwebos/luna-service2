@@ -29,7 +29,7 @@
 #include <sys/select.h>
 #endif
 
-#include <luna-service2/lunaservice-errors.h>
+#include "lunaservice-errors.h"
 
 #ifndef _LUNASERVICE_H_
 #define _LUNASERVICE_H_

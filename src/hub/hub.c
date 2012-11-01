@@ -96,7 +96,9 @@ const char* service_group_names[] = {
 /**< FIXME: workaround for non-conformant media service */
 static char *media_service_names[] = {
     "com.palm.mediad",
-    "com.palm.media"
+    "com.palm.media",
+    "com.palm.umediapipeline",
+    "com.palm.umediaserver"
 };
 
 #define SERVICE_NAME_KEY    "Name"          /**< key for defining service name */
@@ -1723,7 +1725,7 @@ IsMediaService(const char *service_name)
     for (i = 0; i < ARRAY_SIZE(media_service_names); i++)
     {
         /* match just the part of the name that doesn't change 
-         * (i.e., same as com.palm.mediad.*) */
+         * ( i.e., same as com.palm.mediad.* and com.palm.umediapipeline* ) */
         if (strncmp(media_service_names[i], service_name, strlen(media_service_names[i])) == 0)
         {
             return media_service_names[i];

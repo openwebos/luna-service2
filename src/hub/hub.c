@@ -1712,14 +1712,17 @@ _LSHubCleanupSocketLocal(const char *unique_name)
  * 
  * @param  service_name 
  * 
- * @retval  true if media service
- * @retval  false otherwise
+ * @retval  media service_name pointer if a media service
+ * @retval  null pointer otherwise
  *******************************************************************************
  */
 inline const char*
 IsMediaService(const char *service_name)
 {
-    LS_ASSERT(service_name != NULL);
+    if (NULL == service_name)
+    {
+        return NULL;
+    }
 
     int i = 0;
     for (i = 0; i < ARRAY_SIZE(media_service_names); i++)
@@ -1790,20 +1793,26 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
     _ls_verbose("%s: service_name: \"%s\"\n", __func__, service_name);
     
-    /* Check security permissions */
-    if (!LSHubIsClientAllowedToRequestName(client, service_name))
+    if (NULL == IsMediaService(service_name))
     {
-        if (!_LSHubSendRequestNameReply(message, transport_type, LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED, NULL, &lserror))
+        /* Check security permissions */
+        if (!LSHubIsClientAllowedToRequestName(client, service_name))
         {
-            LSErrorPrint(&lserror, stderr);
-            LSErrorFree(&lserror);
+            if (!_LSHubSendRequestNameReply(message, transport_type, LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED, NULL, &lserror))
+            {
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+            }
+            return;
         }
-        return;
+    }
+    else
+    {
+        _ls_verbose("%s: \"%s\" is a media service -- skipping client permissions check\n", __func__, service_name);
     }
 
-    if (service_name)
+    if (NULL != service_name)
     {
-
         /* look up requested name and make sure that it's not already in use */
         if (g_hash_table_lookup(pending, service_name) || g_hash_table_lookup(available_services, service_name))
         {

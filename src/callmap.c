@@ -511,6 +511,15 @@ _CallFree(_Call *call)
     g_free(call->signal_category);
     g_free(call->match_key);
 
+    if (CALL_TYPE_SIGNAL_SERVER_STATUS == call->type)
+    {
+        /* Exception: in case of 'signal server status' call,
+         * ctx field is used to store local _ServerStatus object
+         * which need to be released.
+         * See: LSRegisterServerStatus */
+        g_free(call->ctx);
+    }
+
 #ifdef MEMCHECK
     memset(call, 0xFF, sizeof(_Call));
 #endif

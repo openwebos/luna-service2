@@ -41,17 +41,19 @@
  * @retval  NULL on failure
  *******************************************************************************
  */
-_LSTransportIncoming*
-_LSTransportIncomingNew(void)
+_LSTransportIncoming* _LSTransportIncomingNew(void)
 {
     _LSTransportIncoming *incoming = g_slice_new0(_LSTransportIncoming);
 
     if (incoming)
     {
-        pthread_mutex_init(&incoming->lock, NULL);
-        incoming->tmp_msg = NULL;
-        incoming->tmp_msg_offset = 0;
+        /* This cannot fail when using eglibc (2.15) */
+        if (!pthread_mutex_init(&incoming->lock, NULL)) {
+            g_slice_free(_LSTransportIncoming, incoming);
+            return NULL;
+        }
         incoming->complete_messages = g_queue_new();
+        LS_ASSERT(incoming->complete_messages != 0);
     }
     return incoming;
 }
@@ -63,8 +65,7 @@ _LSTransportIncomingNew(void)
  * @param  incoming IN incoming 
  *******************************************************************************
  */
-void
-_LSTransportIncomingFree(_LSTransportIncoming *incoming)
+void _LSTransportIncomingFree(_LSTransportIncoming *incoming)
 {
     LS_ASSERT(incoming != NULL);
 

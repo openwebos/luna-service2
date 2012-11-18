@@ -21,6 +21,6 @@ start on stopping ls-hubd_private
 script
     logger "ls-hubd_private died, EXIT_STATUS: $EXIT_STATUS, EXIT_SIGNAL: $EXIT_SIGNAL"
     if [ "x${EXIT_STATUS}" != "x" ]; then
-        /usr/sbin/reboot_ls-hubd_if.sh ${EXIT_STATUS} ls-hubd_private
+        @WEBOS_INSTALL_SBINDIR@/reboot_ls-hubd_if.sh ${EXIT_STATUS} ls-hubd_private
     fi
 end script

@@ -16,18 +16,19 @@
 #
 # LICENSE@@@
 
-#
-# luna-service2/src/monitor/CMakeLists.txt
-#
-
-set(MONITOR_SRCS
+set(MONITOR_SOURCE_FILES
     monitor.c
     monitor_queue.c
     )
 
 add_definitions(-DG_LOG_DOMAIN="LunaServiceMonitor")
 
-add_executable(ls-monitor ${MONITOR_SRCS})
-target_link_libraries(ls-monitor ${LS2_LIBRARY_NAME})
+if(TARGET_DESKTOP)
+	add_definitions(-DPID_DIR="/tmp")
+else()
+	add_definitions(-DPID_DIR="${WEBOS_INSTALL_RUNTIMEINFODIR}/ls2")
+endif()
 
-install(TARGETS ls-monitor DESTINATION bin ${RESTRICTED_PERMS})
+add_executable(ls-monitor ${MONITOR_SOURCE_FILES})
+target_link_libraries(ls-monitor ${CMAKE_PROJECT_NAME})
+webos_build_program(NAME ls-monitor ${LS2_RESTRICTED})

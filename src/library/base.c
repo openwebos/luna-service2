@@ -762,7 +762,7 @@ LSHandleGetName(LSHandle *sh)
 }
 
 /**
-* @brief Register a service on the public bus.
+* @brief Register a service on the private bus.
 * The old notion of clients and servers does not apply.  Everyone is a
 * service.  Services may make outgoing service calls using LSCall()
 * or handle incomming messages for handlers registered via
@@ -780,12 +780,7 @@ bool
 LSRegister(const char *name, LSHandle **sh,
                   LSError *lserror)
 {
-    bool use_public_bus = false;
-    if (access("/var/preferences/com.palm.bus/public_bus_default", R_OK) == 0)
-    {
-        use_public_bus = true;
-    }
-    return _LSRegisterCommon(name, sh, use_public_bus, LSHANDLE_GET_RETURN_ADDR(), lserror);
+    return _LSRegisterCommon(name, sh, false, LSHANDLE_GET_RETURN_ADDR(), lserror);
 }
 
 bool

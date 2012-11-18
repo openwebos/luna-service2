@@ -18,16 +18,16 @@
 # LICENSE@@@
 
 BUILD_DIR="./build-x86"
-BUILD_BIN_DIR="${BUILD_DIR}/bin"
-BUILD_LIB_DIR="${BUILD_DIR}/lib"
+BUILD_BIN_DIR="${BUILD_DIR}/usr/bin"
+BUILD_SBIN_DIR="${BUILD_DIR}/usr/sbin"
+BUILD_LIB_DIR="${BUILD_DIR}/usr/lib"
 
 DESKTOP_BINARIES=/opt/Palm/luna/desktop-binaries/
 export LD_LIBRARY_PATH=${BUILD_LIB_DIR}:${DESKTOP_BINARIES}/lib:${LD_LIBRARY_PATH}
 #export PATH=./bin:${PATH}
 
-HUB="${BUILD_BIN_DIR}/ls-hubd"
+HUB="${BUILD_SBIN_DIR}/ls-hubd"
 
-CONF_DIR=${BUILD_DIR}/tests/conf
 PUB_CONF=${BUILD_DIR}/etc/ls2/ls-public.conf
 PRV_CONF=${BUILD_DIR}/etc/ls2/ls-private.conf
 

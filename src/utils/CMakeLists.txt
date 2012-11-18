@@ -16,20 +16,10 @@
 #
 # LICENSE@@@
 
-#
-# luna-service2/utils/CMakeLists.txt
-#
-
-#
-# The *.sh scripts in this directory are intentionally not installed.
-#
-
 add_executable(luna-helper luna-helper.c)
-target_link_libraries(luna-helper ${LS2_LIBRARY_NAME})
+target_link_libraries(luna-helper ${CMAKE_PROJECT_NAME})
+webos_build_program(NAME luna-helper ${LS2_RESTRICTED})
 
 add_executable(luna-send luna-send.c)
-target_link_libraries(luna-send ${LS2_LIBRARY_NAME})
-
-install(TARGETS luna-helper DESTINATION bin ${RESTRICTED_PERMS})
-install(TARGETS luna-send DESTINATION bin ${RESTRICTED_PERMS})
-install(PROGRAMS ls-control DESTINATION bin ${RESTRICTED_PERMS})
+target_link_libraries(luna-send ${CMAKE_PROJECT_NAME})
+webos_build_program(NAME luna-send ${LS2_RESTRICTED})

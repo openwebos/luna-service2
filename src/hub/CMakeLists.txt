@@ -16,11 +16,7 @@
 #
 # LICENSE@@@
 
-#
-# luna-service2/src/hub/CMakeLists.txt
-#
-
-set(HUB_SRCS
+set(HUB_SOURCE_FILES
     conf.c
     hub.c
     log.c
@@ -30,7 +26,13 @@ set(HUB_SRCS
 
 add_definitions(-DG_LOG_DOMAIN="LunaServiceHub")
 
-add_executable(ls-hubd ${HUB_SRCS})
-target_link_libraries(ls-hubd ${LS2_LIBRARY_NAME} ${PMLOGLIB_LDFLAGS})
+# The following definitions avoid the need to configure any source files
+add_definitions(-DDEFAULT_SYSMGR_EXE_PATH="${WEBOS_INSTALL_BINDIR}/LunaSysMgr")
+add_definitions(-DDEFAULT_MONITOR_EXE_PATH="${WEBOS_INSTALL_BINDIR}/ls-monitor")
+add_definitions(-DDEFAULT_PID_DIR="${WEBOS_INSTALL_RUNTIMEINFODIR}/ls2")
+add_definitions(-DDEFAULT_LOCAL_SOCKET_DIR="${WEBOS_INSTALL_RUNTIMEINFODIR}/ls2")
 
-install(TARGETS ls-hubd DESTINATION bin ${RESTRICTED_PERMS})
+add_executable(ls-hubd ${HUB_SOURCE_FILES})
+target_link_libraries(ls-hubd ${CMAKE_PROJECT_NAME} ${PMLOGLIB_LDFLAGS})
+webos_build_daemon(NAME ls-hubd LAUNCH ${CMAKE_SOURCE_DIR}/files/launch/ ${LS2_RESTRICTED})
+

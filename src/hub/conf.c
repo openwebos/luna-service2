@@ -46,13 +46,8 @@
 #define MAX_KEYS_IN_GROUP   10
 #define MAX_GROUPS          10
 
-#define DEFAULT_SYSMGR_EXE_PATH             "/usr/bin/LunaSysMgr"
-#define DEFAULT_MONITOR_EXE_PATH            "/usr/bin/ls-monitor"
 #define DEFAULT_TRITON_SERVICE_EXE_PATH     "js"
 #define DEFAULT_MOJO_APP_EXE_PATH           "mojo-app"
-
-#define DEFAULT_PID_DIR                     "/var/run/ls2"
-#define DEFAULT_LOCAL_SOCKET_PATH           "/var/run/ls2"
 
 typedef bool (_ConfigKeyUser)(const void *value, void *ctxt, LSError *lserror);
 

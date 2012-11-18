@@ -16,10 +16,6 @@
 #
 # LICENSE@@@
 
-#
-# luna-service2/src/CMakeLists.txt
-#
-
 set(SOURCE
     base.c
     callmap.c
@@ -53,15 +49,6 @@ set(LIBRARIES
     pthread
     )
 
-add_library(${LS2_LIBRARY_NAME} SHARED ${SOURCE})
-target_link_libraries(${LS2_LIBRARY_NAME} ${LIBRARIES})
-
-set_target_properties(${LS2_LIBRARY_NAME} PROPERTIES VERSION ${LS2_LIBRARY_VERSION} SOVERSION ${LS2_API_VERSION_MAJOR})
-
-install(TARGETS ${LS2_LIBRARY_NAME} DESTINATION lib)
-install(FILES ${CMAKE_SOURCE_DIR}/include/public/luna-service2/lunaservice-errors.h DESTINATION include/${LS2_LIBRARY_NAME})
-install(FILES ${CMAKE_SOURCE_DIR}/include/public/luna-service2/lunaservice.h DESTINATION include/${LS2_LIBRARY_NAME})
-
-configure_file (${LS2_LIBRARY_NAME}.pc.in
-                ${PROJECT_BINARY_DIR}/config/${LS2_LIBRARY_NAME}.pc @ONLY)
-install (FILES "${PROJECT_BINARY_DIR}/config/${LS2_LIBRARY_NAME}.pc" DESTINATION "lib/pkgconfig")
+add_library(${CMAKE_PROJECT_NAME} SHARED ${SOURCE})
+target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBRARIES})
+webos_build_library()

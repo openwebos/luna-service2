@@ -33,12 +33,6 @@
 #define SUBSCRIPTION_DEBUG_METHOD   "/com/palm/luna/private/subscriptions"
 #define MALLOC_DEBUG_METHOD         "/com/palm/luna/private/mallinfo"
 
-#ifdef TARGET_DESKTOP
-#   define PID_DIR             "/tmp"
-#else
-#   define PID_DIR             "/var/run/ls2"
-#endif
-
 #define MONITOR_PID_NAME    "ls-monitor.pid"
 
 #define HUB_TYPE_PUBLIC     1

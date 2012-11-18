@@ -69,7 +69,7 @@
 
 char **pid_dir = NULL;                  /**< pid file directory */
 
-char *conf_file = "/etc/ls2/ls.conf";
+char *conf_file =  NULL;
 
 char **local_socket_path = NULL;        /**< ptr to socket file directory,
                                               we use a ptr here since the conf
@@ -4054,7 +4054,7 @@ main(int argc, char *argv[])
         {"pid-dir", 'i', 0, G_OPTION_ARG_FILENAME, &cmdline_pid_dir, "Directory where the pid file is stored (default /var/run)", "/some/path"},
         {"public", 'p', 0, G_OPTION_ARG_NONE, &public, "Provide public hub (default is private)", NULL},
         {"inet", 'n', 0, G_OPTION_ARG_NONE, &enable_inet, "Use inet connections (default is unix domain socket)", NULL},
-        {"conf", 'c', 0, G_OPTION_ARG_FILENAME, &conf_file, "Path to config file", "/some/path/ls.conf"},
+        {"conf", 'c', 0, G_OPTION_ARG_FILENAME, &conf_file, "MANDATORY: Path to config file", "/some/path/ls.conf"},
         {"syslog", 'g', 0, G_OPTION_ARG_NONE, &use_syslog, "Log to syslog (default stdout/stderr)", NULL},
         {"boot-file", 'b', 0, G_OPTION_ARG_FILENAME, &boot_file_name, "Create specified file when done booting", "/some/path/file"},
         {"pmloglib", 'm', 0, G_OPTION_ARG_NONE, &use_pmloglib, "Log using pmloglib (default stdout/stderr)", NULL},
@@ -4076,6 +4076,12 @@ main(int argc, char *argv[])
     }
 
     g_option_context_free(opt_context);
+
+    if (NULL == conf_file)
+    {
+        g_critical("Mandatory configuration file (-c/--conf) not provided!");
+        exit(EXIT_FAILURE);
+    }
 
     if (daemonize)
     {

@@ -16,10 +16,6 @@
 #
 # LICENSE@@@
 
-#
-# luna-service2/upstart/CMakeLists.txt
-#
-
 install(FILES ls-hubd_private DESTINATION ${UPSTART_INSTALL_PATH})
 install(FILES ls-hubd_private_watchdog DESTINATION ${UPSTART_INSTALL_PATH})
 install(FILES ls-hubd_public DESTINATION ${UPSTART_INSTALL_PATH})

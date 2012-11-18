@@ -19,6 +19,13 @@
 start on stopped bootmisc
 stop on started start_update
 
+pre-start script
+    mkdir -p @WEBOS_INSTALL_SYSBUS_DYNPRVROLESDIR@
+    mkdir -p @WEBOS_INSTALL_SYSBUS_DYNPUBROLESDIR@
+    mkdir -p @WEBOS_INSTALL_SYSBUS_DYNPRVSERVICESDIR@
+    mkdir -p @WEBOS_INSTALL_SYSBUS_DYNPUBSERVICESDIR@
+end script
+
 script
-    /usr/bin/ls-hubd --conf /etc/ls2/ls-private.conf --pmloglib
+    @WEBOS_INSTALL_SBINDIR@/ls-hubd --conf @WEBOS_INSTALL_SYSCONFDIR@/ls2/ls-private.conf --pmloglib
 end script

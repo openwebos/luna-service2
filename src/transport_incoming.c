@@ -48,12 +48,12 @@ _LSTransportIncoming* _LSTransportIncomingNew(void)
     if (incoming)
     {
         /* This cannot fail when using eglibc (2.15) */
-        if (!pthread_mutex_init(&incoming->lock, NULL)) {
+        if (pthread_mutex_init(&incoming->lock, NULL)) {
             g_slice_free(_LSTransportIncoming, incoming);
             return NULL;
         }
         incoming->complete_messages = g_queue_new();
-        LS_ASSERT(incoming->complete_messages != 0);
+        LS_ASSERT(incoming->complete_messages != NULL);
     }
     return incoming;
 }

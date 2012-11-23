@@ -176,12 +176,12 @@ LSGmainSetPriorityPalmService(LSPalmService *psh, int priority, LSError *lserror
     if (psh->public_sh)
     {
         retVal = LSGmainSetPriority(psh->public_sh, priority, lserror);
-        if (retVal) return false;
+        if (!retVal) return false;
     }
     if (psh->private_sh)
     {
         retVal = LSGmainSetPriority(psh->private_sh, priority, lserror);
-        if (retVal) return false;
+        if (!retVal) return false;
     }
     return true;
 }

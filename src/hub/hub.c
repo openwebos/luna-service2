@@ -98,7 +98,8 @@ static char *media_service_names[] = {
     "com.palm.mediad",
     "com.palm.media",
     "com.palm.umediapipeline",
-    "com.palm.umediaserver"
+    "com.palm.umediaserver",
+    "com.palm.umediapipelinectrl"
 };
 
 #define SERVICE_NAME_KEY    "Name"          /**< key for defining service name */

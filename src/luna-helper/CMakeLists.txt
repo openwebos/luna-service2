@@ -19,7 +19,3 @@
 add_executable(luna-helper luna-helper.c)
 target_link_libraries(luna-helper ${CMAKE_PROJECT_NAME})
 webos_build_program(NAME luna-helper ${LS2_RESTRICTED})
-
-add_executable(luna-send luna-send.c)
-target_link_libraries(luna-send ${CMAKE_PROJECT_NAME})
-webos_build_program(NAME luna-send ${LS2_RESTRICTED})

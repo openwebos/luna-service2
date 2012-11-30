@@ -59,7 +59,7 @@ if(WEBOS_TARGET_MACHINE_IMPL STREQUAL hardware)
 	set(LS2_RESTRICTED RESTRICTED_PERMISSIONS)
 endif()
 
-include_directories(src/library)
+include_directories(src/libluna-service2)
 include_directories(include/public)
 
 # TODO: Is there a better way than setting all the flags (i.e., built in support)?
@@ -83,7 +83,7 @@ webos_add_compiler_flags(ALL -Wall -Wno-deprecated-declarations)
 
 # Specify which symbols are to be exported
 # TODO: Create this
-#webos_add_linker_options(ALL --version-script=${PROJECT_SOURCE_DIR}/src/luna-service2Exports.map )
+#webos_add_linker_options(ALL --version-script=${PROJECT_SOURCE_DIR}/src/libluna-service2/luna-service2Exports.map )
 
 # Require that all undefined symbols are satisfied by the libraries from target_link_libraries()
 webos_add_linker_options(ALL --no-undefined)
@@ -91,10 +91,11 @@ webos_add_linker_options(ALL --no-undefined)
 # XXX_ The libraries that come with gcc fail when --no-allow-shlib-undefined is specified
 #webos_add_linker_options(ALL --no-allow-shlib-undefined)
 
-add_subdirectory(src/library)
-add_subdirectory(src/hub) 
-add_subdirectory(src/monitor) 
-add_subdirectory(src/utils)
+add_subdirectory(src/libluna-service2)
+add_subdirectory(src/ls-hubd)
+add_subdirectory(src/ls-monitor)
+add_subdirectory(src/luna-send)
+add_subdirectory(src/luna-helper)
 add_subdirectory(files/conf)
 
 webos_build_pkgconfig()

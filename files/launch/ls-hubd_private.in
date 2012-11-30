@@ -27,5 +27,5 @@ pre-start script
 end script
 
 script
-    @WEBOS_INSTALL_SBINDIR@/ls-hubd --conf @WEBOS_INSTALL_SYSCONFDIR@/ls2/ls-private.conf --pmloglib
+    @WEBOS_INSTALL_SBINDIR@/ls-hubd --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-private.conf --pmloglib
 end script

@@ -20,5 +20,5 @@ start on ls-hubd_private-ready
 stop on started start_update
 
 script
-    @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/ls2/ls-public.conf --pmloglib
+    @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf --pmloglib
 end script

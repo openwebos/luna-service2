@@ -43,13 +43,13 @@ set(CONF_SECURITY_ALLOW_NULL_OUTBOUND_BY_DEFAULT "true")
 
 webos_machine_impl_dep()
 # Target-specific settings
-if (WEBOS_TARGET_MACHINE_IMPL_SIMULATOR)
+if(WEBOS_TARGET_MACHINE_IMPL_SIMULATOR)
     set(CONF_GENERAL_LOCAL_SOCKET_DIRECTORY "/tmp/ls2")
     set(CONF_GENERAL_PID_DIRECTORY "/tmp/ls2")
     set(CONF_SECURITY_ENABLED "false")
 
     # Desktop binaries build settings
-    if (NOT ${LS_TESTS})
+    if(NOT ${LS_TESTS})
         set(CONF_DYNAMIC_SERVICES_DIRECTORIES_PRV "${WEBOS_INSTALL_LOCALSTATEDIR}/opt/luna/dbus-1/system-services")
         set(CONF_DYNAMIC_SERVICES_DIRECTORIES_PUB "${WEBOS_INSTALL_LOCALSTATEDIR}/opt/luna/dbus-1/services")
         set(CONF_DYNAMIC_SERVICES_EXEC_PREFIX "")
@@ -57,7 +57,7 @@ if (WEBOS_TARGET_MACHINE_IMPL_SIMULATOR)
 
         set(CONF_SECURITY_DIRECTORIES_PRV "${WEBOS_INSTALL_DATADIR}/ls2/roles")
         set(CONF_SECURITY_DIRECTORIES_PUB "${WEBOS_INSTALL_DATADIR}/ls2/roles")
-    else ()
+    else()
         # Settings overrides for running a local build for testing
         set(CONF_WATCHDOG_TIMEOUT "10")
         set(CONF_FAILURE_MODE "crash")
@@ -70,8 +70,8 @@ if (WEBOS_TARGET_MACHINE_IMPL_SIMULATOR)
         set(CONF_SECURITY_DIRECTORIES_PRV "${PROJECT_BINARY_DIR}/tests/roles/")
         set(CONF_SECURITY_DIRECTORIES_PUB "${CONF_SECURITY_DIRECTORIES_PRV}")
         set(CONF_SECURITY_SYSMGR_EXE_PATH "${PROJECT_BINARY_DIR}/tests/app-id-security")
-    endif ()
-endif ()
+    endif()
+endif()
 
-webos_build_configured_file(files/conf/ls-private.conf SYSCONFDIR ls2)
-webos_build_configured_file(files/conf/ls-public.conf SYSCONFDIR ls2)
+webos_build_configured_file(files/conf/ls-private.conf SYSCONFDIR luna-service2)
+webos_build_configured_file(files/conf/ls-public.conf SYSCONFDIR luna-service2)

@@ -19,7 +19,6 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <glib.h>
-#include <cjson/json.h>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN

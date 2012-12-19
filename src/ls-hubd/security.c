@@ -1683,7 +1683,8 @@ _LSHubClientExePathMatches(const _LSTransportClient *client, const char *path)
 static bool
 _LSHubIsClientSysMgr(const _LSTransportClient *client)
 {
-    return _LSHubClientExePathMatches(client, g_conf_sysmgr_exe_path);
+    return _LSHubClientExePathMatches(client, g_conf_sysmgr_exe_path) ||
+           _LSHubClientExePathMatches(client, g_conf_webappmgr_exe_path);
 }
 
 /** 

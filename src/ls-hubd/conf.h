@@ -38,6 +38,7 @@ extern bool g_conf_log_service_status;
 extern int g_conf_connect_timeout_ms;
 extern char* g_conf_monitor_exe_path;
 extern char* g_conf_sysmgr_exe_path;
+extern char* g_conf_webappmgr_exe_path;
 extern char* g_conf_triton_service_exe_path;
 extern char* g_conf_mojo_app_exe_path;
 extern bool g_conf_mojo_apps_allow_all_outbound_by_default;

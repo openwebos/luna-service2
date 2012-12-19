@@ -229,6 +229,12 @@ static _ConfigDOM conf_file_dom = {
                     .user_ctxt = &g_conf_sysmgr_exe_path,
                 },
                 {
+                    .key = "WebAppMgrExePath",
+                    .get_value = _ConfigKeyGetString,
+                    .user_cb = (_ConfigKeyUser*) _ConfigKeySetString,
+                    .user_ctxt = &g_conf_webappmgr_exe_path,
+                },
+                {
                     .key = "JsServiceExePath",
                     .get_value = _ConfigKeyGetString,
                     .user_cb = (_ConfigKeyUser*) _ConfigKeySetString,
@@ -279,6 +285,7 @@ char *g_conf_dynamic_service_exec_prefix = NULL; /**< prefix added to Exec in se
 int g_conf_connect_timeout_ms = 20000;           /**< timeout in ms for connect() to complete */
 char *g_conf_monitor_exe_path = NULL;           /**< path to ls-monitor */
 char *g_conf_sysmgr_exe_path = NULL;            /**< path to LunaSysMgr */
+char *g_conf_webappmgr_exe_path = NULL;         /**< path to WebAppMgr */
 char *g_conf_triton_service_exe_path = NULL;    /**< special "path" for triton services */
 char *g_conf_mojo_app_exe_path = NULL;          /**< special "path" for mojo apps */
 bool g_conf_mojo_apps_allow_all_outbound_by_default = false; /**< whether to allow mojo apps "*" outbound permissions by default */

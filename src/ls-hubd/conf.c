@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2012 Hewlett-Packard Development Company, L.P.
+*      Copyright (c) 2008-2013 Hewlett-Packard Development Company, L.P.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 * limitations under the License.
 *
 * LICENSE@@@ */
+
 #include <sys/types.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -46,6 +47,9 @@
 #define MAX_KEYS_IN_GROUP   10
 #define MAX_GROUPS          10
 
+/**
+ * Default values for the two special "exePath" values recognized for JS services and mojo apps
+ */
 #define DEFAULT_TRITON_SERVICE_EXE_PATH     "js"
 #define DEFAULT_MOJO_APP_EXE_PATH           "mojo-app"
 
@@ -128,10 +132,13 @@ static void _ConfigFreeSettings(void);
  *
  * [Security]
  * Enabled=bool
- * Directories=/path/to/some/dir;/another/path/to/some
+ * Directories=/path/to/some/dir;/another/path/to/some/dir
  * SysMgrExePath=/path/to/LunaSysMgr
+ * WebAppMgrExePath=/path/to/WebAppMgr
  * JsServiceExePath=js
- * MojoAppExePath=mojo
+ * MojoAppExePath=mojo-app
+ * MojoAppsAllowAllOutboundByDefault=bool
+ * AllowNullOutboundByDefault=bool
  */
 static _ConfigDOM conf_file_dom = {
     .groups = {
@@ -274,28 +281,28 @@ static _ConfigDOM conf_file_dom = {
 };
 
 /* config globals */
-int g_conf_watchdog_timeout_sec = 60;               /**< watchdog timeout in seconds */
+int g_conf_watchdog_timeout_sec = 60;           /**< watchdog timeout in seconds */
 LSHubWatchdogFailureMode g_conf_watchdog_failure_mode = LSHubWatchdogFailureModeNoop;   /**< behavior of watchdog when it detects a failure */
-
-int g_conf_query_name_timeout_ms = 20000;      /**< timeout in ms for a "QueryName" message */
-bool g_conf_security_enabled = true;           /**< enable/disable security checks */
+int g_conf_query_name_timeout_ms = 20000;       /**< timeout in ms for a "QueryName" message */
+bool g_conf_security_enabled = true;            /**< enable/disable security checks */
 bool g_conf_log_service_status = false;         /**< enable service status logging */
 char *g_conf_dynamic_service_exec_prefix = NULL; /**< prefix added to Exec in service file
                                                       when launching dynamic service */
-int g_conf_connect_timeout_ms = 20000;           /**< timeout in ms for connect() to complete */
+int g_conf_connect_timeout_ms = 20000;          /**< timeout in ms for connect() to complete */
 char *g_conf_monitor_exe_path = NULL;           /**< path to ls-monitor */
 char *g_conf_sysmgr_exe_path = NULL;            /**< path to LunaSysMgr */
-char *g_conf_webappmgr_exe_path = NULL;         /**< path to WebAppMgr */
-char *g_conf_triton_service_exe_path = NULL;    /**< special "path" for triton services */
-char *g_conf_mojo_app_exe_path = NULL;          /**< special "path" for mojo apps */
+char *g_conf_webappmgr_exe_path = NULL;         /**< path to WebAppMgr (with the separation of LunaSysMgr and WebAppMgr into two separate components,
+                                                     there is now a second executable that must be granted special permissions) */
+char *g_conf_triton_service_exe_path = NULL;    /**< special "exePath" value for JS services */
+char *g_conf_mojo_app_exe_path = NULL;          /**< special "exePath" value for mojo apps */
 bool g_conf_mojo_apps_allow_all_outbound_by_default = false; /**< whether to allow mojo apps "*" outbound permissions by default */
 bool g_conf_allow_null_outbound_by_default = false; /**< whether to allow connections with "NULL" service names "*" outbound permissions by default */
 char *g_conf_pid_dir = NULL;                    /**< PID file directory */
 char *g_conf_local_socket_path = NULL;          /**< directory that contains domain sockets */
 
 /* static -- local to this file */
-static char *config_file_path = NULL;   /**< full path to config file */
-static char *config_file_name = NULL;   /**< filename only */
+static char *config_file_path = NULL;           /**< full path to config file */
+static char *config_file_name = NULL;           /**< filename only */
 
 #ifdef HAVE_SYS_INOTIFY_H
 static int inotify_watch_id = -1;

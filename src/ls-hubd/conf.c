@@ -702,9 +702,15 @@ _ConfigSetDefaults(void)
     {
         g_conf_monitor_exe_path = g_strdup(DEFAULT_MONITOR_EXE_PATH);
     }
+
     if (!g_conf_sysmgr_exe_path)
     {
         g_conf_sysmgr_exe_path = g_strdup(DEFAULT_SYSMGR_EXE_PATH);
+    }
+
+    if (!g_conf_webappmgr_exe_path)
+    {
+        g_conf_webappmgr_exe_path = g_strdup(DEFAULT_WEBAPPMGR_EXE_PATH);
     }
 
     if (!g_conf_triton_service_exe_path)
@@ -743,6 +749,12 @@ _ConfigFreeSettings(void)
         g_free(g_conf_sysmgr_exe_path);
     }
     g_conf_sysmgr_exe_path = NULL;
+
+    if (g_conf_webappmgr_exe_path)
+    {
+        g_free(g_conf_webappmgr_exe_path);
+    }
+    g_conf_webappmgr_exe_path = NULL;
 
     if (g_conf_triton_service_exe_path)
     {

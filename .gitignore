@@ -15,7 +15,16 @@
 # limitations under the License.
 #
 # LICENSE@@@
+
+# Common Eclipse project files
+.project
+.cproject
+
+# Ignore the build artifacts.
 BUILD*
+/build
+release-*/
+debug-*/
 CMakeCache.txt
 cmake_install.cmake
 CMakeFiles

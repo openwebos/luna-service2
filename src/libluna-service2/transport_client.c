@@ -128,7 +128,7 @@ error:
     }
     if (new_client)
     {
-        g_free(new_client);
+        g_slice_free(_LSTransportClient, new_client);
     }
 
     return NULL;

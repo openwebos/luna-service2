@@ -988,7 +988,7 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
 
     if (!key_file)
     {
-        _LSErrorSet(lserror, -1, "OOM");
+        _LSErrorSet(lserror, -1, "OOM: Could not create key file");
         goto error;
     }
 
@@ -1114,7 +1114,7 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
 
     if (!new_service)
     {
-        _LSErrorSet(lserror, -1, "OOM");
+        _LSErrorSet(lserror, -1, "OOM: Could not create new Service");
         goto error;
     }
     
@@ -1258,7 +1258,7 @@ _LSHubSendServiceUpDownSignal(const char *service_name, const char *unique_name,
 
     if (!payload)
     {
-        g_critical("OOM, unable to send client up/down signal");
+        g_critical("OOM: Unable to send client up/down signal");
         return;
     }
 
@@ -1834,18 +1834,19 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
         if (!unique_name)
         {
-            g_critical("OOM");
+            g_critical("OOM: Unable to create unique name");
             goto error;
         }
 
-        unique_name = mktemp(unique_name);
-         
-        if (unique_name[0] == '\0')
+        int temp_fd = mkstemp(unique_name);
+
+        if (temp_fd < 0)
         {
             /* TODO: test that this is the right error condition */
             g_critical("Unable to create unique name");
             goto error;
         }
+        close(temp_fd);
     }
     else
     {
@@ -1876,7 +1877,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
         if (unique_name == NULL)
         {
-            g_critical("OOM");
+            g_critical("OOM: Failed to duplicate unique name");
             goto error;
         }
     }
@@ -3159,7 +3160,7 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
         }
         else
         {
-            g_critical("OOM, unable to remove signal: %s/%s", category, method);
+            g_critical("OOM: Unable to remove signal: %s/%s", category, method);
         }
     }
     else
@@ -3206,7 +3207,7 @@ _LSHubAddSignal(GHashTable *map, const char *path, _LSTransportClient *client)
 
         if (!client_map)
         {
-            g_critical("Unable to allocate client_map, OOM");
+            g_critical("OOM: Unable to allocate client_map");
             return false;
         }
 
@@ -3218,7 +3219,7 @@ _LSHubAddSignal(GHashTable *map, const char *path, _LSTransportClient *client)
         else
         {
             _LSTransportClientMapFree(client_map);
-            g_critical("Unable to allocate path_copy, OOM");
+            g_critical("OOM: Unable to allocate path_copy");
             return false;
         }
     }
@@ -3345,7 +3346,7 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
         }
         else
         {
-            g_critical("OOM, unable to add signal: %s/%s", category, method);
+            g_critical("OOM: Unable to add signal: %s/%s", category, method);
         }
     }
     else
@@ -3365,7 +3366,7 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
         }
         else
         {
-            g_critical("OOM, unable to add signal: \"%s\"", category);
+            g_critical("OOM: Unable to add signal: \"%s\"", category);
         }
     }
 
@@ -3450,7 +3451,7 @@ _LSHubHandleSignal(_LSTransportMessage *message, bool generated_by_hub)
     }
     else
     {
-        g_critical("OOM, unable to send signal");
+        g_critical("OOM: Unable to send signal");
     }
 }
 
@@ -3694,7 +3695,7 @@ _LSHubHandleQueryServiceStatus(const _LSTransportMessage *message)
 
     if (!reply)
     {
-        g_critical("Unable to allocate message, OOM");
+        g_critical("OOM: Unable to allocate message");
         return;
     }
 

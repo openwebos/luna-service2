@@ -1,0 +1,52 @@
+#!/bin/sh
+
+BASE_DIR=${HOME}/luna-desktop-binaries/staging
+LIB_DIR="${BASE_DIR}/lib;${BASE_DIR}/usr/lib"
+
+LOG_DIR="$1"
+LOG_XML=${LOG_DIR}/unittests.xml
+LOG_HTML=${LOG_DIR}/unittests.html
+
+function usage()
+{
+    cat <<EOF
+Usage: `basename $0` PATH_TO_BUILD_DIR
+
+Run all unit tests and generate test report (${LOG_HTML})
+
+PATH_TO_BUILD_DIR is path to directory containing compiled unit test executables.
+
+EOF
+}
+
+if [ $# -lt 1 -o ! -d "$1" ]
+then
+    usage
+    exit 1
+fi
+
+TEST_DIR=`readlink -f $1`
+
+if [ ! -d "${LOG_DIR}" ]
+then
+    mkdir ${LOG_DIR}
+fi
+
+TESTS=`find ${TEST_DIR} -maxdepth 1 -type f -executable`
+
+if [ -z "${TESTS}" ]
+then
+    echo "INFO: No unit test executables available (compiled?). Nothing to do."
+    exit 0
+fi
+
+LD_LIBRARY_PATH=${LIB_DIR} gtester -k ${TESTS} -o ${LOG_XML}
+RESULT=$?
+
+# TODO: bug in gtester-report. remove when fixed!
+# SEE: https://bugs.launchpad.net/ubuntu/+source/glib2.0/+bug/1036260
+sed -i '3i\<info><package/><version/><revision/></info>' ${LOG_XML}
+
+gtester-report ${LOG_XML} > ${LOG_HTML}
+
+exit $RESULT

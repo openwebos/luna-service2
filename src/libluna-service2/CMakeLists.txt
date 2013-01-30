@@ -52,3 +52,7 @@ set(LIBRARIES
 add_library(${CMAKE_PROJECT_NAME} SHARED ${SOURCE})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBRARIES})
 webos_build_library()
+
+# Unit tests are compiled every time, to ensure that errors are thrown
+# if a functions API is changed, but the unit tests are not updated
+add_subdirectory(test)

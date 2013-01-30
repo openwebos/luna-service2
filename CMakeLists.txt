@@ -52,7 +52,7 @@ set(LS2_RESTRICTED "")
 
 if(WEBOS_TARGET_MACHINE_IMPL STREQUAL hardware)
 	# Only root (owner) will be permitted access to certain binaries on device
-	set(LS2_PERMS "PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE")
+	set(LS2_PERMS PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
 
 	# XXX Convert this to VERY_RESTRICTED_PERMISSIONS
 	# once it is implemented.

@@ -18,7 +18,7 @@
 
 
 #include <glib.h>
-#include <lunaservice.h>
+#include <luna-service2/lunaservice.h>
 #include <base.h>
 #include <message.h>
 

@@ -19,7 +19,7 @@
 
 #include <stdlib.h>
 #include <glib.h>
-#include <lunaservice.h>
+#include <luna-service2/lunaservice.h>
 #include <transport_signal.h>
 #include <transport_priv.h>
 

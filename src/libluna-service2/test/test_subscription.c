@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <string.h>
 #include <cjson/json_object.h>
-#include <lunaservice.h>
+#include <luna-service2/lunaservice.h>
 #include <subscription.h>
 #include <base.h>
 

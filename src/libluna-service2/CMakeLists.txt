@@ -47,6 +47,7 @@ set(LIBRARIES
     ${CJSON_LDFLAGS}
     dl
     pthread
+    rt
     )
 
 add_library(${CMAKE_PROJECT_NAME} SHARED ${SOURCE})

@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#      Copyright (c) 2008-2012 Hewlett-Packard Development Company, L.P.
+#      Copyright (c) 2008-2013 Hewlett-Packard Development Company, L.P.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ set(CONF_SECURITY_DIRECTORIES_PUB "${WEBOS_INSTALL_SYSBUS_PUBROLESDIR};${WEBOS_I
 set(CONF_SECURITY_MONITOR_EXE_PATH "${WEBOS_INSTALL_BINDIR}/ls-monitor")
 set(CONF_SECURITY_SYSMGR_EXE_PATH "${WEBOS_INSTALL_BINDIR}/LunaSysMgr")
 set(CONF_SECURITY_WEBAPPMGR_EXE_PATH "${WEBOS_INSTALL_BINDIR}/WebAppMgr")
+set(CONF_SECURITY_WEBAPPMGR2_EXE_PATH "${WEBOS_INSTALL_BINDIR}/QtWebProcess")
 set(CONF_SECURITY_JS_SERVICE_EXE_PATH "js")
 set(CONF_SECURITY_MOJO_APP_EXE_PATH "mojo-app")
 set(CONF_SECURITY_MOJO_APPS_ALLOW_OUTBOUND_BY_DEFAULT "true")

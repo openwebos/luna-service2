@@ -29,6 +29,7 @@ add_definitions(-DG_LOG_DOMAIN="LunaServiceHub")
 # The following definitions avoid the need to configure any source files
 add_definitions(-DDEFAULT_SYSMGR_EXE_PATH="${WEBOS_INSTALL_BINDIR}/LunaSysMgr")
 add_definitions(-DDEFAULT_WEBAPPMGR_EXE_PATH="${WEBOS_INSTALL_BINDIR}/WebAppMgr")
+add_definitions(-DDEFAULT_WEBAPPMGR2_EXE_PATH="${WEBOS_INSTALL_BINDIR}/QtWebProcess")
 add_definitions(-DDEFAULT_MONITOR_EXE_PATH="${WEBOS_INSTALL_BINDIR}/ls-monitor")
 add_definitions(-DDEFAULT_PID_DIR="${WEBOS_INSTALL_RUNTIMEINFODIR}/ls2")
 add_definitions(-DDEFAULT_LOCAL_SOCKET_DIR="${WEBOS_INSTALL_RUNTIMEINFODIR}/ls2")

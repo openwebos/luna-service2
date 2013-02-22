@@ -135,6 +135,7 @@ static void _ConfigFreeSettings(void);
  * Directories=/path/to/some/dir;/another/path/to/some/dir
  * SysMgrExePath=/path/to/LunaSysMgr
  * WebAppMgrExePath=/path/to/WebAppMgr
+ * WebAppMgr2ExePath=/path/to/QtWebProcess // used by WAM2
  * JsServiceExePath=js
  * MojoAppExePath=mojo-app
  * MojoAppsAllowAllOutboundByDefault=bool
@@ -242,6 +243,12 @@ static _ConfigDOM conf_file_dom = {
                     .user_ctxt = &g_conf_webappmgr_exe_path,
                 },
                 {
+                    .key = "WebAppMgr2ExePath",
+                    .get_value = _ConfigKeyGetString,
+                    .user_cb = (_ConfigKeyUser*) _ConfigKeySetString,
+                    .user_ctxt = &g_conf_webappmgr2_exe_path,
+                },
+                {
                     .key = "JsServiceExePath",
                     .get_value = _ConfigKeyGetString,
                     .user_cb = (_ConfigKeyUser*) _ConfigKeySetString,
@@ -293,6 +300,7 @@ char *g_conf_monitor_exe_path = NULL;           /**< path to ls-monitor */
 char *g_conf_sysmgr_exe_path = NULL;            /**< path to LunaSysMgr */
 char *g_conf_webappmgr_exe_path = NULL;         /**< path to WebAppMgr (with the separation of LunaSysMgr and WebAppMgr into two separate components,
                                                      there is now a second executable that must be granted special permissions) */
+char *g_conf_webappmgr2_exe_path = NULL;         /**< path to WebAppMgr2, which is its QtWebProcess instance */
 char *g_conf_triton_service_exe_path = NULL;    /**< special "exePath" value for JS services */
 char *g_conf_mojo_app_exe_path = NULL;          /**< special "exePath" value for mojo apps */
 bool g_conf_mojo_apps_allow_all_outbound_by_default = false; /**< whether to allow mojo apps "*" outbound permissions by default */
@@ -713,6 +721,11 @@ _ConfigSetDefaults(void)
         g_conf_webappmgr_exe_path = g_strdup(DEFAULT_WEBAPPMGR_EXE_PATH);
     }
 
+    if (!g_conf_webappmgr2_exe_path)
+    {
+        g_conf_webappmgr2_exe_path = g_strdup(DEFAULT_WEBAPPMGR2_EXE_PATH);
+    }
+
     if (!g_conf_triton_service_exe_path)
     {
         g_conf_triton_service_exe_path = g_strdup(DEFAULT_TRITON_SERVICE_EXE_PATH);
@@ -755,6 +768,12 @@ _ConfigFreeSettings(void)
         g_free(g_conf_webappmgr_exe_path);
     }
     g_conf_webappmgr_exe_path = NULL;
+
+    if (g_conf_webappmgr2_exe_path)
+    {
+        g_free(g_conf_webappmgr2_exe_path);
+    }
+    g_conf_webappmgr2_exe_path = NULL;
 
     if (g_conf_triton_service_exe_path)
     {

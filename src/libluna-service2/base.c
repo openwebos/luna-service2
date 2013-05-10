@@ -33,6 +33,7 @@
 #include "subscription.h"
 #include "debug_methods.h"
 #include "transport.h"
+#include "clock.h"
 
 #define __USE_GNU   /* for dladdr() in dlfcn.h */
 #include <dlfcn.h>
@@ -382,7 +383,19 @@ _LSHandleMethodCall(LSHandle *sh, _LSTransportMessage *transport_msg)
         goto exit;
     }
 
+    struct timespec start_time, end_time, gap_time;
+    if (DEBUG_TRACING)
+    {
+        ClockGetTime(&start_time);
+    }
     bool handled = method->function(sh, message, category->category_user_data);
+    if (DEBUG_TRACING)
+    {
+        ClockGetTime(&end_time);
+        ClockDiff(&gap_time, &end_time, &start_time);
+        g_debug("TYPE=service handler execution time | TIME=%ld | SERVICE=%s | CATEGORY=%s | METHOD=%s",
+                ClockGetMs(&gap_time), sh->name, category_name, method_name);
+    }
 
     if (!handled)
     {

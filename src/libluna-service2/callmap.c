@@ -37,6 +37,7 @@
 #include "message.h"
 #include "base.h"
 #include "transport_utils.h"
+#include "clock.h"
 
 /**
  * @addtogroup LunaServiceClientInternals
@@ -476,6 +477,7 @@ typedef struct _Call {
     char          *signal_method;   //< registered signal method (could be NULL)
     char          *signal_category; //< registered signal category (required)
     char          *match_key;  //<key used in callmap->signalMap
+    struct        timespec time;  //< time value for performance measurement
 } _Call;
 
 
@@ -1050,7 +1052,22 @@ _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
 
             if (!reply->ignore)
             {
+                struct timespec current_time, gap_time;
+                if (DEBUG_TRACING)
+                {
+                    ClockGetTime(&current_time);
+                    ClockDiff(&gap_time, &current_time, &call->time);
+                    g_debug("TYPE=method call response time | TIME=%ld | FROM=%s | TO=%s",
+                        ClockGetMs(&gap_time), sh->name, call->serviceName);
+                }
                 ret = call->callback(sh, reply, call->ctx);
+                if (DEBUG_TRACING)
+                {
+                    ClockGetTime(&current_time);
+                    ClockDiff(&gap_time, &current_time, &call->time);
+                    g_debug("TYPE=client handler execution time | TIME=%ld", ClockGetMs(&gap_time));
+                }
+
                 if (!ret)
                 {
                     // TODO handle false == DBUS_HANDLER_RESULT_NEED_MEMORY
@@ -1982,7 +1999,8 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
             }
             else
             {
-            g_debug("TX: LSCall token <<%ld>> %s", call->token, uri);
+                ClockGetTime(&call->time);
+                g_debug("TX: LSCall token <<%ld>> %s", call->token, uri);
             }
         }
     }

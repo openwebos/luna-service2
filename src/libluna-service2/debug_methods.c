@@ -257,3 +257,72 @@ error:
     return true;
 }
 #endif  /* MALLOC_DEBUG */
+
+#ifdef INTROSPECTION_DEBUG
+bool
+_LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
+{
+    LSError lserror;
+    LSErrorInit(&lserror);
+
+    GHashTableIter iter_category, iter_element;
+    gpointer name_category, table_category, name_element, callback;
+    struct LSCategoryTable *pTable = NULL;
+
+    struct json_object *ret_obj = NULL;
+    struct json_object *category_obj = NULL;
+    struct json_object *element_obj = NULL;
+
+    ret_obj = json_object_new_object();
+
+    g_hash_table_iter_init(&iter_category, sh->tableHandlers);
+    while (g_hash_table_iter_next(&iter_category, &name_category, &table_category))
+    {
+        // skip hidden method
+        if (strcmp("/com/palm/luna/private", name_category) == 0)
+            continue;
+
+        pTable = (struct LSCategoryTable *)table_category;
+        category_obj = json_object_new_object();
+
+        // methods
+        g_hash_table_iter_init(&iter_element, pTable->methods);
+        while (g_hash_table_iter_next(&iter_element, &name_element, &callback))
+        {
+            element_obj = json_object_new_string("METHOD");
+            json_object_object_add(category_obj, name_element, element_obj);
+        }
+
+        // signals
+        g_hash_table_iter_init(&iter_element, pTable->signals);
+        while (g_hash_table_iter_next(&iter_element, &name_element, &callback))
+        {
+            element_obj = json_object_new_string("SIGNAL");
+            json_object_object_add(category_obj, name_element, element_obj);
+        }
+
+        json_object_object_add(ret_obj, name_category, category_obj);
+    }
+
+    bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
+    if (!reply_ret)
+    {
+        g_critical("%s: sending introspection data failed", __FUNCTION__);
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+        goto error;
+    }
+
+    json_object_put(ret_obj);
+
+    return true;
+
+error:
+
+    if (!JSON_ERROR(ret_obj)) json_object_put(ret_obj);
+    if (!JSON_ERROR(category_obj)) json_object_put(category_obj);
+    if (!JSON_ERROR(element_obj)) json_object_put(element_obj);
+
+    return false;
+}
+#endif  /* INTROSPECTION_DEBUG */

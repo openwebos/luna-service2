@@ -605,6 +605,9 @@ static LSMethod _privateMethods[] = {
     { "mallinfo", _LSPrivateGetMallinfo},
     { "malloc_trim", _LSPrivateDoMallocTrim},
 #endif
+#ifdef INTROSPECTION_DEBUG
+    { "introspection", _LSPrivateInrospection},
+#endif
     { },
 };
 

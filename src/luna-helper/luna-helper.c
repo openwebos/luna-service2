@@ -191,17 +191,26 @@ main(int argc, char **argv)
     msg_info.uri = uri;
     msg_info.msg = msg;
     msg_info.loop = mainLoop;
-   
+
     g_message("Registering server status for: %s", service);
- 
-    if (!LSRegisterServerStatus(sh, service, _service_status, &msg_info, &lserror))
+
+    void *server_status_cookie = NULL;
+    if (!LSRegisterServerStatusEx(sh, service, _service_status, &msg_info,
+                                  &server_status_cookie, &lserror))
     {
         goto error;
     }
-    
+
     g_main_loop_run(mainLoop);
 
 error:
+    if (server_status_cookie &&
+        !LSCancelServerStatus(sh, server_status_cookie, &lserror))
+    {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+    }
+
     if (mainLoop)
         g_main_loop_unref(mainLoop);
 

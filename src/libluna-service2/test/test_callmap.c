@@ -335,7 +335,9 @@ test_LSHandleReply(TestData *fixture, gconstpointer user_data)
 
     // handle register server status reply
 
-    LSRegisterServerStatus(&fixture->sh, "com.name.service", test_registerserverstatus_callback, NULL, &error);
+    void *cookie = NULL;
+    LSRegisterServerStatusEx(&fixture->sh, "com.name.service", test_registerserverstatus_callback, NULL,
+                             &cookie, &error);
 
     // service down signal received
     fixture->transport_message_type = _LSTransportMessageTypeServiceDownSignal;
@@ -344,6 +346,9 @@ test_LSHandleReply(TestData *fixture, gconstpointer user_data)
     g_assert_cmpint(fixture->register_server_status_callback_called, ==, 1);
     g_assert_cmpstr(fixture->registerserverstatus_service_name, ==, "com.name.service");
     g_assert(!fixture->registerserverstatus_connected);
+
+    g_assert(LSCancelServerStatus(&fixture->sh, cookie, &error));
+    LSErrorFree(&error);
 }
 
 static void
@@ -462,15 +467,11 @@ test_LSRegisterServerStatusAndCancel(TestData *fixture, gconstpointer user_data)
     const char *service_name = "com.name.service";
     LSServerStatusFunc callback = test_registerserverstatus_callback;
 
-    g_assert(LSRegisterServerStatus(&fixture->sh, service_name, callback, NULL, &error));
+    void *cookie = NULL;
+    g_assert(LSRegisterServerStatusEx(&fixture->sh, service_name, callback, NULL, &cookie, &error));
     g_assert_cmpint(fixture->transport_send_query_service_status_called, ==, 1);
 
-    // cancel call
-    // HACK: LSRegisterServerStatus does not return serial token for call,
-    // Steal token from LSTransportSend (which generate tokens).
-    // TODO: Fix LSRegisterServerStatus API to return token assigned
-    g_assert_cmpint(fixture->transport_next_serial, ==, 1);
-    g_assert(LSCallCancel(&fixture->sh, fixture->transport_next_serial, &error));
+    g_assert(LSCancelServerStatus(&fixture->sh, cookie, &error));
 
     LSErrorFree(&error);
 }

@@ -413,6 +413,7 @@ typedef struct _ServerStatus
 {
     LSServerStatusFunc callback;
     void              *ctx;
+    LSMessageToken     token;
 } _ServerStatus;
 
 typedef struct _ServerInfo
@@ -2128,29 +2129,52 @@ error:
     return true;
 }
 
-/** 
+/**
 * @brief Register a callback to be called when the server goes up or
 *        comes down.  Callback may be called in this context if
 *        the server is already up.
-* 
-* @param  sh 
-* @param  serviceName    service name to monitor for connect/disconnect.
-* @param  func 
-* @param  ctx 
-* @param  lserror 
 *
-* @deprecated Use LSCall(sh,
-*   "palm://com.palm.bus/signal/registerServerStatus") instead.
-* 
+* @param  sh
+* @param  serviceName    service name to monitor for connect/disconnect.
+* @param  func
+* @param  ctx
+* @param  lserror
+*
+* @deprecated Use LSRegisterServerStatusEx() instead.
+*
 * @retval
 */
 bool
 LSRegisterServerStatus(LSHandle *sh, const char *serviceName,
               LSServerStatusFunc func, void *ctx, LSError *lserror)
 {
-    bool     retVal = false;
+    void *cookie = NULL;
+    return LSRegisterServerStatusEx(sh, serviceName, func, ctx,
+                                    &cookie, lserror);
+}
+
+/**
+* @brief Register a callback to be called when the server goes up or
+*        comes down.  Callback may be called in this context if
+*        the server is already up.
+*
+* Performs LSCall(sh, "palm://com.palm.bus/signal/registerServerStatus").
+*
+* @param  sh
+* @param  serviceName    service name to monitor for connect/disconnect.
+* @param  func
+* @param  ctx
+* @param  cookie         token to use for to unregister the callback
+* @param  lserror
+*
+* @retval
+*/
+bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
+                              LSServerStatusFunc func, void *ctx,
+                              void **cookie, LSError *lserror)
+{
     char    *payload;
-    
+
     LSHANDLE_VALIDATE(sh);
 
     payload = g_strdup_printf("{\"serviceName\":\"%s\"}", serviceName);
@@ -2165,19 +2189,63 @@ LSRegisterServerStatus(LSHandle *sh, const char *serviceName,
     if (!server_status)
     {
         _LSErrorSet(lserror, -ENOMEM, "Out of memory");
-        goto error;
+        g_free(payload);
+        return false;
     }
 
     server_status->callback = func;
     server_status->ctx = ctx;
+    server_status->token = LSMESSAGE_TOKEN_INVALID;
 
-    retVal = LSCall(sh,
-        "palm://com.palm.bus/signal/registerServerStatus",
-        payload, _ServerStatusHelper, server_status, NULL, lserror);
+    if (!LSCall(sh,
+                "palm://com.palm.bus/signal/registerServerStatus",
+                payload, _ServerStatusHelper, server_status,
+                &server_status->token, lserror))
+    {
+        g_free(payload);
+        g_free(server_status);
+        return false;
+    }
 
-error:
+    if (cookie)
+        *cookie = server_status;
+
     g_free(payload);
-    return retVal;
+    return true;
+}
+
+/**
+* @brief Cancel receiving notifications about server status.
+*
+* If unlikely false is returned, the subscription hasn't been canceled,
+* and the associated memory hasn't been freed yet. This can happen if
+* the system suffers from low memory.
+*
+* The call can be repeated until true is returned. Once that happened,
+* the value of cookie is invalid, and should not be used.
+*
+* @param  sh
+* @param  cookie         token obtained during registration, can't be NULL
+* @param  lserror
+*
+* @retval
+*
+* @sa LSRegisterServerStatusEx
+*/
+bool LSCancelServerStatus(LSHandle *sh, void *cookie, LSError *lserror)
+{
+    LSHANDLE_VALIDATE(sh);
+    LS_ASSERT(cookie != NULL && "A valid cookie from LSRegisterServerStatus() should be passed");
+
+    _ServerStatus *server_status = (_ServerStatus *) cookie;
+
+    if (!LSCallCancel(sh, server_status->token, lserror))
+    {
+        return false;
+    }
+
+    g_free(server_status);
+    return true;
 }
 
 /* @} END OF LunaServiceClient */

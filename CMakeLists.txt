@@ -20,9 +20,10 @@ cmake_minimum_required(VERSION 2.8.7)
 project(luna-service2 C)
 
 include(webOS/webOS)
+include(CTest)
 
 webos_modules_init(1 0 0 QUALIFIER RC4)
-webos_component(3 3 0)
+webos_component(3 4 0)
 
 include(FindPkgConfig)
 
@@ -116,3 +117,4 @@ install(PROGRAMS ${LS-CONTROL} DESTINATION ${WEBOS_INSTALL_BINDIR} ${LS2_PERMS})
 install(DIRECTORY DESTINATION ${WEBOS_INSTALL_SYSBUS_PRVSERVICESDIR})
 install(DIRECTORY DESTINATION ${WEBOS_INSTALL_SYSBUS_PUBSERVICESDIR})
 
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)

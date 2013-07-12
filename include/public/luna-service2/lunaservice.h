@@ -619,8 +619,14 @@ bool LSSignalCallCancel(LSHandle *sh, LSMessageToken token, LSError *lserror);
 
 
 bool LSRegisterServerStatus(LSHandle *sh, const char *serviceName,
-              LSServerStatusFunc func, void *ctx, LSError *lserror);
+              LSServerStatusFunc func, void *ctx, LSError *lserror)
+    __attribute__((deprecated));
 
+bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
+                              LSServerStatusFunc func, void *ctxt,
+                              void **cookie, LSError *lserror);
+
+bool LSCancelServerStatus(LSHandle *sh, void *cookie, LSError *lserror);
 
 /* @} END OF LunaServiceSignals */
 

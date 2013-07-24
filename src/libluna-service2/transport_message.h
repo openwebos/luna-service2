@@ -26,6 +26,12 @@
 
 #include "transport_shm.h"
 
+#ifdef LUNA_SERVICE_UNIT_TEST
+#define INLINE
+#else
+#define INLINE inline
+#endif
+
 /**
  * @addtogroup LunaServiceTransportMessage
  *
@@ -175,49 +181,48 @@ typedef struct LSTransportMessage _LSTransportMessage;
 bool LSTransportMessageFilterMatch(_LSTransportMessage *message, const char *filter);
 void LSTransportMessagePrint(_LSTransportMessage *message, FILE *file);
 
-inline _LSTransportMessage* _LSTransportMessageNew(unsigned long payload_size);
-inline _LSTransportMessage* _LSTransportMessageNewRef(unsigned long payload_size);
-inline void _LSTransportMessageReset(_LSTransportMessage *message);
-inline void _LSTransportMessageFree(_LSTransportMessage *message);
-inline _LSTransportMessage* _LSTransportMessageRef(_LSTransportMessage *message);
-inline void _LSTransportMessageUnref(_LSTransportMessage *message);
-inline _LSTransportMessage* _LSTransportMessageCopyNewRef(_LSTransportMessage *message);
-inline _LSTransportMessage* _LSTransportMessageCopy(_LSTransportMessage *dest, const _LSTransportMessage *src);
+INLINE _LSTransportMessage* _LSTransportMessageNew(unsigned long payload_size);
+INLINE _LSTransportMessage* _LSTransportMessageNewRef(unsigned long payload_size);
+INLINE void _LSTransportMessageReset(_LSTransportMessage *message);
+INLINE void _LSTransportMessageFree(_LSTransportMessage *message);
+INLINE _LSTransportMessage* _LSTransportMessageRef(_LSTransportMessage *message);
+INLINE void _LSTransportMessageUnref(_LSTransportMessage *message);
+INLINE _LSTransportMessage* _LSTransportMessageCopyNewRef(_LSTransportMessage *message);
+INLINE _LSTransportMessage* _LSTransportMessageCopy(_LSTransportMessage *dest, const _LSTransportMessage *src);
 
 _LSTransportMessage* _LSTransportMessageFromVectorNewRef(const struct iovec *iov, int iovcnt, unsigned long total_len);
 
-inline guint _LSTransportMessageGetTimeoutId(const _LSTransportMessage *message);
-inline void _LSTransportMessageSetTimeoutId(_LSTransportMessage *message, guint timeout_id);
-inline _LSTransportConnectState _LSTransportMessageGetConnectState(const _LSTransportMessage * message);
-inline void _LSTransportMessageSetConnectState(_LSTransportMessage *message, _LSTransportConnectState state);
-inline int _LSTransportMessageGetConnectionFd(const _LSTransportMessage *message);
-inline void _LSTransportMessageSetConnectionFd(_LSTransportMessage *message, int fd);
-inline _LSTransportClient* _LSTransportMessageGetClient(const _LSTransportMessage *message);
-inline void _LSTransportMessageSetClient(_LSTransportMessage *message, _LSTransportClient *client);
-inline _LSTransportHeader* _LSTransportMessageGetHeader(const _LSTransportMessage *message);
-inline void _LSTransportMessageSetHeader(_LSTransportMessage *message, _LSTransportHeader *header);
-inline _LSTransportMessageType _LSTransportMessageGetType(const _LSTransportMessage *message);
-inline void _LSTransportMessageSetType(_LSTransportMessage *message, _LSTransportMessageType type);
-inline void _LSTransportMessageSetToken(_LSTransportMessage *message, LSMessageToken token);
-inline LSMessageToken _LSTransportMessageGetToken(const _LSTransportMessage *message);
-inline LSMessageToken _LSTransportMessageGetReplyToken(const _LSTransportMessage *message);
-inline char* _LSTransportMessageGetBody(const _LSTransportMessage *message);
-inline char* _LSTransportMessageSetBody(_LSTransportMessage *message, const void *body, int body_len);
-inline int _LSTransportMessageGetBodySize(const _LSTransportMessage *message);
+INLINE guint _LSTransportMessageGetTimeoutId(const _LSTransportMessage *message);
+INLINE void _LSTransportMessageSetTimeoutId(_LSTransportMessage *message, guint timeout_id);
+INLINE _LSTransportConnectState _LSTransportMessageGetConnectState(const _LSTransportMessage * message);
+INLINE void _LSTransportMessageSetConnectState(_LSTransportMessage *message, _LSTransportConnectState state);
+INLINE int _LSTransportMessageGetConnectionFd(const _LSTransportMessage *message);
+INLINE void _LSTransportMessageSetConnectionFd(_LSTransportMessage *message, int fd);
+INLINE _LSTransportClient* _LSTransportMessageGetClient(const _LSTransportMessage *message);
+INLINE void _LSTransportMessageSetClient(_LSTransportMessage *message, _LSTransportClient *client);
+INLINE _LSTransportHeader* _LSTransportMessageGetHeader(const _LSTransportMessage *message);
+INLINE void _LSTransportMessageSetHeader(_LSTransportMessage *message, _LSTransportHeader *header);
+INLINE _LSTransportMessageType _LSTransportMessageGetType(const _LSTransportMessage *message);
+INLINE void _LSTransportMessageSetType(_LSTransportMessage *message, _LSTransportMessageType type);
+INLINE void _LSTransportMessageSetToken(_LSTransportMessage *message, LSMessageToken token);
+INLINE LSMessageToken _LSTransportMessageGetToken(const _LSTransportMessage *message);
+INLINE LSMessageToken _LSTransportMessageGetReplyToken(const _LSTransportMessage *message);
+INLINE char* _LSTransportMessageGetBody(const _LSTransportMessage *message);
+INLINE char* _LSTransportMessageSetBody(_LSTransportMessage *message, const void *body, int body_len);
+INLINE int _LSTransportMessageGetBodySize(const _LSTransportMessage *message);
 
-inline bool _LSTransportMessageIsMonitorType(const _LSTransportMessage *message);
-inline bool _LSTransportMessageIsErrorType(const _LSTransportMessage *message);
-inline bool _LSTransportMessageIsReplyType(const _LSTransportMessage *message);
-    
-inline bool _LSTransportMessageTypeIsMonitorType(_LSTransportMessageType type);
-inline bool _LSTransportMessageTypeIsErrorType(_LSTransportMessageType type);
-inline bool _LSTransportMessageTypeIsReplyType(_LSTransportMessageType type);
+INLINE bool _LSTransportMessageIsMonitorType(const _LSTransportMessage *message);
+INLINE bool _LSTransportMessageIsErrorType(const _LSTransportMessage *message);
+INLINE bool _LSTransportMessageIsReplyType(const _LSTransportMessage *message);
+INLINE bool _LSTransportMessageTypeIsMonitorType(_LSTransportMessageType type);
+INLINE bool _LSTransportMessageTypeIsErrorType(_LSTransportMessageType type);
+INLINE bool _LSTransportMessageTypeIsReplyType(_LSTransportMessageType type);
 bool _LSTransportMessageIsConnectionFdType(const _LSTransportMessage *message);
 
 const char* _LSTransportMessageGetMethod(const _LSTransportMessage *message);
 const char* _LSTransportMessageGetCategory(const _LSTransportMessage *message);
 const char* _LSTransportMessageGetPayload(const _LSTransportMessage *message);
-inline void _LSTransportMessageSetAppId(_LSTransportMessage *message, const char *app_id);
+INLINE void _LSTransportMessageSetAppId(_LSTransportMessage *message, const char *app_id);
 const char* _LSTransportMessageGetAppId(_LSTransportMessage *message);
 const char* _LSTransportMessageGetSenderServiceName(const _LSTransportMessage *message);
 const char* _LSTransportMessageGetSenderUniqueName(const _LSTransportMessage *message);

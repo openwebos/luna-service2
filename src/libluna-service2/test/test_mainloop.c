@@ -89,6 +89,8 @@ test_LSMainAttachDetachPositive(void)
     /* Cleanup. */
     g_main_context_unref(mvar_priv_sh.context);
     g_main_context_unref(mvar_publ_sh.context);
+
+    g_main_loop_unref(mainloop);
 }
 
 /* Mocks **********************************************************************/

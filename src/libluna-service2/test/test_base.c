@@ -537,17 +537,19 @@ test_serviceDefaultMethods(TestData *fixture, gconstpointer user_data)
     LSCategoryTable *table = g_hash_table_lookup(sh->tableHandlers, "/com/palm/luna/private");
     g_assert(NULL != table);
     g_assert(NULL != table->methods);
-    g_assert_cmpint(g_hash_table_size(table->methods), ==, 5);
+    g_assert_cmpint(g_hash_table_size(table->methods), ==, 6);
     LSMethod *cancel = g_hash_table_lookup(table->methods, "cancel");
     LSMethod *ping = g_hash_table_lookup(table->methods, "ping");
     LSMethod *subscriptions = g_hash_table_lookup(table->methods, "subscriptions");
     LSMethod *mallinfo = g_hash_table_lookup(table->methods, "mallinfo");
     LSMethod *malloc_trim = g_hash_table_lookup(table->methods, "malloc_trim");
+    LSMethod *introspection = g_hash_table_lookup(table->methods, "introspection");
     g_assert(NULL != cancel);
     g_assert(NULL != ping);
     g_assert(NULL != subscriptions);
     g_assert(NULL != mallinfo);
     g_assert(NULL != malloc_trim);
+    g_assert(NULL != introspection);
 
     LSMessage *msg = GINT_TO_POINTER(1);
 

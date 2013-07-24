@@ -249,6 +249,8 @@ _LSTransportMessageSetType(_LSTransportMessage *message, _LSTransportMessageType
     g_assert_cmpint(type, ==, expected_message_types[calls_to_messagesettype]);
     calls_to_messagesettype++;
 
+    message->raw->header.type = type;
+
     /* The last one is actually a sanity check for the test itself. It doesn't really say
     whether the code works properly or not. */
     g_assert_cmpint(calls_to_messagesettype, <=, expected_calls_to_messagesettype);
@@ -257,7 +259,7 @@ _LSTransportMessageSetType(_LSTransportMessage *message, _LSTransportMessageType
 _LSTransportMessageType
 _LSTransportMessageGetType(const _LSTransportMessage *message)
 {
-    return headertype;
+	return message->raw->header.type;
 }
 
 char*
@@ -729,13 +731,15 @@ test_LSTransportCancelMethodCall_execute(char *service_name, int number_of_clien
 
     //TODO test also with monitor
     /* Populate transport->clients */
+    char *toRelease[number_of_clients];
     int i;
     for(i=0; i<number_of_clients; i++)
     {
         _LSTransportClient *client = g_slice_new0(_LSTransportClient);
 
         client->ref = 1;
-        client->unique_name = g_strdup_printf("tmm%d", i);
+        toRelease[i] = g_strdup_printf("tmm%d", i);
+        client->unique_name = toRelease[i];
         client->service_name = service_name;
         client->transport = transport;
         client->incoming = g_slice_new0(_LSTransportIncoming);
@@ -781,6 +785,9 @@ test_LSTransportCancelMethodCall_execute(char *service_name, int number_of_clien
     g_slice_free(_LSTransportClient, transport->hub);
     g_free(transport->global_token);
     g_free(transport);
+    for(i=0; i<number_of_clients; i++) {
+        g_free(toRelease[i]);
+    }
 }
 
 void

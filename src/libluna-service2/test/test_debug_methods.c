@@ -119,7 +119,8 @@ test_LSPrivateDoMallocTrim(TestData *fixture, gconstpointer user_data)
     void *ctx = NULL;
 
     g_assert(_LSPrivateDoMallocTrim(sh, msg, ctx));
-    g_assert(g_str_has_prefix(fixture->lsmessagereply_payload, "{ \"returnValue\": true, \"malloc_trim\": 1 }"));
+    g_assert(g_str_has_prefix(fixture->lsmessagereply_payload, "{ \"returnValue\": true, \"malloc_trim\": 1 }") ||
+             g_str_has_prefix(fixture->lsmessagereply_payload, "{ \"returnValue\": true, \"malloc_trim\": 0 }"));
 }
 
 /* Mocks **********************************************************************/

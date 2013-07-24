@@ -42,7 +42,7 @@ set(UNIT_TEST_SOURCES
 
 foreach (TEST ${UNIT_TEST_SOURCES})
     add_executable(${TEST} ${TEST}.c)
-    target_link_libraries(${TEST} ${LIBRARIES} ${CMAKE_PROJECT_NAME})
+    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME})
     add_test(${TEST} ${TEST})
 endforeach ()
 

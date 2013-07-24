@@ -116,6 +116,8 @@ test_LSTransportSetupSignalHandler()
 
         // block SIGUSR1 and suspend process until signal arrived and handled
         sigset_t mask, oldmask;
+        sigemptyset(&mask);
+        sigemptyset(&oldmask);
         sigaddset(&mask, SIGUSR1);
         sigprocmask(SIG_BLOCK, &mask, &oldmask);
         raise(SIGUSR1);

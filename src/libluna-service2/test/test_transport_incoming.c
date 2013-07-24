@@ -51,6 +51,13 @@ test_LSTransportIncoming_execute(int number_of_messages)
         g_queue_push_head(inqueue->complete_messages, message);
     }
 
+    /* Simulate the message are processed */
+    while (!g_queue_is_empty(inqueue->complete_messages))
+    {
+        _LSTransportMessage *message = g_queue_pop_head(inqueue->complete_messages);
+        _LSTransportMessageUnref(message);
+    }
+
     /* Free the struct. */
     _LSTransportIncomingFree(inqueue);
 

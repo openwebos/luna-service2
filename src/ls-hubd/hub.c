@@ -1151,6 +1151,12 @@ ParseServiceDirectory(const char *path, LSError *lserror)
 
     _ls_verbose("%s: parsing service directory: \"%s\"\n", __func__, path);
 
+    if (!g_file_test(path, G_FILE_TEST_IS_DIR))
+    {
+        g_warning("WARNING: service directory \"%s\" does not exist. Attempting to create it ...", path);
+        g_mkdir(path, 0777);
+    }
+
     GDir *dir = g_dir_open(path, 0, &gerror);
 
     if (!dir)

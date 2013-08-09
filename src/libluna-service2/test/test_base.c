@@ -261,7 +261,6 @@ test_LSRegisterAndUnregister(TestData *fixture, gconstpointer user_data)
     g_assert(NULL != sh);
     g_assert(!LSErrorIsSet(&error));
     g_assert_cmpstr(LSHandleGetName(sh), ==, "com.name.service");
-
     g_assert(LSUnregister(sh, &error));
     g_assert(!LSErrorIsSet(&error));
 

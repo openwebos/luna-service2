@@ -197,4 +197,8 @@ bool _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserro
 bool LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_name, LSMessageToken *serial, LSError *lserror);
 const char* _LSTransportQueryNameReplyGetUniqueName(_LSTransportMessage *message);
 
+guint _LSServiceNameHash(gconstpointer name);
+gboolean _LSServiceNameEquals(gconstpointer v1, gconstpointer v2);
+void _LSWarnOnDeprecatedName(gconstpointer v1);
+
 #endif // _TRANSPORT_H_

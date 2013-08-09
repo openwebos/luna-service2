@@ -659,8 +659,10 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
         name = NULL;
     }
 
+    _LSWarnOnDeprecatedName(name);
+
     sh->name        = g_strdup(name);
-    sh->transport     = NULL;
+    sh->transport   = NULL;
 
     LSHANDLE_SET_VALID(sh, call_ret_addr);
 
@@ -1251,28 +1253,3 @@ error:
 }
 
 /* @} END OF LunaServiceRegistration */
-
-#if 0
-/**
- * @addtogroup LunaServiceDBus
- * @{
- */
-
-/** 
-* @brief Get the DBus connection associated with this Luna Service.
-* 
-* @param  service 
-* 
-* @retval
-*/
-DBusConnection *
-LSGetDBusConnection(LSHandle *sh)
-{
-    _LSErrorIfFail(sh != NULL, NULL);
-    _LSErrorIfFail(sh->conn != NULL, NULL);
-
-    return sh->conn;
-}
-
-/* @} END OF LunaServiceDBus */
-#endif

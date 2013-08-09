@@ -304,6 +304,9 @@ _UriParse(const char *uri, LSError *lserror)
 
     service_name_len = first_slash - uri_p;
     luri->serviceName = g_strndup(uri_p, service_name_len);
+
+    _LSWarnOnDeprecatedName(luri->serviceName);
+
     uri_p += service_name_len;
 
     if (!luri->serviceName)
@@ -702,7 +705,7 @@ _CallMapInit(LSHandle *sh, _CallMap **ret_map, LSError *lserror)
 
     map->signalMap = g_hash_table_new_full(g_str_hash, g_str_equal,
                     (GDestroyNotify)g_free, (GDestroyNotify)_TokenListFree);
-    map->serviceMap = g_hash_table_new_full(g_str_hash, g_str_equal,
+    map->serviceMap = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals,
                     (GDestroyNotify)g_free, (GDestroyNotify)_TokenListFree);
 
     if (!map->tokenMap || !map->signalMap)
@@ -786,54 +789,6 @@ _LSMessageSetFromError(_LSTransportMessage *transport_msg, _Call *call, LSMessag
     }
     }
 
-#if 0
-    error_member = dbus_message_get_error_name(reply->message);
-    if (error_member &&
-        strcmp(error_member, DBUS_ERROR_UNKNOWN_METHOD) == 0)
-    {
-        reply->method = LUNABUS_ERROR_UNKNOWN_METHOD;
-    }
-    else if (error_member &&
-        strcmp(error_member, DBUS_ERROR_SERVICE_UNKNOWN) == 0)
-    {
-        reply->method = LUNABUS_ERROR_SERVICE_DOWN;
-
-        reply->payloadAllocated = g_strdup_printf(
-            "{\"serviceName\":\"%s\","
-             "\"returnValue\":false,"
-             "\"errorCode\":-1,"
-             "\"errorText\":\"%s is not running.\"}",
-            call->serviceName, call->serviceName);
-        reply->payload = reply->payloadAllocated;
-        reply->serviceDownMessage = true;
-    }
-    else
-    {
-        reply->methodAllocated =
-                 g_strdup_printf("%s (%s)",
-                        LUNABUS_ERROR_UNKNOWN_ERROR, error_member);
-        reply->method = reply->methodAllocated;
-    }
-
-    if (!reply->payload)
-    {
-        dbus_message_get_args(reply->message, NULL,
-                DBUS_TYPE_STRING, &error_message, DBUS_TYPE_INVALID); 
-
-        char *escaped = g_strescape(error_message, NULL);
-        if (!escaped) goto error;
-
-        reply->payloadAllocated = g_strdup_printf(
-            "{\"returnValue\":false,\"errorCode\":-1,\"errorText\":\"%s\"}",
-            escaped);
-        reply->payload = reply->payloadAllocated;
-
-        g_free(escaped);
-
-        if (!reply->payload) goto error;
-    }
-#endif
-    
     /* Escape the string */
     if (!reply->payload)
     {
@@ -1919,6 +1874,8 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
     _CallMapLock(map);
 
     if (strcmp(luri->serviceName, LUNABUS_SERVICE_NAME) == 0 ||
+        strcmp(luri->serviceName, LUNABUS_SERVICE_NAME_PALM) == 0 ||
+        strcmp(luri->serviceName, LUNABUS_SERVICE_NAME_LGE) == 0 ||
         strcmp(luri->serviceName, LUNABUS_SERVICE_NAME_OLD) == 0)
     {
         if (!callback)
@@ -2016,17 +1973,6 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
 
     _CallMapUnlock(map);
     _UriFree(luri);
-    
-#if 0
-    if (sh->transport->service_name && strcmp(sh->transport->service_name, "com.palm.luna") == 0)
-    {
-        debug_print("handle: %p, transport: %p, uri: %s, payload: %s, appID: %s, ret_token: %d, single: %s\n", 
-                sh, sh->transport, uri, payload, applicationID,
-                ret_token ? (int)*ret_token : 0, single ? "true" : "false");
-
-    }
-#endif
-
     return true;
 
 error:
@@ -2176,6 +2122,8 @@ bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
     char    *payload;
 
     LSHANDLE_VALIDATE(sh);
+
+    _LSWarnOnDeprecatedName(serviceName);
 
     payload = g_strdup_printf("{\"serviceName\":\"%s\"}", serviceName);
     if (!payload)

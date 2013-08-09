@@ -5152,6 +5152,75 @@ _LSTransportSetIsHub(bool is_hub)
     s_is_hub = is_hub;
 }
 
+// "com.webos." has to be the first
+static char const *const _COM_WEBOS_PREFIX = "com.webos.";
+static char const *const _COM_PALM_PREFIX = "com.palm.";
+static char const *const _COM_LGE_PREFIX = "com.lge.";
+
+static char const *_LSRemovePalmPrefix(char const *name)
+{
+    if (g_str_has_prefix(name, _COM_WEBOS_PREFIX))
+        return name + strlen(_COM_WEBOS_PREFIX);
+    if (g_str_has_prefix(name, _COM_PALM_PREFIX))
+        return name + strlen(_COM_PALM_PREFIX);
+    if (g_str_has_prefix(name, _COM_LGE_PREFIX))
+        return name + strlen(_COM_LGE_PREFIX);
+    return name;
+}
+
+guint _LSServiceNameHash(gconstpointer name)
+{
+    if (name == NULL)
+    {
+        g_warning("Service name is NULL");
+        return 0;
+    }
+
+    return g_str_hash(_LSRemovePalmPrefix(name));
+}
+
+gboolean _LSServiceNameEquals(gconstpointer v1, gconstpointer v2)
+{
+    if ((v1 == NULL) || (v2 == NULL))
+    {
+        g_warning("Service name is NULL");
+        return false;
+    }
+
+    if (v1 == v2)
+        return true;
+
+    char const *str1 = _LSRemovePalmPrefix((char const *)v1);
+    char const *str2 = _LSRemovePalmPrefix((char const *)v2);
+
+    /* If one has prefix removed, and the other not, no need to compare */
+    if ((v1 == str1 && v2 != str2) || (v1 != str1 && v2 == str2))
+        return false;
+
+    return strcmp(str1, str2) == 0;
+}
+
+gboolean ServiceNameHasToBeFixed(gconstpointer v1)
+{
+    if (v1 == NULL)
+    {
+        g_warning("Service name is NULL");
+        return false;
+    }
+
+    char const *name = v1;
+    return g_str_has_prefix(name, _COM_PALM_PREFIX) ||
+           g_str_has_prefix(name, _COM_LGE_PREFIX);
+}
+
+void _LSWarnOnDeprecatedName(gconstpointer v1)
+{
+    if (ServiceNameHasToBeFixed(v1))
+    {
+        g_warning("Service name has to be changed to com.webos [%s]", (char*)v1);
+    }
+}
+
 /** 
  *******************************************************************************
  * @brief Allocate and initialize a new transport.
@@ -5207,7 +5276,7 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
     }
  
     /* TODO: wrap this? */ 
-    transport->clients = g_hash_table_new_full(g_str_hash, g_str_equal,
+    transport->clients = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals,
         (GDestroyNotify)g_free, (GDestroyNotify)_LSTransportClientUnref);
 
     if (!transport->clients)
@@ -5224,7 +5293,7 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
         goto Error;
     }
 
-    transport->pending = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    transport->pending = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, g_free, NULL);
 
     if (!transport->pending)
     {

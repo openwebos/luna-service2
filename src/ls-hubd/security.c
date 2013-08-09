@@ -49,6 +49,8 @@
 #define TRITON_SERVICE_EXE_PATH     "js"    /**< special "path" for triton services */
 
 #define PALM_SERVICE_PREFIX     "com.palm."
+#define PALM_WEBOS_PREFIX       "com.webos."
+#define PALM_LGE_PREFIX         "com.lge."
 
 static inline bool _LSTransportSupportsSecurityFeatures(const _LSTransport *transport);
 static inline bool _LSHubClientExePathMatches(const _LSTransportClient *client, const char *path);
@@ -109,6 +111,8 @@ _LSHubPatternSpecNew(const char *pattern)
 
     if (ret)
     {
+        _LSWarnOnDeprecatedName(pattern);
+
         ret->pattern_str = g_strdup(pattern);
 
         if (!ret->pattern_str) goto error;
@@ -622,6 +626,8 @@ LSHubPermissionNew(const char *service_name)
 
     if (perm)
     {
+        _LSWarnOnDeprecatedName(service_name);
+
         perm->service_name = g_strdup(service_name);
 
         if (!perm->service_name) goto error;
@@ -1994,7 +2000,12 @@ LSHubIsClientAllowedToSendSignal(_LSTransportClient *client)
     const char *service_name = _LSTransportClientGetServiceName(client);
 
     /* Only Palm services are allowed to send signals */
-    if (service_name && g_str_has_prefix(service_name, PALM_SERVICE_PREFIX))
+    if (service_name &&
+            (g_str_has_prefix(service_name, PALM_WEBOS_PREFIX) ||
+             g_str_has_prefix(service_name, PALM_SERVICE_PREFIX) ||
+             g_str_has_prefix(service_name, PALM_LGE_PREFIX)
+            )
+       )
     {
         return true;
     }
@@ -2048,7 +2059,7 @@ _PermissionsAndRolesInit(LSError *lserror)
     }
     else
     {
-        permission_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, /*TODO: unref */NULL);
+        permission_map = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, g_free, /*TODO: unref */NULL);
 
         if (!permission_map)
         {

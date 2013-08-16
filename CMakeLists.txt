@@ -105,7 +105,7 @@ webos_build_system_bus_files()
 
 # install the script file
 webos_configure_source_files(LS-CONTROL files/scripts/public/ls-control)
-install(PROGRAMS ${LS-CONTROL} DESTINATION ${WEBOS_INSTALL_BINDIR} ${LS2_PERMS})
+install(PROGRAMS ${LS-CONTROL} DESTINATION ${WEBOS_INSTALL_SBINDIR} ${LS2_PERMS})
 
 # Create the permanent service directories. The ones for downloaded services (called
 # "dynamic" but not to be confused with services that are started on-demand, which

@@ -304,7 +304,7 @@ _SubListRemove(_SubList *tokens, const char *data)
     for (i = 0; i < tokens->len; i++)
     {
         char *tok = g_ptr_array_index(tokens, i);
-        if (strncmp(tok, data, 50) == 0)
+        if (strcmp(tok, data) == 0)
         {
             g_ptr_array_remove_index(tokens, i);
             g_free(tok);
@@ -339,7 +339,7 @@ _SubListContains(_SubList *tokens, const char *data)
     for (i = 0; i < tokens->len; i++)
     {
         char *tok = g_ptr_array_index(tokens, i);
-        if (strncmp(tok, data, 50) == 0)
+        if (strcmp(tok, data) == 0)
         {
             return true;
         }

@@ -292,7 +292,9 @@ PrintUsage(const char* progname)
 {
     printf("%s uri message\n", progname);
     printf(" -h this help screen\n"
+#ifndef PUBLIC_HUB_ONLY
            " -P send over the public bus (send over private bus is default)\n"
+#endif // PUBLIC_HUB_ONLY
            " -s send a signal\n"
            " -a send specified appId in message (default is none)\n"
            " -m service name (default is none)\n"
@@ -333,12 +335,21 @@ main(int argc, char **argv)
     bool interactive = false;
     bool timing = false;
     bool signal = false;
-    bool use_public_bus = false;
+    bool use_public_bus =
+#ifdef PUBLIC_HUB_ONLY
+        true;
+#else
+        false;
+#endif // PUBLIC_HUB_ONLY
     char *serviceName = NULL;
     int optionCount = 0;
     int opt;
 
-    while ((opt = getopt(argc, argv, "hdisPrlfn:t:m:a:q:")) != -1)
+    while ((opt = getopt(argc, argv, "hdisrlfn:t:m:a:q:"
+#ifndef PUBLIC_HUB_ONLY
+                                     "P"
+#endif // PUBLIC_HUB_ONLY
+                         )) != -1)
     {
     switch (opt) {
     case 'i':
@@ -349,10 +360,12 @@ main(int argc, char **argv)
         signal = true;
         optionCount++;
         break;
+#ifndef PUBLIC_HUB_ONLY
     case 'P':
         use_public_bus = true;
         optionCount++;
         break;
+#endif // PUBLIC_HUB_ONLY
     case 'd':
         sLogLevel = G_LOG_LEVEL_DEBUG;
         optionCount++;

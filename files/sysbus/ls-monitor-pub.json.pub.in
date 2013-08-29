@@ -1,0 +1,14 @@
+{
+    "role": {
+        "exeName":"@WEBOS_INSTALL_BINDIR@/ls-monitor-pub",
+        "type": "regular",
+        "allowedNames": ["com.palm.monitor-pub", ""]
+    },
+    "permissions": [
+        {
+            "service":"com.palm.monitor-pub",
+            "inbound":["*"],
+            "outbound":["*"]
+        }
+    ]
+}

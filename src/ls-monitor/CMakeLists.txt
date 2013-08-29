@@ -32,3 +32,8 @@ endif()
 add_executable(ls-monitor ${MONITOR_SOURCE_FILES})
 target_link_libraries(ls-monitor ${CMAKE_PROJECT_NAME})
 webos_build_program(NAME ls-monitor ${LS2_RESTRICTED})
+
+add_executable(ls-monitor-pub ${MONITOR_SOURCE_FILES})
+target_link_libraries(ls-monitor-pub ${CMAKE_PROJECT_NAME})
+webos_build_program(NAME ls-monitor-pub)
+set_target_properties(ls-monitor-pub PROPERTIES COMPILE_DEFINITIONS "PUBLIC_ONLY")

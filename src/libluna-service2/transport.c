@@ -4631,7 +4631,7 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
        
         if (_LSTransportMessageGetType(message) == _LSTransportMessageTypeMethodCall)
         {
-            _LSTransportSerialSave(pending->serial, message, lserror);   
+            _LSTransportSerialSave(pending->serial, message, lserror);
         }
 
         _ls_verbose("%s: adding message to queue: serial: %d\n", __func__, (int)msg_token);
@@ -4639,7 +4639,7 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
         _LSTransportMessageRef(message);
         g_queue_push_tail(pending->queue, message);
         OUTGOING_UNLOCK(&pending->lock);
-        TRANSPORT_UNLOCK(&transport->lock);  
+        TRANSPORT_UNLOCK(&transport->lock);
     }
     else
     {

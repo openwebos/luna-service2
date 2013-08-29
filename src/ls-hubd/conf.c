@@ -44,7 +44,7 @@
 #define PIPE_READ_END   0
 #define PIPE_WRITE_END  1
 
-#define MAX_KEYS_IN_GROUP   10
+#define MAX_KEYS_IN_GROUP   15
 #define MAX_GROUPS          10
 
 /**
@@ -231,6 +231,12 @@ static _ConfigDOM conf_file_dom = {
                     .user_ctxt = &g_conf_monitor_exe_path,
                 },
                 {
+                    .key = "MonitorPubExePath",
+                    .get_value = _ConfigKeyGetString,
+                    .user_cb = (_ConfigKeyUser*) _ConfigKeySetString,
+                    .user_ctxt = &g_conf_monitor_pub_exe_path,
+                },
+                {
                     .key = "SysMgrExePath",
                     .get_value = _ConfigKeyGetString,
                     .user_cb = (_ConfigKeyUser*) _ConfigKeySetString,
@@ -297,6 +303,7 @@ char *g_conf_dynamic_service_exec_prefix = NULL; /**< prefix added to Exec in se
                                                       when launching dynamic service */
 int g_conf_connect_timeout_ms = 20000;          /**< timeout in ms for connect() to complete */
 char *g_conf_monitor_exe_path = NULL;           /**< path to ls-monitor */
+char *g_conf_monitor_pub_exe_path = NULL;       /**< path to ls-monitor-pub */
 char *g_conf_sysmgr_exe_path = NULL;            /**< path to LunaSysMgr */
 char *g_conf_webappmgr_exe_path = NULL;         /**< path to WebAppMgr (with the separation of LunaSysMgr and WebAppMgr into two separate components,
                                                      there is now a second executable that must be granted special permissions) */

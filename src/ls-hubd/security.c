@@ -1637,7 +1637,8 @@ LSHubIsClientMonitor(const _LSTransportClient *client)
         return true;
     }
 
-    return _LSHubClientExePathMatches(client, g_conf_monitor_exe_path);
+    return ( _LSHubClientExePathMatches(client, g_conf_monitor_exe_path) ||
+             _LSHubClientExePathMatches(client, g_conf_monitor_pub_exe_path) );
 }
 
 /** 

@@ -38,7 +38,8 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
 
     const char *sender = LSMessageGetSenderServiceName(message);
 
-    if (!sender || strcmp(sender, MONITOR_NAME) != 0)
+    if ( !sender ||
+         ( (strcmp(sender, MONITOR_NAME) != 0) && (strcmp(sender, MONITOR_NAME_PUB) != 0)) )
     {
         g_critical("WARNING: subscription debug method not called by monitor;"
                    " ignoring (service name: %s, unique_name: %s)",
@@ -91,7 +92,8 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
 
     const char *sender = LSMessageGetSenderServiceName(message);
 
-    if (!sender || strcmp(sender, MONITOR_NAME) != 0)
+    if ( !sender ||
+         ( (strcmp(sender, MONITOR_NAME) != 0) && (strcmp(sender, MONITOR_NAME_PUB) != 0)) )
     {
         g_critical("WARNING: mallinfo debug method not called by monitor;"
                    " ignoring (service name: %s, unique_name: %s)",

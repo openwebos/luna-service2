@@ -112,6 +112,7 @@ _padding_bytes(unsigned int align_bytes, unsigned int size_bytes)
 #define HUB_NAME                        "com.palm.hub"
 
 #define MONITOR_NAME                    "com.palm.monitor"
+#define MONITOR_NAME_PUB                "com.palm.monitor-pub"
 
 /*
     Limits the number of times we will send an _LSTransportMessageTypeQueryName message to

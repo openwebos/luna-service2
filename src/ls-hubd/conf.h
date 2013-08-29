@@ -37,6 +37,7 @@ extern bool g_conf_security_enabled;
 extern bool g_conf_log_service_status;
 extern int g_conf_connect_timeout_ms;
 extern char* g_conf_monitor_exe_path;
+extern char* g_conf_monitor_pub_exe_path;
 extern char* g_conf_sysmgr_exe_path;
 extern char* g_conf_webappmgr_exe_path;
 extern char* g_conf_webappmgr2_exe_path;

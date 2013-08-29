@@ -38,6 +38,13 @@
 #define HUB_TYPE_PUBLIC     1
 #define HUB_TYPE_PRIVATE    2
 
+
+#ifdef PUBLIC_ONLY
+#define FINAL_MONITOR_NAME MONITOR_NAME_PUB
+#else
+#define FINAL_MONITOR_NAME MONITOR_NAME
+#endif
+
 typedef struct LSMonitorListInfo
 {
     char *unique_name;
@@ -62,18 +69,19 @@ static gboolean list_malloc = false;
 static gboolean debug_output = false;
 static GMainLoop *mainloop = NULL;
 
-static _LSTransport *transport_priv = NULL;
 static _LSTransport *transport_pub = NULL;
+/* List of _SubscriptionReplyData for public and private hubs */
+static GSList *public_sub_replies = NULL;
+static bool transport_pub_local = false;
+static _LSMonitorQueue *public_queue = NULL;
 
+#ifndef PUBLIC_ONLY
+static _LSTransport *transport_priv = NULL;
 /* List of _SubscriptionReplyData for public and private hubs */
 static GSList *private_sub_replies = NULL;
-static GSList *public_sub_replies = NULL;
-
 static bool transport_priv_local = false;
-static bool transport_pub_local = false;
-
-static _LSMonitorQueue *public_queue = NULL;
 static _LSMonitorQueue *private_queue = NULL;
+#endif
 
 void
 _LSMonitorGetTime(struct timespec *time)
@@ -123,6 +131,7 @@ _LSMonitorPrintTime(struct timespec *time)
     fprintf(stdout, "%.3f\t", ((double)(time->tv_sec)) + (((double)time->tv_nsec) / (double)1000000000.0));
 }
 
+#ifndef PUBLIC_ONLY
 static gboolean
 _LSMonitorIdleHandlerPrivate(gpointer data)
 {
@@ -130,6 +139,7 @@ _LSMonitorIdleHandlerPrivate(gpointer data)
     _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
     return TRUE;
 }
+#endif
 
 static gboolean
 _LSMonitorIdleHandlerPublic(gpointer data)
@@ -167,6 +177,7 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
     }
 }
 
+#ifndef PUBLIC_ONLY
 static LSMessageHandlerResult
 _LSMonitorMessageHandlerPrivate(_LSTransportMessage *message, void *context)
 {
@@ -182,6 +193,7 @@ _LSMonitorMessageHandlerPrivate(_LSTransportMessage *message, void *context)
 
     return LSMessageHandlerResultHandled;
 }
+#endif
 
 static LSMessageHandlerResult
 _LSMonitorMessageHandlerPublic(_LSTransportMessage *message, void *context)
@@ -271,8 +283,10 @@ _PrintSubscriptionResultsList(GSList *sub_list)
 static void
 _PrintSubscriptionResults()
 {
+#ifndef PUBLIC_ONLY
     fprintf(stdout, list_subscriptions ? "PRIVATE SUBSCRIPTIONS:\n" : "PRIVATE BUS MALLOC DATA:\n");
     _PrintSubscriptionResultsList(private_sub_replies);
+#endif
 
     fprintf(stdout, list_subscriptions ? "PUBLIC SUBSCRIPTIONS:\n" : "PUBLIC BUS MALLOC DATA:\n");
     _PrintSubscriptionResultsList(public_sub_replies);
@@ -293,7 +307,9 @@ _SubscriptionResultsCallback(LSHandle *sh, LSMessage *reply, void *ctx)
     {
         _PrintSubscriptionResults();
 
+#ifndef PUBLIC_ONLY
         g_slist_free(private_sub_replies);
+#endif
         g_slist_free(public_sub_replies);
     
         g_free(reply_data);
@@ -357,8 +373,10 @@ _DisconnectCustomTransport()
 
     if (!is_disconnected)
     {
+#ifndef PUBLIC_ONLY
         _LSTransportDisconnect(transport_priv, true);
         _LSTransportDeinit(transport_priv);
+#endif
         _LSTransportDisconnect(transport_pub, true);
         _LSTransportDeinit(transport_pub);
         is_disconnected = true;
@@ -443,14 +461,20 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
     }
 
     /* Process and display when we receive public and private responses */
+#ifndef PUBLIC_ONLY
     if (++call_count == 2)
+#else
+    if (++call_count == 1)
+#endif
     {
         if (list_subscriptions || list_malloc)
         {
             LSError lserror;
             LSErrorInit(&lserror);
 
+#ifndef PUBLIC_ONLY
             LSHandle *private_sh = NULL;
+#endif
             LSHandle *public_sh = NULL;
 
             _DisconnectCustomTransport();
@@ -462,8 +486,9 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
                 goto Done;
             }
 
+#ifndef PUBLIC_ONLY
             /* register as a "high-level" client */
-            if (!LSRegisterPubPriv(MONITOR_NAME, &private_sh, false, &lserror))
+            if (!LSRegisterPubPriv(FINAL_MONITOR_NAME, &private_sh, false, &lserror))
             {
                 LSErrorPrint(&lserror, stderr);
                 LSErrorFree(&lserror);
@@ -473,9 +498,10 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
                 LSGmainAttach(private_sh, mainloop, &lserror);
                 _ListServiceSubscriptions(private_sh, _SubscriptionResultsCallback, private_monitor_info, total_sub_services, &private_sub_replies);
             }
+#endif
 
             /* Same for the public hub */
-            if (!LSRegisterPubPriv(MONITOR_NAME, &public_sh, true, &lserror))
+            if (!LSRegisterPubPriv(FINAL_MONITOR_NAME, &public_sh, true, &lserror))
             {
                 LSErrorPrint(&lserror, stderr);
                 LSErrorFree(&lserror);
@@ -556,7 +582,9 @@ main(int argc, char *argv[])
     LSErrorInit(&lserror);
 
     int public = HUB_TYPE_PUBLIC;
+#ifndef PUBLIC_ONLY
     int private = HUB_TYPE_PRIVATE;
+#endif
     
     if (LSIsRunning(PID_DIR, MONITOR_PID_NAME))
     {
@@ -568,6 +596,7 @@ main(int argc, char *argv[])
 
     /* send message to hub to let clients know that they should start
      * sending us their messages */
+#ifndef PUBLIC_ONLY
     LSTransportHandlers handler_priv =
     {
         .msg_handler = _LSMonitorMessageHandlerPrivate,
@@ -577,7 +606,8 @@ main(int argc, char *argv[])
         .message_failure_handler = NULL,
         .message_failure_context = NULL
     };
-    
+#endif
+
     LSTransportHandlers handler_pub =
     {
         .msg_handler = _LSMonitorMessageHandlerPublic,
@@ -595,25 +625,31 @@ main(int argc, char *argv[])
 
     if (list_clients || list_subscriptions || list_malloc)
     {
+#ifndef PUBLIC_ONLY
         handler_priv.msg_handler = _LSMonitorListMessageHandler;
+#endif
         handler_pub.msg_handler = _LSMonitorListMessageHandler;
     }
 
-    if (!_LSTransportInit(&transport_priv, MONITOR_NAME, &handler_priv, &lserror))
+#ifndef PUBLIC_ONLY
+    if (!_LSTransportInit(&transport_priv, FINAL_MONITOR_NAME, &handler_priv, &lserror))
     {
         goto error;
     }
+#endif
     
-    if (!_LSTransportInit(&transport_pub, MONITOR_NAME, &handler_pub, &lserror))
+    if (!_LSTransportInit(&transport_pub, FINAL_MONITOR_NAME, &handler_pub, &lserror))
     {
         goto error;
     }
    
+#ifndef PUBLIC_ONLY
     /* connect for "private" messages */ 
     if (!_LSTransportConnect(transport_priv, true, false, &lserror))
     {
         goto error;
     }
+#endif
 
     /* connect for "public" messages */
     if (!_LSTransportConnect(transport_pub, true, true, &lserror))
@@ -621,9 +657,12 @@ main(int argc, char *argv[])
         goto error;
     }
    
+#ifndef PUBLIC_ONLY
     _LSTransportGmainAttach(transport_priv, g_main_loop_get_context(mainloop)); 
+#endif
     _LSTransportGmainAttach(transport_pub, g_main_loop_get_context(mainloop)); 
 
+#ifndef PUBLIC_ONLY
     if (_LSTransportGetTransportType(transport_priv) == _LSTransportTypeLocal)
     {
         transport_priv_local = true;
@@ -633,6 +672,7 @@ main(int argc, char *argv[])
         private_queue = _LSMonitorQueueNew(false);
         g_timeout_add(500, _LSMonitorIdleHandlerPrivate, private_queue);
     }
+#endif
 
     if (_LSTransportGetTransportType(transport_pub) == _LSTransportTypeLocal)
     {
@@ -645,10 +685,12 @@ main(int argc, char *argv[])
 
     if (list_clients || list_subscriptions || list_malloc)
     {
+#ifndef PUBLIC_ONLY
         if (!_LSTransportSendMessageListClients(transport_priv, &lserror))
         {
             goto error;
         }
+#endif
 
         if (!_LSTransportSendMessageListClients(transport_pub, &lserror))
         {
@@ -658,10 +700,12 @@ main(int argc, char *argv[])
     else
     {
         /* send the message to the hub to tell clients to connect to us */
+#ifndef PUBLIC_ONLY
         if (!LSTransportSendMessageMonitorRequest(transport_priv, &lserror))
         {
             goto error;
         }
+#endif
         
         if (!LSTransportSendMessageMonitorRequest(transport_pub, &lserror))
         {

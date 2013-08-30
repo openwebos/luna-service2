@@ -53,47 +53,66 @@ bool LSCustomMessageQueueIsEmpty(LSCustomMessageQueue *q);
  * @{
  */
 
-bool
-LSGmainAttachPalmService(LSPalmService *psh,
-                           GMainLoop *mainLoop, LSError *lserror)
+/**
+* @brief Attach a service to a glib mainloop
+*
+* @param sh
+* @param mainContext
+* @param lserror
+*
+* @retval
+*/
+bool LSGmainContextAttach(LSHandle *sh, GMainContext *mainContext, LSError *lserror)
 {
-    _LSErrorIfFail(psh != NULL, lserror);
-    _LSErrorIfFail(mainLoop != NULL, lserror);
+    _LSErrorIfFail(sh != NULL, lserror);
+    LSHANDLE_VALIDATE(sh);
 
-    bool retVal;
-    retVal = LSGmainAttach(psh->public_sh, mainLoop, lserror);
-    if (!retVal) return retVal;
-    retVal = LSGmainAttach(psh->private_sh, mainLoop, lserror);
-    if (!retVal) return retVal;
+    _LSErrorIfFailMsg(mainContext != NULL, lserror, -1,
+                   "%s: %s", __FUNCTION__, ": No maincontext.");
 
-    return retVal;
+    _LSTransportGmainAttach(sh->transport, mainContext);
+    sh->context = g_main_context_ref(mainContext);
+
+    return true;
 }
 
 /** 
 * @brief Attach a service to a glib mainloop.
-* 
-* @param  sh 
-* @param  mainLoop 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  mainLoop
+* @param  lserror
+*
 * @retval
 */
 bool
 LSGmainAttach(LSHandle *sh, GMainLoop *mainLoop, LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
     _LSErrorIfFail(mainLoop != NULL, lserror);
-
-    LSHANDLE_VALIDATE(sh);
-
     GMainContext *context = g_main_loop_get_context(mainLoop);
-    _LSErrorIfFailMsg(context != NULL, lserror, -1,
-                   "%s: %s", __FUNCTION__, ": No maincontext.");
+    return LSGmainContextAttach(sh, context, lserror);
+}
 
-    _LSTransportGmainAttach(sh->transport, context);
-    sh->context = g_main_context_ref(context);
+bool LSGmainContextAttachPalmService(LSPalmService *psh, GMainContext *mainContext, LSError *lserror)
+{
+    _LSErrorIfFail(psh != NULL, lserror);
+    _LSErrorIfFail(mainContext != NULL, lserror);
 
-    return true;
+    bool retVal;
+    retVal = LSGmainContextAttach(psh->public_sh, mainContext, lserror);
+    if (!retVal) return retVal;
+    retVal = LSGmainContextAttach(psh->private_sh, mainContext, lserror);
+    if (!retVal) return retVal;
+
+    return retVal;
+}
+
+bool
+LSGmainAttachPalmService(LSPalmService *psh, GMainLoop *mainLoop, LSError *lserror)
+{
+    _LSErrorIfFail(mainLoop != NULL, lserror);
+    GMainContext *context = g_main_loop_get_context(mainLoop);
+    return LSGmainContextAttachPalmService(psh, context, lserror);
 }
 
 /** 

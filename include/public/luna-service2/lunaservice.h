@@ -494,9 +494,10 @@ bool LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
 /* Mainloop integration functions. */
 
 bool LSGmainAttach(LSHandle *sh, GMainLoop *mainLoop, LSError *lserror);
+bool LSGmainContextAttach(LSHandle *sh, GMainContext *mainContext, LSError *lserror);
 
-bool LSGmainAttachPalmService(LSPalmService *psh,
-                           GMainLoop *mainLoop, LSError *lserror);
+bool LSGmainAttachPalmService(LSPalmService *psh, GMainLoop *mainLoop, LSError *lserror);
+bool LSGmainContextAttachPalmService(LSPalmService *psh, GMainContext *mainLoop, LSError *lserror);
 
 bool LSGmainDetach(LSHandle *sh, LSError *lserror);
 

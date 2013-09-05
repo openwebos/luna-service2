@@ -25,6 +25,4 @@ emits ls-hubd_public-ready
 # Comment this line out to suppress logs on the console
 #console output
 
-script
-	@WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf --pmloglib
-end script
+exec @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf --pmloglib

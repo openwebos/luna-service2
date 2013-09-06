@@ -28,7 +28,6 @@
 
 #include "transport.h"
 #include "transport_security.h"
-#include "transport_security_internal.h"
 
 /**
  * @defgroup LunaServiceTransportSecurity
@@ -40,6 +39,17 @@
  * @addtogroup LunaServiceTransportSecurity
  * @{
  */
+
+/**
+ * Represents credentials for a client
+ */
+struct _LSTransportCred {
+    pid_t pid;              /**< process pid */
+    uid_t uid;              /**< process uid */
+    gid_t gid;              /**< process gid */
+    const char *exe_path;   /**< full path to process' executable */
+    const char *cmd_line;   /**< process' cmdline */
+};
 
 /** 
  *******************************************************************************

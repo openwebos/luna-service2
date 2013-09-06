@@ -304,9 +304,6 @@ _UriParse(const char *uri, LSError *lserror)
 
     service_name_len = first_slash - uri_p;
     luri->serviceName = g_strndup(uri_p, service_name_len);
-
-    _LSWarnOnDeprecatedName(luri->serviceName);
-
     uri_p += service_name_len;
 
     if (!luri->serviceName)
@@ -705,7 +702,7 @@ _CallMapInit(LSHandle *sh, _CallMap **ret_map, LSError *lserror)
 
     map->signalMap = g_hash_table_new_full(g_str_hash, g_str_equal,
                     (GDestroyNotify)g_free, (GDestroyNotify)_TokenListFree);
-    map->serviceMap = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals,
+    map->serviceMap = g_hash_table_new_full(g_str_hash, g_str_equal,
                     (GDestroyNotify)g_free, (GDestroyNotify)_TokenListFree);
 
     if (!map->tokenMap || !map->signalMap)
@@ -1874,8 +1871,6 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
     _CallMapLock(map);
 
     if (strcmp(luri->serviceName, LUNABUS_SERVICE_NAME) == 0 ||
-        strcmp(luri->serviceName, LUNABUS_SERVICE_NAME_PALM) == 0 ||
-        strcmp(luri->serviceName, LUNABUS_SERVICE_NAME_LGE) == 0 ||
         strcmp(luri->serviceName, LUNABUS_SERVICE_NAME_OLD) == 0)
     {
         if (!callback)
@@ -2122,8 +2117,6 @@ bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
     char    *payload;
 
     LSHANDLE_VALIDATE(sh);
-
-    _LSWarnOnDeprecatedName(serviceName);
 
     payload = g_strdup_printf("{\"serviceName\":\"%s\"}", serviceName);
     if (!payload)

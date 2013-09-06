@@ -659,8 +659,6 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
         name = NULL;
     }
 
-    _LSWarnOnDeprecatedName(name);
-
     sh->name        = g_strdup(name);
     sh->transport   = NULL;
 

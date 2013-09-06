@@ -38,4 +38,3 @@ add_executable(ls-hubd ${HUB_SOURCE_FILES})
 target_link_libraries(ls-hubd ${CMAKE_PROJECT_NAME} ${PMLOGLIB_LDFLAGS})
 webos_build_daemon(NAME ls-hubd LAUNCH ${CMAKE_SOURCE_DIR}/files/launch/ ${LS2_RESTRICTED})
 
-add_subdirectory(test)

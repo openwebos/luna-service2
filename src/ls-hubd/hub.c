@@ -305,8 +305,6 @@ _ServiceNew(const char *service_names[], int num_services, char *exec_path, bool
         
         for (i = 0; i < num_services; i++)
         {
-            _LSWarnOnDeprecatedName(service_names[i]);
-
             ret->service_names[i] = g_strdup(service_names[i]);
 
             if (!ret->service_names[i])
@@ -905,7 +903,7 @@ _ServiceInitMap(GHashTable **service_map, LSError *lserror)
     }
 
     /* create the new map */
-    *service_map = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, NULL, (GDestroyNotify)_ServiceUnref);
+    *service_map = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)_ServiceUnref);
 
     if (!*service_map)
     {
@@ -4150,14 +4148,14 @@ main(int argc, char *argv[])
     }
 
     /* init data structures */
-    pending = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, NULL, _LSHubClientIdLocalUnrefVoid);
+    pending = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
 
     if (!pending)
     {
         g_critical("Unable to create hash table");
     }
 
-    available_services = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, NULL, _LSHubClientIdLocalUnrefVoid);
+    available_services = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
     
     if (!available_services)
     {
@@ -4171,7 +4169,7 @@ main(int argc, char *argv[])
         g_critical("Unable to create hash table");
     }
     
-    connected_clients.by_unique_name = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, NULL, _LSHubClientIdLocalUnrefVoid);
+    connected_clients.by_unique_name = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
 
     if (!connected_clients.by_unique_name)
     {

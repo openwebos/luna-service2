@@ -38,9 +38,7 @@
 /** @} LunaServiceErrorCodes */
 
 /** Lunabus service name */
-#define LUNABUS_SERVICE_NAME        "com.webos.bus"
-#define LUNABUS_SERVICE_NAME_PALM   "com.palm.bus"
-#define LUNABUS_SERVICE_NAME_LGE    "com.lge.bus"
+#define LUNABUS_SERVICE_NAME        "com.palm.bus"
 
 #define LUNABUS_SERVICE_NAME_OLD    "com.palm.lunabus"
 

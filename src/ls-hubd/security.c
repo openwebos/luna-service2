@@ -111,8 +111,6 @@ _LSHubPatternSpecNew(const char *pattern)
 
     if (ret)
     {
-        _LSWarnOnDeprecatedName(pattern);
-
         ret->pattern_str = g_strdup(pattern);
 
         if (!ret->pattern_str) goto error;
@@ -626,8 +624,6 @@ LSHubPermissionNew(const char *service_name)
 
     if (perm)
     {
-        _LSWarnOnDeprecatedName(service_name);
-
         perm->service_name = g_strdup(service_name);
 
         if (!perm->service_name) goto error;
@@ -2060,7 +2056,7 @@ _PermissionsAndRolesInit(LSError *lserror)
     }
     else
     {
-        permission_map = g_hash_table_new_full(_LSServiceNameHash, _LSServiceNameEquals, g_free, /*TODO: unref */NULL);
+        permission_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, /*TODO: unref */NULL);
 
         if (!permission_map)
         {

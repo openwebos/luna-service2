@@ -941,35 +941,6 @@ test_LSTransportSendClient()
     sendfd_success = true;
 }
 
-
-void test_LSServiceNameComparison()
-{
-    g_assert(_LSServiceNameHash("") == _LSServiceNameHash(""));
-    g_assert(_LSServiceNameHash("com.webos.name") == _LSServiceNameHash("com.webos.name"));
-    g_assert(_LSServiceNameHash("com.webos.name") == _LSServiceNameHash("com.palm.name"));
-    g_assert(_LSServiceNameHash("com.webos.name") == _LSServiceNameHash("com.lge.name"));
-    g_assert(_LSServiceNameHash("net.any.name") == _LSServiceNameHash("net.any.name"));
-    g_assert(_LSServiceNameHash("net.any.name") != _LSServiceNameHash("net.other.name"));
-
-    g_assert(_LSServiceNameEquals("", ""));
-    g_assert(_LSServiceNameEquals("com.webos.name", "com.webos.name"));
-    g_assert(_LSServiceNameEquals("com.webos.name", "com.palm.name"));
-    g_assert(_LSServiceNameEquals("com.webos.name", "com.lge.name"));
-    g_assert(_LSServiceNameEquals("net.any.name", "net.any.name"));
-    g_assert(!_LSServiceNameEquals("net.any.name", "net.other.name"));
-
-    g_assert(_LSServiceNameEquals("com.palm.name", "com.webos.name"));
-    g_assert(_LSServiceNameEquals("com.lge.name", "com.webos.name"));
-
-    extern gboolean ServiceNameHasToBeFixed(gconstpointer v1);
-    g_assert(!ServiceNameHasToBeFixed(""));
-    g_assert(ServiceNameHasToBeFixed("com.palm.name"));
-    g_assert(ServiceNameHasToBeFixed("com.lge.name"));
-    g_assert(!ServiceNameHasToBeFixed("com.webos.name"));
-    g_assert(!ServiceNameHasToBeFixed("com.enemy.name"));
-
-}
-
 /* Test suite **************************************************************/
 
 int
@@ -984,7 +955,6 @@ main(int argc, char *argv[])
     g_test_add_func("/luna-service2/LSTransportCancelMethodCall", test_LSTransportCancelMethodCall);
     g_test_add_func("/luna-service2/LSTransportSendQueryServiceStatus", test_LSTransportSendQueryServiceStatus);
     g_test_add_func("/luna-service2/LSTransportSendClient", test_LSTransportSendClient);
-    g_test_add_func("/luna-service2/LSServiceNameComparison", test_LSServiceNameComparison);
 
     return g_test_run();
 }

@@ -25,4 +25,11 @@ emits ls-hubd_public-ready
 # Comment this line out to suppress logs on the console
 #console output
 
-exec @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf --pmloglib
+script
+	# Use centralized nice script
+	if [ -f /etc/init.d/webos-nicer.sh ]
+	then
+		. /etc/init.d/webos-nicer.sh
+	fi
+	exec $WEBOS_NICE @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf --pmloglib
+end script

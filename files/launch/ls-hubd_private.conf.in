@@ -29,4 +29,11 @@ pre-start script
 	mkdir -p @WEBOS_INSTALL_WEBOS_LOCALSTATEDIR@/ls2/roles/prv @WEBOS_INSTALL_WEBOS_LOCALSTATEDIR@/ls2/roles/pub @WEBOS_INSTALL_WEBOS_LOCALSTATEDIR@/ls2/services/prv @WEBOS_INSTALL_WEBOS_LOCALSTATEDIR@/ls2/services/pub
 end script
 
-exec @WEBOS_INSTALL_SBINDIR@/ls-hubd --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-private.conf --pmloglib
+script
+	# Use centralized nice script
+	if [ -f /etc/init.d/webos-nicer.sh ]
+	then
+		. /etc/init.d/webos-nicer.sh
+	fi
+	exec $WEBOS_NICE @WEBOS_INSTALL_SBINDIR@/ls-hubd --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-private.conf --pmloglib
+end script

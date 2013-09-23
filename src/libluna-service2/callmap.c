@@ -1064,7 +1064,7 @@ _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureT
     /* assert that call is a method call type */
     if (call->callback)
     {
-        LSMessage *reply = _LSMessageNewRef(NULL, sh);
+        LSMessage *reply = _LSMessageNewRef(_LSTransportMessageEmpty(), sh);
         if (!reply)
         {
             _CallRelease(call);
@@ -1191,7 +1191,7 @@ void _send_not_running(LSHandle *sh, _TokenList *tokens)
         {
             if (call->callback)
             {
-                LSMessage *reply = _LSMessageNewRef(NULL, sh);
+                LSMessage *reply = _LSMessageNewRef(_LSTransportMessageEmpty(), sh);
                 if (!reply)
                 {
                     _CallRelease(call);

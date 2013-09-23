@@ -129,6 +129,25 @@ test_LSTransportMessageNewRef(void)
 }
 
 static void
+test_LSTransportMessageEmpty(void)
+{
+    _LSTransportMessage *msg = _LSTransportMessageEmpty();
+    g_assert(msg);
+    g_assert_cmpint(msg->ref, >, 1);
+
+    g_assert(msg->raw);
+    g_assert_cmpint(msg->raw->header.len, ==, 0);
+    g_assert_cmpint(msg->raw->header.token, ==, LSMESSAGE_TOKEN_INVALID);
+    g_assert_cmpint(msg->raw->header.type, ==, _LSTransportMessageTypeUnknown);
+
+    g_assert_cmpint(msg->alloc_body_size, ==, 0);
+    g_assert_cmpint(msg->tx_bytes_remaining, ==, 0);
+    g_assert_cmpint(msg->retries, ==, 0);
+    g_assert_cmpint(msg->connection_fd, ==, -1);
+    g_assert_cmpint(msg->connect_state, ==, _LSTransportConnectStateOtherFailure);
+}
+
+static void
 test_LSTransportMessageCopyNewRef(TestData *fixture, gconstpointer user_data)
 {
     _LSTransportMessage *msg = _LSTransportMessageCopyNewRef(fixture->msg);
@@ -826,6 +845,7 @@ main(int argc, char *argv[])
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/luna-service2/LSTransportMessageNewRef", test_LSTransportMessageNewRef);
+    g_test_add_func("/luna-service2/LSTransportMessageEmpty", test_LSTransportMessageEmpty);
 
     LSTEST_ADD("/luna-service2/LSTransportMessageCopyNewRef", test_LSTransportMessageCopyNewRef);
     LSTEST_ADD("/luna-service2/LSTransportMessageCopy", test_LSTransportMessageCopy);

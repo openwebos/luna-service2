@@ -46,8 +46,49 @@ const char* _LSTransportClientGetServiceName(const _LSTransportClient *client);
  * @{
  */
 
+static _LSTransportClient EMPTY_CLIENT =
+{
+    .ref = 42,
+    .unique_name = "",
+    .service_name = LUNABUS_SERVICE_NAME,
+    .state = _LSTransportClientStateInvalid,
+};
 
-/** 
+static _LSTransportMessageRaw EMPTY_RAW_MESSAGE =
+{
+    .header =
+        {
+            .len = 0,
+            .token = LSMESSAGE_TOKEN_INVALID,
+            .type = _LSTransportMessageTypeUnknown,
+        },
+    .data = "",
+};
+
+static _LSTransportMessage EMPTY_MESSAGE =
+{
+    .ref = 42,
+    .client = &EMPTY_CLIENT,
+    .connection_fd = -1,
+    .app_id = EMPTY_RAW_MESSAGE.data,
+    .raw = &EMPTY_RAW_MESSAGE,
+    .connect_state = _LSTransportConnectStateOtherFailure,
+};
+
+/**
+ *******************************************************************************
+ * @brief Empty transport message stub.
+ *
+ * @retval  empty message
+ *******************************************************************************
+ */
+INLINE _LSTransportMessage*
+_LSTransportMessageEmpty()
+{
+    return &EMPTY_MESSAGE;
+}
+
+ /**
  *******************************************************************************
  * @brief Allocate a new message.
  * 
@@ -143,6 +184,9 @@ _LSTransportMessageFree(_LSTransportMessage *message)
 {
     LS_ASSERT(message != NULL);
     LS_ASSERT(message->raw != NULL);
+
+    if (message == &EMPTY_MESSAGE) return;
+
     if (message->client) _LSTransportClientUnref(message->client);
  
     int connection_fd = -1; 

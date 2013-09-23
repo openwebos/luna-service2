@@ -181,6 +181,7 @@ typedef struct LSTransportMessage _LSTransportMessage;
 bool LSTransportMessageFilterMatch(_LSTransportMessage *message, const char *filter);
 void LSTransportMessagePrint(_LSTransportMessage *message, FILE *file);
 
+INLINE _LSTransportMessage* _LSTransportMessageEmpty();
 INLINE _LSTransportMessage* _LSTransportMessageNew(unsigned long payload_size);
 INLINE _LSTransportMessage* _LSTransportMessageNewRef(unsigned long payload_size);
 INLINE void _LSTransportMessageReset(_LSTransportMessage *message);

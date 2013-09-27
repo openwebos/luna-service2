@@ -47,4 +47,9 @@ gid_t _LSTransportCredGetGid(const _LSTransportCred *cred);
 const char* _LSTransportCredGetExePath(const _LSTransportCred *cred);
 const char* _LSTransportCredGetCmdLine(const _LSTransportCred *cred);
 
+#ifdef UNIT_TESTS
+void _LSTransportCredSetExePath(_LSTransportCred *cred, char const *exe_path);
+void _LSTransportCredSetPid(_LSTransportCred *cred, pid_t pid);
+#endif //UNIT_TESTS
+
 #endif  /* _TRANSPORT_SECURITY_H_ */

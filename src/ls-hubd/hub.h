@@ -29,7 +29,6 @@
 bool ServiceInitMap(LSError *lserror);
 bool ParseServiceDirectory(const char *path, LSError *lserror);
 bool SetupSignalHandler(int signal, void (*handler)(int));
-const char* IsMediaService(const char *service_name);
 bool LSHubSendConfScanCompleteSignal(void);
 
 #endif  /* _HUB_H */

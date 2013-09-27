@@ -93,15 +93,6 @@ const char* service_group_names[] = {
     "Luna Service",
 };
 
-/**< FIXME: workaround for non-conformant media service */
-static char *media_service_names[] = {
-    "com.palm.mediad",
-    "com.palm.media",
-    "com.palm.umediapipeline",
-    "com.palm.umediaserver",
-    "com.palm.umediapipelinectrl"
-};
-
 #define SERVICE_NAME_KEY    "Name"          /**< key for defining service name */
 #define SERVICE_EXEC_KEY    "Exec"          /**< key for executable path for 
                                                  service */
@@ -1703,40 +1694,6 @@ _LSHubCleanupSocketLocal(const char *unique_name)
     {
         g_warning("Error removing socket: \"%s\"", g_strerror(errno));
     }
-}
-
-/** 
- *******************************************************************************
- * @brief Returns true if the service_name is for the media service, which
- * behaves differently than all other static and dynamic services and does
- * not have a static service file.
- * 
- * @param  service_name 
- * 
- * @retval  media service_name pointer if a media service
- * @retval  null pointer otherwise
- *******************************************************************************
- */
-inline const char*
-IsMediaService(const char *service_name)
-{
-    if (NULL == service_name)
-    {
-        return NULL;
-    }
-
-    int i = 0;
-    for (i = 0; i < ARRAY_SIZE(media_service_names); i++)
-    {
-        /* match just the part of the name that doesn't change 
-         * ( i.e., same as com.palm.mediad.* and com.palm.umediapipeline* ) */
-        if (strncmp(media_service_names[i], service_name, strlen(media_service_names[i])) == 0)
-        {
-            return media_service_names[i];
-        }
-    }
-
-    return NULL;
 }
 
 /** 
@@ -4034,6 +3991,7 @@ _ProcessConfFileOptions(char **cmdline_local_socket_path, char **cmdline_pid_dir
 
 
 static LSTransportHandlers _LSHubHandler;
+
 
 int
 main(int argc, char *argv[])

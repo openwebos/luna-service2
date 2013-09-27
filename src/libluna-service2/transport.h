@@ -198,4 +198,8 @@ bool _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserro
 bool LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_name, LSMessageToken *serial, LSError *lserror);
 const char* _LSTransportQueryNameReplyGetUniqueName(_LSTransportMessage *message);
 
+#ifdef UNIT_TESTS
+void _LSTransportSetTransportType(_LSTransport *transport, _LSTransportType type);
+#endif // UNIT_TESTS
+
 #endif // _TRANSPORT_H_

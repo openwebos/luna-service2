@@ -109,8 +109,8 @@ _ConfigKeyProcessDynamicServiceExecPrefix(char *value, const char **conf_var, LS
 static bool
 _ConfigKeyProcessWatchdogFailureMode(char *mode_str, LSHubWatchdogFailureMode *conf_var, LSError *lserror);
 
-static void _ConfigSetDefaults(void);
-static void _ConfigFreeSettings(void);
+void _ConfigSetDefaults(void);
+void _ConfigFreeSettings(void);
 
 /**
  * Keyfile format:
@@ -708,7 +708,7 @@ _ConfigKeyGetStringList(GKeyFile *key_file, const char *group_name,
  * @brief Set default config settings for remaining unset values.
  *******************************************************************************
  */
-static void
+void
 _ConfigSetDefaults(void)
 {
     /* NOTE: All strings should be copied since they are free'd when we reload
@@ -749,7 +749,7 @@ _ConfigSetDefaults(void)
  * @brief Free config file settings
  *******************************************************************************
  */
-static void
+void
 _ConfigFreeSettings(void)
 {
     if (g_conf_dynamic_service_exec_prefix)

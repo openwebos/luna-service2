@@ -5810,4 +5810,9 @@ LSTransportPushRole(_LSTransport *transport, const char *path, LSError *lserror)
     return ret;
 }
 
+void _LSTransportSetTransportType(_LSTransport *transport, _LSTransportType type)
+{
+    transport->type = type;
+}
+
 /* @} END OF LunaServiceTransport */

@@ -102,6 +102,14 @@ static GHashTable *role_map = NULL;
  */
 static GHashTable *permission_map = NULL;
 
+/**
+ * @brief Map of service name pattern to LSHubPermissions.
+ *
+ * Patterns are ordered by comparing prefixes up to the first '?' or '*'.
+ */
+static GTree *permission_wildcard_map = NULL;
+
+
 static _LSHubPatternSpec*
 _LSHubPatternSpecNew(const char *pattern)
 {
@@ -358,6 +366,12 @@ GHashTable*
 LSHubGetPermissionMap(void)
 {
     return permission_map;
+}
+
+GTree*
+LSHubGetPermissionWildcardMap(void)
+{
+	return permission_wildcard_map;
 }
 
 GHashTable*
@@ -892,19 +906,29 @@ LSHubPermissionMapLookup(const char *service_name)
     {
         perm = g_hash_table_lookup(LSHubGetPermissionMap(), service_name);
 
-        /* FIXME - unfortunate hack since mediaserver dynamically registers
-         * names on the bus */
         if (!perm)
         {
-            const char *media_service_name = IsMediaService(service_name);
-
-            if (media_service_name)
+            _LSHubPatternSpec key =
             {
-                perm = g_hash_table_lookup(LSHubGetPermissionMap(), media_service_name);
+                .pattern_str = service_name,
+            };
+            perm = g_tree_lookup(LSHubGetPermissionWildcardMap(), &key);
+
+            if (!perm)
+            {
+                /* FIXME - unfortunate hack since mediaserver dynamically registers
+                 * names on the bus */
+                const char *media_service_name = IsMediaService(service_name);
+
+                if (media_service_name)
+                {
+                    perm = g_hash_table_lookup(LSHubGetPermissionMap(), media_service_name);
+                }
             }
-        } 
+
+        }
     }
-    
+
     return perm;
 }
 
@@ -914,41 +938,46 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
 {
     _ls_verbose("%s: attempting to add permission %p to permission map...\n", __func__, perm);
 
-     LSHubPermission *lookup_perm = LSHubPermissionMapLookup(perm->service_name);
+    LSHubPermission *lookup_perm = LSHubPermissionMapLookup(perm->service_name);
 
-     if (lookup_perm)
-     {
-         _LSErrorSet(lserror, -1, "Attempting to add duplicate service name to permission map: \"%s\"", perm->service_name);
-         _ls_verbose("%s: failure\n", __func__);
-         return false;
-     }
-
-     LSHubPermissionRef(perm);
-     g_hash_table_insert(LSHubGetPermissionMap(), g_strdup(perm->service_name), perm);
-    _ls_verbose("%s: success\n", __func__);
-     return true;
-}
-
-bool
-LSHubPermissionMapUnref(const char *service_name, LSError *lserror)
-{
-    _ls_verbose("%s: attempting to remove \"%s\" from permission map...\n", __func__, service_name);
-
-    LSHubPermission *perm = LSHubPermissionMapLookup(service_name);
-
-    if (perm)
+    if (lookup_perm)
     {
-        g_hash_table_remove(LSHubGetPermissionMap(), service_name);
-        LSHubPermissionUnref(perm);
-        _ls_verbose("%s: success\n", __func__);
-        return true;
-    }
-    else
-    {
-        _LSErrorSet(lserror, -1, "Expected to find a permission to unref");
+        /* Services widely use name "" for anonymouse call, but it's in fact one instance,
+         * which is shared among all them. So we register empty name only once,
+         * hoping that it has enough permissions for all them
+         */
+        if (!perm->service_name[0])
+            return true;
+
+        _LSErrorSet(lserror, -1, "Attempting to add duplicate service name to permission map: \"%s\"", perm->service_name);
         _ls_verbose("%s: failure\n", __func__);
         return false;
     }
+
+    // See if perm->service_name is a wildcard. If so, it must be compiled and stored
+    // in the tree instead of the hash map.
+    size_t prefix = strcspn(perm->service_name, "*?");
+    if (!perm->service_name[prefix])
+    {
+        // The service name doesn't contain wildcard characters, treat verbatim.
+        LSHubPermissionRef(perm);
+        g_hash_table_insert(LSHubGetPermissionMap(), g_strdup(perm->service_name), perm);
+    }
+    else
+    {
+        _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(perm->service_name);
+        if (!pattern)
+        {
+            _LSErrorSetOOM(lserror);
+            return false;
+        }
+
+        LSHubPermissionRef(perm);
+        g_tree_insert(LSHubGetPermissionWildcardMap(), pattern, perm);
+    }
+
+    _ls_verbose("%s: success\n", __func__);
+    return true;
 }
 
 bool
@@ -976,23 +1005,9 @@ LSHubRoleMapClear(LSError *lserror)
 bool
 LSHubPermissionMapClear(LSError *lserror)
 {
-    // TODO: use g_hash_table_remove_all()
-    gpointer key = NULL;
-    gpointer value = NULL;
-    GHashTableIter iter;
-
     _ls_verbose("%s: clearing permission map\n", __func__);
+    g_hash_table_remove_all(LSHubGetPermissionMap());
 
-    g_hash_table_iter_init(&iter, LSHubGetPermissionMap());
-
-    while (g_hash_table_iter_next(&iter, &key, &value))
-    {
-        LSHubPermissionUnref((LSHubPermission*)value);
-        g_hash_table_iter_remove(&iter);    /* this frees the key due to the
-                                             * key_destroy_func set in
-                                             * g_hash_table_new_full */
-
-    }
     return true;
 }
 
@@ -1234,7 +1249,7 @@ exit:
 }
 
 bool
-ParseRoleDirectory(const char *path, GHashTable *role_hash, GHashTable *perm_hash, LSError *lserror)
+ParseRoleDirectory(const char *path, LSError *lserror)
 {
     GError *gerror = NULL;
     const char *filename = NULL;
@@ -1651,6 +1666,9 @@ LSHubIsClientMonitor(const _LSTransportClient *client)
 static inline bool
 _LSHubClientExePathMatches(const _LSTransportClient *client, const char *path)
 {
+    if (!path)
+        return false;
+
     const _LSTransportCred *cred = _LSTransportClientGetCred(client);
 
     if (!cred)
@@ -2011,6 +2029,49 @@ LSHubIsClientAllowedToSendSignal(_LSTransportClient *client)
     return false;
 }
 
+static void
+permission_unref(gpointer data)
+{
+    LSHubPermissionUnref((LSHubPermission *) data);
+}
+
+static void
+pattern_unref(gpointer data)
+{
+    _LSHubPatternSpecUnref((_LSHubPatternSpec *) data);
+}
+
+static gint
+pattern_compare(gconstpointer a, gconstpointer b, gpointer user_data)
+{
+    _LSHubPatternSpec const *pa = (_LSHubPatternSpec const *) a;
+    _LSHubPatternSpec const *pb = (_LSHubPatternSpec const *) b;
+
+    // We order patterns by their prefixes:
+    // asdf* < bcd*
+    size_t pref_a = strcspn(pa->pattern_str, "*?");
+    size_t pref_b = strcspn(pb->pattern_str, "*?");
+
+    int res = strncmp(pa->pattern_str, pb->pattern_str, MIN(pref_a, pref_b));
+    if (res)
+        return res;
+
+    // Now, if both keys to comare are patterns, there's no way to order them any more.
+    // Thus we consider they're equal (it's impossible to add them to the tree simultaneously).
+    if (pa->pattern_spec && pb->pattern_spec)
+        return 0;
+
+    // For lookup, it only matters if the key is matched against the pattern.
+    if ((pa->pattern_spec && g_pattern_match(pa->pattern_spec, strlen(pb->pattern_str), pb->pattern_str, NULL)) ||
+        (pb->pattern_spec && g_pattern_match(pb->pattern_spec, strlen(pa->pattern_str), pa->pattern_str, NULL)))
+    {
+        return 0;
+    }
+
+    // We don't care about other case, the lookup will fail.
+    return 1;
+}
+
 static bool
 _PermissionsAndRolesInit(LSError *lserror)
 {
@@ -2056,7 +2117,7 @@ _PermissionsAndRolesInit(LSError *lserror)
     }
     else
     {
-        permission_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, /*TODO: unref */NULL);
+        permission_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, permission_unref);
 
         if (!permission_map)
         {
@@ -2065,7 +2126,25 @@ _PermissionsAndRolesInit(LSError *lserror)
         }
     }
 
+    if (permission_wildcard_map)
+        g_tree_destroy(permission_wildcard_map);
+
+    permission_wildcard_map = g_tree_new_full(pattern_compare, NULL, pattern_unref, permission_unref);
+
+    if (!permission_wildcard_map)
+    {
+        _LSErrorSetOOM(lserror);
+        return false;
+    }
+
     return true;
+}
+
+static gboolean
+print_wildcard_permissions(gpointer key, gpointer value, gpointer data)
+{
+    LSHubPermissionPrint((LSHubPermission *) value, stderr);
+    return false;
 }
 
 bool
@@ -2085,7 +2164,7 @@ ProcessRoleDirectories(const char **dirs, void *ctxt, LSError *lserror)
 
     for (cur_dir = dirs; *cur_dir != NULL; cur_dir++)
     {
-        if (!ParseRoleDirectory(*cur_dir, LSHubGetRoleMap(), LSHubGetPermissionMap(), lserror))
+        if (!ParseRoleDirectory(*cur_dir, lserror))
         {
             LSErrorPrint(lserror, stderr);
             LSErrorFree(lserror);
@@ -2114,5 +2193,51 @@ ProcessRoleDirectories(const char **dirs, void *ctxt, LSError *lserror)
         LSHubPermissionPrint(perm, stderr);
     }
 
+    g_tree_foreach(LSHubGetPermissionWildcardMap(), print_wildcard_permissions, NULL);
+
     return true;
 }
+
+/**< FIXME: workaround for non-conformant media service */
+static char *media_service_names[] = {
+    "com.palm.mediad",
+    "com.palm.media",
+    "com.palm.umediapipeline",
+    "com.palm.umediaserver",
+    "com.palm.umediapipelinectrl"
+};
+
+/**
+ *******************************************************************************
+ * @brief Returns true if the service_name is for the media service, which
+ * behaves differently than all other static and dynamic services and does
+ * not have a static service file.
+ *
+ * @param  service_name
+ *
+ * @retval  media service_name pointer if a media service
+ * @retval  null pointer otherwise
+ *******************************************************************************
+ */
+inline const char*
+IsMediaService(const char *service_name)
+{
+    if (NULL == service_name)
+    {
+        return NULL;
+    }
+
+    int i = 0;
+    for (i = 0; i < ARRAY_SIZE(media_service_names); i++)
+    {
+        /* match just the part of the name that doesn't change
+         * ( i.e., same as com.palm.mediad.* and com.palm.umediapipeline* ) */
+        if (strncmp(media_service_names[i], service_name, strlen(media_service_names[i])) == 0)
+        {
+            return media_service_names[i];
+        }
+    }
+
+    return NULL;
+}
+

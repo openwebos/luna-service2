@@ -372,4 +372,15 @@ _LSTransportGetCredentials(int fd, _LSTransportCred *cred, LSError *lserror)
     return true;
 }
 
+void _LSTransportCredSetExePath(_LSTransportCred *cred, char const *exe_path)
+{
+    g_free((char *) cred->exe_path);
+    cred->exe_path = g_strdup(exe_path);
+}
+
+void _LSTransportCredSetPid(_LSTransportCred *cred, pid_t pid)
+{
+    cred->pid = pid;
+}
+
 /*< @} END OF LunaServiceTransportSecurity */

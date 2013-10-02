@@ -70,6 +70,10 @@ if(USE_GCOV)
 	webos_add_linker_options(ALL -lgcov -fprofile-arcs)
 endif()
 
+# Enable security by default
+IF(NOT DEFINED WEBOS_LS2_SECURE)
+	SET(WEBOS_LS2_SECURE True)
+ENDIF(NOT DEFINED WEBOS_LS2_SECURE)
 
 # Debug definitions
 webos_add_compiler_flags(ALL -DMEMCHECK -DLSHANDLE_CHECK)

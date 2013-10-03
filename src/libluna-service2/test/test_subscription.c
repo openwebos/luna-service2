@@ -164,6 +164,7 @@ test_CatalogHandleCancel(TestData *fixture, gconstpointer user_data)
         g_assert(LSErrorIsSet(&error));
         g_assert_cmpstr(error.message, ==, "Invalid json");
         g_assert_cmpint(error.error_code, ==, -EINVAL);
+        LSErrorFree(&error);
         exit(0);
     }
     g_test_trap_assert_passed();
@@ -178,6 +179,37 @@ test_CatalogHandleCancel(TestData *fixture, gconstpointer user_data)
         g_assert(LSErrorIsSet(&error));
         g_assert_cmpstr(error.message, ==, "Invalid json");
         g_assert_cmpint(error.error_code, ==, -EINVAL);
+        LSErrorFree(&error);
+        exit(0);
+    }
+    g_test_trap_assert_passed();
+
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
+    {
+        LSError error;
+        LSErrorInit(&error);
+        fixture->message_payload = "{\"token\":null}";
+
+        g_assert(!_CatalogHandleCancel(fixture->catalog, fixture->message, &error));
+        g_assert(LSErrorIsSet(&error));
+        g_assert_cmpstr(error.message, ==, "Invalid json");
+        g_assert_cmpint(error.error_code, ==, -EINVAL);
+        LSErrorFree(&error);
+        exit(0);
+    }
+    g_test_trap_assert_passed();
+
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
+    {
+        LSError error;
+        LSErrorInit(&error);
+        fixture->message_payload = "{\"token\":\"hello\"}";
+
+        g_assert(!_CatalogHandleCancel(fixture->catalog, fixture->message, &error));
+        g_assert(LSErrorIsSet(&error));
+        g_assert_cmpstr(error.message, ==, "Invalid json");
+        g_assert_cmpint(error.error_code, ==, -EINVAL);
+        LSErrorFree(&error);
         exit(0);
     }
     g_test_trap_assert_passed();
@@ -288,6 +320,20 @@ test_LSSubscriptionProcess(TestData *fixture, gconstpointer user_data)
 
     // dont subscribe
     fixture->message_payload = "{}";
+
+    g_assert(LSSubscriptionProcess(&fixture->sh, fixture->message, &subscribed, &error));
+    g_assert(!subscribed);
+    g_assert_cmpint(fixture->lscall_call_count, ==, 0);
+
+    // dont subscribe
+    fixture->message_payload = "{\"subscribe\": null}";
+
+    g_assert(LSSubscriptionProcess(&fixture->sh, fixture->message, &subscribed, &error));
+    g_assert(!subscribed);
+    g_assert_cmpint(fixture->lscall_call_count, ==, 0);
+
+    // dont subscribe
+    fixture->message_payload = "{\"subscribe\": 1}";
 
     g_assert(LSSubscriptionProcess(&fixture->sh, fixture->message, &subscribed, &error));
     g_assert(!subscribed);

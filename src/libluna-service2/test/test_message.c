@@ -243,6 +243,9 @@ test_LSMessageIsSubscription(TestData *fixture, gconstpointer user_data)
 
     fixture->msg->payload = "{\"subscribe\":false}";
     g_assert(!LSMessageIsSubscription(fixture->msg));
+
+    fixture->msg->payload = "{\"subscribe\":null}";
+    g_assert(!LSMessageIsSubscription(fixture->msg));
 }
 
 static void

@@ -390,16 +390,19 @@ LSMessageIsSubscription(LSMessage *message)
     const char *payload = LSMessageGetPayload(message);
 
     struct json_object *object = json_tokener_parse(payload);
-    if (JSON_ERROR(object)) goto exit;
+    if (JSON_ERROR(object))
+        goto exit;
    
-    if (!json_object_object_get_ex(object, "subscribe", &sub_object)) goto exit;
+    if (!json_object_object_get_ex(object, "subscribe", &sub_object) || JSON_ERROR(sub_object))
+        goto exit;
 
     _LSErrorIfFail(json_object_get_type(sub_object) == json_type_boolean, NULL);
     
     ret = json_object_get_boolean(sub_object);
 
 exit:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    if (!JSON_ERROR(object))
+        json_object_put(object);
     return ret;
 }
 

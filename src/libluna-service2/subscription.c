@@ -541,7 +541,8 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
 
     sender = LSMessageGetSender(cancelMsg);
 
-    if (!json_object_object_get_ex(object, "token", &tokenObj))
+    if (!json_object_object_get_ex(object, "token", &tokenObj) ||
+        JSON_ERROR(tokenObj) || json_object_get_type(tokenObj) != json_type_int)
     {
         _LSErrorSet(lserror, -EINVAL, "Invalid json");
         goto error;
@@ -1041,7 +1042,8 @@ LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,
         goto exit;
     }
 
-    if (!json_object_object_get_ex(object, "subscribe", &subObj))
+    if (!json_object_object_get_ex(object, "subscribe", &subObj) ||
+        JSON_ERROR(subObj) || json_object_get_type(subObj) != json_type_boolean)
     {
         subscribePayload = false;
         /* FIXME: I think retVal should be false, but I don't know if anyone

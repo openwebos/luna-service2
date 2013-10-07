@@ -40,6 +40,7 @@
 #define LS_ERROR_TEXT_DEPRECATED        "API is deprecated"
 #define LS_ERROR_TEXT_NOT_PRIVILEGED    "LSCallFromApplication with application ID %s but not privileged"
 #define LS_ERROR_TEXT_PROTOCOL_VERSION  "Protocol version (%d) does not match the hub"
+#define LS_ERROR_TEXT_EAGAIN            "Try again later"
 
 #define LS__FILE__BASENAME (strrchr("/" __FILE__, '/') + 1)
 
@@ -207,7 +208,20 @@ do {                                                            \
     _LSErrorSet(lserror, LS_ERROR_CODE_OOM, LS_ERROR_TEXT_OOM); \
 } while (0) 
 
-/** 
+/**
+ *******************************************************************************
+ * @brief Use this function instead of _LSErrorSet to set an error when
+ * retry later error occurs.
+ *
+ * @param  lserror  IN  ptr to lserror
+ *******************************************************************************
+ */
+#define _LSErrorSetEAgain(lserror)                                 \
+do {                                                            \
+    _LSErrorSet(lserror, LS_ERROR_CODE_EAGAIN, LS_ERROR_TEXT_EAGAIN); \
+} while (0)
+
+/**
  *******************************************************************************
  * @brief Use this function instead of _LSErrorSet() to set an error from a
  * glib GError. This function frees the GError.

@@ -34,6 +34,7 @@
 #define LS_ERROR_CODE_DEPRECATED        (-6 - _LS_ERROR_CODE_OFFSET)    /**< API is deprecated */
 #define LS_ERROR_CODE_NOT_PRIVILEGED    (-7 - _LS_ERROR_CODE_OFFSET)    /**< service is not privileged */
 #define LS_ERROR_CODE_PROTOCOL_VERSION  (-8 - _LS_ERROR_CODE_OFFSET)    /**< protocol version mismatch */
+#define LS_ERROR_CODE_EAGAIN            (-9 - _LS_ERROR_CODE_OFFSET)    /**< try again */
 
 /** @} LunaServiceErrorCodes */
 

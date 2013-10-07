@@ -49,7 +49,7 @@
  * @{
  */
 
-#define LISTEN_BACKLOG  10
+#define LISTEN_BACKLOG  30
 
 #if 0
 FILE *debug_print_file = NULL;
@@ -1557,7 +1557,7 @@ _LSTransportConnectLocal(const char *unique_name, bool new_socket, int *fd, LSEr
         if (tmp_fd < 0)
         {
             _LSErrorSetFromErrno(lserror, errno);
-            return false;
+            return _LSTransportConnectStateOtherFailure;
         }
     }
     else
@@ -1617,7 +1617,24 @@ _LSTransportConnectLocal(const char *unique_name, bool new_socket, int *fd, LSEr
     return _LSTransportConnectStateNoError;
 }
 
-bool
+/**
+ *******************************************************************************
+ * @brief Connect to a inet endpoint.
+ *
+ * @param  unique_name  IN  unique name to connect to
+ * @param  fd           OUT output arg that has the fd for the newly created and
+ *                          connected socket. On non-fatal errors the socket will be returned
+ *                          through the fd arg; on fatal errors (_LSTransportConnectStateOtherFailure)
+ *                          there will be no new socket
+ * @param  lserror      OUT set on fatal error (_LSTransportConnectStateOtherFailure)
+ *
+ * @retval  _LSTransportConnectStateNoError on success
+ * @retval  _LSTransportConnectStateOtherFailure on fatal error
+ * @retval  _LSTransportConnectStateEinprogress on EINPROGRESS (would block)
+ * @retval  _LSTransportConnectStateEagain on EAGAIN (would block)
+ *******************************************************************************
+ */
+_LSTransportConnectState
 _LSTransportConnectInet(const char *unique_name, int *fd, LSError *lserror)
 {
     struct sockaddr_in addr;
@@ -1627,7 +1644,7 @@ _LSTransportConnectInet(const char *unique_name, int *fd, LSError *lserror)
     if (tmp_fd < 0)
     {
         _LSErrorSetFromErrno(lserror, errno);
-        return NULL;
+        return _LSTransportConnectStateOtherFailure;
     }
 
     /* split up unique_name into ip and port */
@@ -1637,21 +1654,40 @@ _LSTransportConnectInet(const char *unique_name, int *fd, LSError *lserror)
     if (!_LSTransportSplitInetUniqueName(unique_name, &addr.sin_addr, &addr.sin_port, lserror))
     {
         close(tmp_fd);
-        return false;
+        *fd = -1;
+        return _LSTransportConnectStateOtherFailure;
     }
 
     int ret = connect(tmp_fd, (struct sockaddr*)&addr, sizeof(addr));
     
     if (ret < 0)
     {
-        _LSErrorSetNoPrint(lserror, errno, g_strerror(errno));
-        close(tmp_fd); 
-        return false;
+        /* POSIX says EINPROGRESS is the return value when the socket is
+         * non-blocking and can't be completed immediately. However, on Linux
+         * when using domain sockets if the backlog queue is full, it will
+         * return EAGAIN. See unix_stream_connect() in net/unix/af_unix.c */
+        if (errno == EINPROGRESS)
+        {
+            *fd = tmp_fd;
+            return _LSTransportConnectStateEinprogress;
+        }
+        else if (errno == EAGAIN)
+        {
+            *fd = tmp_fd;
+            return _LSTransportConnectStateEagain;
+        }
+        else
+        {
+            _LSErrorSetNoPrint(lserror, errno, g_strerror(errno));
+            close(tmp_fd);
+            *fd = -1;
+            return _LSTransportConnectStateOtherFailure;
+        }
     }
 
     *fd = tmp_fd;
 
-    return true;
+    return _LSTransportConnectStateNoError;
 }
 
 /** 
@@ -1685,16 +1721,28 @@ _LSTransportConnectClient(_LSTransport *transport, const char *service_name, con
         }
         else
         {
-            if (_LSTransportConnectLocal(unique_name, true, &fd, lserror) != _LSTransportConnectStateNoError)
+            _LSTransportConnectState cs = _LSTransportConnectLocal(unique_name, true, &fd, lserror);
+            if (cs != _LSTransportConnectStateNoError)
             {
+                if (cs == _LSTransportConnectStateEagain)
+                {
+                    _LSErrorSetEAgain(lserror);
+                    return NULL;
+                }
                 goto error;
             }
         }
     }
     else
     {
-        if (!_LSTransportConnectInet(unique_name, &fd, lserror))
+        _LSTransportConnectState cs = _LSTransportConnectInet(unique_name, &fd, lserror);
+        if (cs != _LSTransportConnectStateNoError)
         {
+            if (cs == _LSTransportConnectStateEagain)
+            {
+                _LSErrorSetEAgain(lserror);
+                return NULL;
+            }
             goto error;
         }
     }

@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#      Copyright (c) 2008-2013 LG Electronics, Inc.
+#      Copyright (c) 2008-2014 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ set(SOURCE
     callmap.c
     clock.c
     debug_methods.c
+    log.c
     mainloop.c
     message.c
     subscription.c
@@ -41,12 +42,11 @@ set(SOURCE
 
 set(SOURCE_TEST ${SOURCE})
 
-add_definitions(-DG_LOG_DOMAIN="LunaService")
-
 set(LIBRARIES
     ${GLIB2_LDFLAGS}
     ${GTHREAD2_LDFLAGS}
     ${CJSON_LDFLAGS}
+    ${PMLOGLIB_LDFLAGS}
     dl
     pthread
     rt

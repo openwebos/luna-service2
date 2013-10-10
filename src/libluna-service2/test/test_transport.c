@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -145,10 +145,25 @@ _LSTransportClientGetTransport(const _LSTransportClient *client)
     return this_transport;
 }
 
-// Redefined g_log to reduce memcheck error count
-void g_log(const gchar *log_domain, GLogLevelFlags log_level, const gchar *format, ...)
+// PmLogLib.h
+PmLogErr _PmLogMsgKV(PmLogContext context, PmLogLevel level, unsigned int flags,
+                     const char *msgid, size_t kv_count, const char *check_keywords,
+                     const char *check_formats, const char *fmt, ...)
 {
+    if (level == kPmLogLevel_Debug) return kPmLogErr_None;
+
+    va_list args;
+
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+
+    putc('\n', stderr);
+
+    // Added to simulate glib error behaviour
     g_assert(false);
+
+    return kPmLogErr_None;
 }
 
 void
@@ -944,6 +959,7 @@ test_LSTransportSendClient_execute(int number_of_messages, int include_null, int
 
         exit(0);
     }
+
     if(include_null < 0 && sendfd_success)
     {
         g_test_trap_assert_passed();

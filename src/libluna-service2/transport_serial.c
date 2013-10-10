@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@ _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *mes
     _LSTransportSerialListItem *item = _LSTransportSerialListItemNew(serial, message);
     if (!item)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         goto error;
     }
 
@@ -215,7 +215,7 @@ _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *mes
     _LSTransportSerialMapEntry *map_entry = _LSTransportSerialMapEntryNew(serial, list);
     if (!map_entry)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         SERIAL_INFO_UNLOCK(&serial_info->lock);
         goto error;
     }

@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -141,7 +141,10 @@ _LSTransportChannelClose(_LSTransportChannel *channel, bool flush)
 
         if (err != NULL)
         {
-            g_warning("Error on channel close (status: %d): %s", status, err->message);
+            LOG_LS_WARNING(MSGID_LS_CHANNEL_ERR, 2,
+                           PMLOGKFV("ERROR_CODE", "%d", err->code),
+                           PMLOGKS("ERROR", err->message),
+                           "Error on channel close (status: %d): %s", status, err->message);
             g_error_free(err);
         }
 

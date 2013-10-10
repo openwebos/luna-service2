@@ -87,3 +87,5 @@ endif()
 
 webos_build_configured_file(files/conf/ls-private.conf SYSCONFDIR luna-service2)
 webos_build_configured_file(files/conf/ls-public.conf SYSCONFDIR luna-service2)
+
+webos_build_configured_file(files/conf/pmlog/ls-hub.conf SYSCONFDIR pmlog.d)

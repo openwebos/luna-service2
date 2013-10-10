@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
  */
 
 #include "clock.h"
+#include "log.h"
 
 #include <sys/time.h>
 #include <time.h>
@@ -51,7 +52,7 @@ ClockGetTime(struct timespec *time)
 #endif
     if (ret)
     {
-        g_critical("Could not obtain monotonic clock.");
+        LOG_LS_ERROR(MSGID_LS_CLOCK_ERROR, 0, "Could not obtain monotonic clock");
 
         struct timeval tv;
         gettimeofday(&tv, NULL);

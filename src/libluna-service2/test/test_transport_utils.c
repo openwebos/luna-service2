@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -35,35 +35,6 @@ test_sigusr1_handler(int signum)
 }
 
 /* Test cases *****************************************************************/
-
-static void
-test_ls_verbose()
-{
-    const char *message = "verbose message";
-    // _ls_verbose prepends thread id to the message
-    const char *expected_stderr = "*verbose message";
-
-    // disable DEBUG_VERBOSE (_ls_verbose don't print anything)
-    _ls_debug_tracing = 0;
-
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
-    {
-        _ls_verbose("%s", message);
-        exit(0);
-    }
-    g_test_trap_assert_stderr_unmatched(expected_stderr);
-
-    // enable DEBUG_VERBOSE (_ls_verbose print to stderr)
-    _ls_debug_tracing = 2;
-
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
-    {
-        _ls_verbose("%s", message);
-        exit(0);
-    }
-    g_test_trap_assert_stderr(expected_stderr);
-}
-
 static void
 test_strlen_safe()
 {
@@ -163,7 +134,6 @@ main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_func("/luna-service2/ls_verbose", test_ls_verbose);
     g_test_add_func("/luna-service2/strlen_safe", test_strlen_safe);
     g_test_add_func("/luna-service2/DumpHashItem", test_DumpHashItem);
     g_test_add_func("/luna-service2/DumpHashItemTable", test_DumpHashItemTable);

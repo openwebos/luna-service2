@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <glib.h>
+
+#include "log.h"
 
 /**
  * @addtogroup LunaServiceUtils
@@ -90,7 +92,7 @@ LSIsRunning(const char *pid_dir, const char *pid_file_name)
 
     if (!lock_file)
     {
-        g_critical("OOM when constructing pid path");
+        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM when constructing pid path");
         exit(EXIT_FAILURE);
     }
 
@@ -98,7 +100,10 @@ LSIsRunning(const char *pid_dir, const char *pid_file_name)
 
     if (fd == -1)
     {
-        g_critical("Error opening lock file: \"%s\"", strerror(errno));
+        LOG_LS_ERROR(MSGID_LS_LOCK_FILE_ERR, 2,
+                     PMLOGKFV("ERROR_CODE", "%d", errno),
+                     PMLOGKS("ERROR", strerror(errno)),
+                     "Error opening lock file");
         exit(EXIT_FAILURE);
     }
 
@@ -116,14 +121,20 @@ LSIsRunning(const char *pid_dir, const char *pid_file_name)
 
     if (write_ret != len)
     {
-        /* continue, but display a warning */
-        g_critical("Did not write complete buffer to lock file: \"%s\"", strerror(errno));
+        /* continue, but display an error */
+        LOG_LS_ERROR(MSGID_LS_LOCK_FILE_ERR, 2,
+                     PMLOGKFV("ERROR_CODE", "%d", errno),
+                     PMLOGKS("ERROR", strerror(errno)),
+                     "Did not write complete buffer to lock file");
     }
 
     if (ftruncate(fd, len) == -1)
     {
-        /* continue, but display a warning */
-        g_critical("Error while truncating lock file: \"%s\"", strerror(errno));
+        /* continue, but display an error */
+        LOG_LS_ERROR(MSGID_LS_LOCK_FILE_ERR, 2,
+                     PMLOGKFV("ERROR_CODE", "%d", errno),
+                     PMLOGKS("ERROR", strerror(errno)),
+                     "Error while truncating lock file");
     }
 
     g_free(lock_file);

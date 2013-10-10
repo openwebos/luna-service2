@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,19 +16,24 @@
 *
 * LICENSE@@@ */
 
-#ifndef _LOG_H
-#define _LOG_H
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include <glib.h>
 
-#include <stdbool.h>
+#include "log.h"
 
-#define HUB_PUBLIC_LOG_CONTEXT          "ls-hubd.public"
-#define HUB_PRIVATE_LOG_CONTEXT         "ls-hubd.private"
+static PmLogContext pm_log_context = kPmLogDefaultContext;
 
-void SetLoggingSyslog(void);
-void SetLoggingPmLogLib(bool public_hub);
+void LSLogSetContext(const char* context_name)
+{
+    PmLogGetContext(context_name, &pm_log_context);
+}
 
-#endif  /* _LOG_H */
+inline PmLogContext LSLogGetContext(void)
+{
+    return pm_log_context;
+}
+
+void LSLogSetDebugLevel(bool debug)
+{
+    PmLogSetContextLevel(LSLogGetContext(), debug ? kPmLogLevel_Debug : kPmLogLevel_Info);
+}

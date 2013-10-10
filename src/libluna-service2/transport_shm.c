@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2010-2013 LG Electronics, Inc.
+*      Copyright (c) 2010-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -111,13 +111,13 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
 
             if (fd == -1)
             {
-                _LSErrorSetFromErrno(lserror, errno);
+                _LSErrorSetFromErrno(lserror, MSGID_LS_SHARED_MEMORY_ERR, errno);
                 goto error;
             }
         }
         else
         {
-            _LSErrorSetFromErrno(lserror, errno);
+            _LSErrorSetFromErrno(lserror, MSGID_LS_SHARED_MEMORY_ERR, errno);
             goto error;
         }
     }
@@ -133,7 +133,7 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
 
         if (ret == -1)
         {
-            _LSErrorSetFromErrno(lserror, errno);
+            _LSErrorSetFromErrno(lserror, MSGID_LS_SHARED_MEMORY_ERR, errno);
             goto error;
         }
     }
@@ -142,7 +142,7 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
 
     if (map == MAP_FAILED)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_SHARED_MEMORY_ERR, errno);
         goto error;
     }
 
@@ -152,7 +152,7 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
 
     if (ret == -1)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_SHARED_MEMORY_ERR, errno);
         goto error;
     }
 

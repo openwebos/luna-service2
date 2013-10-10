@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ _LSTransportGetNextToken(_LSTransport *transport)
     /* skip over invalid token */
     if (ret == LSMESSAGE_TOKEN_INVALID)
     {
-        g_critical("Token value rolled over");
+        LOG_LS_ERROR(MSGID_LS_TOKEN_ERR, 0, "Token value rolled over");
         ret = ++transport->global_token->value;
     }
     GLOBAL_TOKEN_UNLOCK(&transport->global_token->lock);
@@ -163,14 +163,14 @@ _LSHandleDisconnect(_LSTransport *client, _LSTransportDisconnectType type, LSMes
 void
 _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken last_serial, _LSTransportDisconnectType type, LSTransportMessageFailure message_failure_handler, void *message_failure_context)
 {
-    _ls_verbose("%s\n", __func__);
+    LOG_LS_DEBUG("%s\n", __func__);
 
     _LSTransportMessageFailureType failure_type;
     _LSTransportMessageFailureItem *fail_item = NULL;
 
     if (last_serial == LSMESSAGE_TOKEN_INVALID)
     {
-        _ls_verbose("no outstanding method calls to cancel\n");
+        LOG_LS_DEBUG("no outstanding method calls to cancel\n");
         return;
     }
 
@@ -178,7 +178,7 @@ _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken
     if (!failure_queue)
     {
         /* We do free memory below, so let's try to continue */
-        g_critical("Unable to allocate memory for failure queue");
+        LOG_LS_ERROR(MSGID_LS_OOM_ERR, 0, "Unable to allocate memory for failure queue");
     }
 
     SERIAL_INFO_LOCK(&serial_info->lock);
@@ -228,7 +228,7 @@ _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken
             else
             {
                 /* Continue to loop since we're freeing things below */
-                g_critical("Unable to allocate memory for failure item");
+                LOG_LS_ERROR(MSGID_LS_OOM_ERR, 0, "Unable to allocate memory for failure item");
             }
         }
 
@@ -251,7 +251,7 @@ _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken
         {
             fail_item = g_queue_pop_head(failure_queue);
 
-            _ls_verbose("message failure: serial: %d, failure_type: %d\n",
+            LOG_LS_DEBUG("message failure: serial: %d, failure_type: %d\n",
                         (int)fail_item->serial, fail_item->failure_type);
 
             message_failure_handler(fail_item->serial, fail_item->failure_type, message_failure_context);
@@ -352,7 +352,7 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
     /* custom message failure handler */
     if (transport->message_failure_handler)
     {
-        _ls_verbose("last serial: %d\n", (int)last_serial);
+        LOG_LS_DEBUG("last serial: %d\n", (int)last_serial);
 
         OUTGOING_LOCK(&outgoing->lock);
 
@@ -400,7 +400,7 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
 {
     LS_ASSERT(client != NULL);
 
-    _ls_verbose("%s\n", __func__);
+    LOG_LS_DEBUG("%s\n", __func__);
 
     _LSTransportClientRef(client);
 
@@ -412,7 +412,7 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
      * NOV-104865: We remove the client from the hash tables *before* calling
      * the failure callbacks so that any calls in the callback to the same client
      * will kick off a new QueryName. */
-    _ls_verbose("removing client from hash tables\n");
+    LOG_LS_DEBUG("removing client from hash tables\n");
 
     TRANSPORT_LOCK(&transport->lock);
 
@@ -572,7 +572,7 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
 {
     LS_ASSERT(message != NULL);
 
-    _ls_verbose("%s\n", __func__);
+    LOG_LS_DEBUG("%s\n", __func__);
 
     LSMessageToken last_serial;
     _LSTransportClient *client = message->client;
@@ -580,16 +580,16 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
     bool ret = _LSTransportGetShutdownToken(message, &last_serial);
     if (!ret)
     {
-        g_debug("Unable to get the shutdown token");
+        LOG_LS_DEBUG("Unable to get the shutdown token");
         LS_ASSERT(0);
     }
 
-    _ls_verbose("last serial: %d\n", (int)last_serial);
+    LOG_LS_DEBUG("last serial: %d\n", (int)last_serial);
 
     GQueue *new_pending = g_queue_new();
     if (!new_pending)
     {
-        g_critical("%s: Unable to allocate new queue", __func__);
+        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "%s: Unable to allocate new queue", __func__);
         LS_ASSERT(!"Unable to allocate new queue");
     }
 
@@ -691,7 +691,10 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
         guint pending_length = g_queue_get_length(new_pending);
         if (pending_length)
         {
-            g_warning("%s: requeueing %u messages for service \"%s\"", __func__, pending_length, client->service_name);
+            LOG_LS_WARNING(MSGID_LS_QUEUE_ERROR, 1,
+                           PMLOGKS("APP_ID", client->service_name),
+                           "%s: requeueing %u messages for service \"%s\"",
+                           __func__, pending_length, client->service_name);
             while ((message = g_queue_pop_head(new_pending)) != NULL)
             {
                 int serial;
@@ -701,8 +704,11 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
                     !_call_pending(client, serial)
                    )
                 {
-                    g_warning("%s: not requeueing cancel-method-call for service \"%s\", token %d because the matching call is not present", __func__,
-                              client->service_name, serial);
+                    LOG_LS_WARNING(MSGID_LS_TOKEN_ERR, 1,
+                                   PMLOGKS("APP_ID", client->service_name),
+                                   "%s: not requeueing cancel-method-call for service \"%s\", token %d"
+                                   " because the matching call is not present", __func__,
+                                   client->service_name, serial);
                 }
                 else
                 {
@@ -710,7 +716,7 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
                     /* ref's the message */
                     if (!_LSTransportAddPendingMessageWithToken(client->transport, client->service_name, message, _LSTransportMessageGetToken(message), &lserror))
                     {
-                        LSErrorPrint(&lserror, stderr);
+                        LOG_LSERROR(MSGID_LS_QUEUE_ERROR, &lserror);
                         LSErrorFree(&lserror);
                     }
                 }
@@ -811,7 +817,7 @@ _LSTransportAddSendWatch(_LSTransportChannel *channel, GMainContext *context, _L
 
     if (!channel->send_watch)
     {
-        _ls_verbose("%s: channel: %p, context: %p, client: %p\n", __func__, channel, context, client);
+        LOG_LS_DEBUG("%s: channel: %p, context: %p, client: %p\n", __func__, channel, context, client);
 
         _LSTransportClientRef(client);
         _LSTransportAddWatch(channel, G_IO_OUT, context, _LSTransportSendClient, client, (GDestroyNotify) _LSTransportClientUnref, &channel->send_watch);
@@ -831,7 +837,7 @@ _LSTransportRemoveSendWatch(_LSTransportChannel *channel)
     LS_ASSERT(channel != NULL);
     LS_ASSERT(channel->send_watch != NULL);
 
-    _ls_verbose("%s: channel: %p\n", __func__, channel);
+    LOG_LS_DEBUG("%s: channel: %p\n", __func__, channel);
 
     if (channel->send_watch)
     {
@@ -857,7 +863,7 @@ _LSTransportAddReceiveWatch(_LSTransportChannel *channel, GMainContext *context,
 
     if (!channel->recv_watch)
     {
-        _ls_verbose("%s: channel: %p, context: %p, client: %p\n", __func__, channel, context, client);
+        LOG_LS_DEBUG("%s: channel: %p, context: %p, client: %p\n", __func__, channel, context, client);
 
         _LSTransportClientRef(client);
         _LSTransportAddWatch(channel, G_IO_IN | G_IO_ERR | G_IO_HUP, context, _LSTransportReceiveClient, client, (GDestroyNotify) _LSTransportClientUnref, &channel->recv_watch);
@@ -877,7 +883,7 @@ _LSTransportRemoveReceiveWatch(_LSTransportChannel *channel)
     LS_ASSERT(channel != NULL);
     LS_ASSERT(channel->recv_watch != NULL);
 
-    _ls_verbose("%s: channel: %p\n", __func__, channel);
+    LOG_LS_DEBUG("%s: channel: %p\n", __func__, channel);
 
     if (channel->recv_watch)
     {
@@ -901,7 +907,7 @@ _LSTransportAddAcceptWatch(_LSTransportChannel *channel, GMainContext *context, 
     LS_ASSERT(channel != NULL);
     LS_ASSERT(context != NULL);
 
-    _ls_verbose("%s: channel: %p, context: %p, transport: %p\n", __func__, channel, context, user_data);
+    LOG_LS_DEBUG("%s: channel: %p, context: %p, transport: %p\n", __func__, channel, context, user_data);
 
     _LSTransportAddWatch(channel, G_IO_IN | G_IO_ERR | G_IO_HUP, context, _LSTransportAcceptConnection, user_data, NULL, &channel->accept_watch);
 }
@@ -919,7 +925,7 @@ _LSTransportRemoveAcceptWatch(_LSTransportChannel *channel)
     LS_ASSERT(channel != NULL);
     LS_ASSERT(channel->accept_watch != NULL);
 
-    _ls_verbose("%s: channel: %p\n", __func__, channel);
+    LOG_LS_DEBUG("%s: channel: %p\n", __func__, channel);
 
     _LSTransportRemoveWatch(channel, &channel->accept_watch);
 }
@@ -939,7 +945,7 @@ _LSTransportAddClientWatches(void *ignored, _LSTransportClient *client, GMainCon
     LS_ASSERT(client != NULL);
     LS_ASSERT(mainloop_context != NULL);
 
-    _ls_verbose("%s: client: %p, mainloop_context: %p\n", __func__, client, mainloop_context);
+    LOG_LS_DEBUG("%s: client: %p, mainloop_context: %p\n", __func__, client, mainloop_context);
 
     _LSTransportAddSendWatch(&client->channel, mainloop_context, client);
     _LSTransportAddReceiveWatch(&client->channel, mainloop_context, client);
@@ -988,7 +994,7 @@ _LSTransportGmainAttach(_LSTransport *transport, GMainContext *context)
     LS_ASSERT(transport != NULL);
     LS_ASSERT(context != NULL);
 
-    _ls_verbose("%s: mainloop_context: %p\n", __func__, transport->mainloop_context);
+    LOG_LS_DEBUG("%s: mainloop_context: %p\n", __func__, transport->mainloop_context);
 
     transport->mainloop_context = g_main_context_ref(context);
 
@@ -1046,7 +1052,7 @@ _LSTransportClientSetPriority(int unused, _LSTransportClient *client, int priori
 bool
 _LSTransportGmainSetPriority(_LSTransport *transport, int priority, LSError *lserror)
 {
-    _LSErrorIfFail(transport != NULL, lserror);
+    _LSErrorIfFail(transport != NULL, lserror, MSGID_LS_PARAMETER_IS_NULL);
 
     /* set priority for all existing sources */
     TRANSPORT_LOCK(&transport->lock);
@@ -1083,7 +1089,7 @@ _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *
 
     if (bind(tmp_fd, (struct sockaddr*) &addr, sizeof(struct sockaddr_un)) < 0)
     {
-        g_debug("bind error");
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Socket bind error");
         goto error;
     }
 
@@ -1091,7 +1097,7 @@ _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *
 
     if (listen(tmp_fd, LISTEN_BACKLOG) < 0)
     {
-        g_debug("listen error");
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Socket listen error");
         goto error;
     }
 
@@ -1100,7 +1106,7 @@ _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *
     return true;
 
 error:
-    _LSErrorSetFromErrno(lserror, errno);
+    _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
 
     if (tmp_fd >= 0)
     {
@@ -1115,7 +1121,7 @@ _LSTransportSetupListenerLocalRaw(_LSTransport *transport, const char *name, int
 {
     bool ret = true;
 
-    _ls_verbose("%s: transport: %p, name: %s\n", __func__, transport, name);
+    LOG_LS_DEBUG("%s: transport: %p, name: %s\n", __func__, transport, name);
 
     transport->type = _LSTransportTypeLocal;
 
@@ -1143,7 +1149,7 @@ _LSTransportSetupListenerLocalWithFd(_LSTransport *transport, const char *name, 
     return _LSTransportSetupListenerLocalRaw(transport, name, listen_fd, 0, lserror);
 
 #if 0
-    _ls_verbose("%s: transport: %p, name: %s\n", __func__, transport, name);
+    LOG_LS_DEBUG("%s: transport: %p, name: %s\n", __func__, transport, name);
     transport->type = _LSTransportTypeLocal;
 
     /* create the channel */
@@ -1178,7 +1184,7 @@ _LSTransportSetupListenerLocal(_LSTransport *transport, const char *name, mode_t
     //char err_buf[256];
     //struct sockaddr_un addr;
 
-    _ls_verbose("%s: transport: %p, name: %s\n", __func__, transport, name);
+    LOG_LS_DEBUG("%s: transport: %p, name: %s\n", __func__, transport, name);
     transport->type = _LSTransportTypeLocal;
 
 #if 0
@@ -1198,13 +1204,13 @@ _LSTransportSetupListenerLocal(_LSTransport *transport, const char *name, mode_t
 
     if (bind(fd, (struct sockaddr*) &addr, sizeof(struct sockaddr_un)) < 0)
     {
-        g_debug("bind error");
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Socket bind error");
         goto error;
     }
 
     if (listen(listen_fd, LISTEN_BACKLOG) < 0)
     {
-        g_debug("listen error");
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Socket listen error");
         goto error;
     }
 #endif
@@ -1249,7 +1255,7 @@ _LSTransportSetupListenerInet(_LSTransport *transport, int port, LSError *lserro
 {
     struct sockaddr_in addr;
 
-    _ls_verbose("%s: transport: %p, port: %d\n", __func__, transport, port);
+    LOG_LS_DEBUG("%s: transport: %p, port: %d\n", __func__, transport, port);
 
     transport->type = _LSTransportTypeInet;
 
@@ -1273,14 +1279,14 @@ _LSTransportSetupListenerInet(_LSTransport *transport, int port, LSError *lserro
 
         if (bind(fd, (struct sockaddr*) &addr, sizeof(struct sockaddr_in)) < 0)
         {
-            g_debug("bind error");
+            LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Socket bind error");
             goto error;
         }
     }
 
     if (listen(fd, LISTEN_BACKLOG) < 0)
     {
-        g_debug("listen error");
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Socket listen error");
         goto error;
     }
 
@@ -1292,7 +1298,7 @@ _LSTransportSetupListenerInet(_LSTransport *transport, int port, LSError *lserro
     return true;
 
 error:
-    _LSErrorSetFromErrno(lserror, errno);
+    _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
 
     if (fd >= 0)
     {
@@ -1319,7 +1325,7 @@ error:
 bool
 _LSTransportAddClientHash(_LSTransport *transport, _LSTransportClient *client, const char *client_name)
 {
-    _ls_verbose("%s: inserting client: %s (%p)\n", __func__, client_name, client);
+    LOG_LS_DEBUG("%s: inserting client: %s (%p)\n", __func__, client_name, client);
 
     const char* name = g_strdup(client_name);
     if (!name)
@@ -1355,7 +1361,7 @@ _LSTransportClientHashRemoveFunc(gpointer key, gpointer value, gpointer user_dat
 
     if (search_client == value_client)
     {
-        _ls_verbose("%s: removing client: %p\n", __func__, search_client);
+        LOG_LS_DEBUG("%s: removing client: %p\n", __func__, search_client);
         return TRUE;
     }
     return FALSE;
@@ -1372,7 +1378,7 @@ _LSTransportClientHashRemoveFunc(gpointer key, gpointer value, gpointer user_dat
 void
 _LSTransportRemoveClientHash(_LSTransport *transport, _LSTransportClient *client)
 {
-    _ls_verbose("%s: transport: %p, client: %p\n", __func__, transport, client);
+    LOG_LS_DEBUG("%s: transport: %p, client: %p\n", __func__, transport, client);
 
     /*
      * TODO: this is a linear search; it's only done on shutdown, but we should
@@ -1400,7 +1406,7 @@ _LSTransportRemoveClientHash(_LSTransport *transport, _LSTransportClient *client
 bool
 _LSTransportAddAllConnectionHash(_LSTransport *transport, _LSTransportClient *client)
 {
-    _ls_verbose("%s: inserting client %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: inserting client %p\n", __func__, client);
 
     _LSTransportClientRef(client);
 
@@ -1426,7 +1432,7 @@ _LSTransportAddAllConnectionHash(_LSTransport *transport, _LSTransportClient *cl
 bool
 _LSTransportRemoveAllConnectionHash(_LSTransport *transport, _LSTransportClient *client)
 {
-    _ls_verbose("%s: removing client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: removing client: %p\n", __func__, client);
 
     /* Monitor connection is going down */
     if (client == transport->monitor)
@@ -1473,7 +1479,7 @@ _LSTransportSplitInetUniqueName(const char *unique_name, struct in_addr *ip, uin
 
     if (delim == NULL)
     {
-        _LSErrorSet(lserror, -1, "Unable to find ':'");
+        _LSErrorSet(lserror, MSGID_LS_ADDR_ERR, -1, "Unable to find ':'");
         goto error;
     }
 
@@ -1481,7 +1487,7 @@ _LSTransportSplitInetUniqueName(const char *unique_name, struct in_addr *ip, uin
 
     if (inet_pton(AF_INET, unique_name_copy, &tmp_ip) <= 0)
     {
-        _LSErrorSet(lserror, -1, "Unable to convert address");
+        _LSErrorSet(lserror, MSGID_LS_ADDR_ERR, -1, "Unable to convert address");
         goto error;
     }
 
@@ -1489,7 +1495,7 @@ _LSTransportSplitInetUniqueName(const char *unique_name, struct in_addr *ip, uin
 
     if (*delim == '\0')
     {
-        _LSErrorSet(lserror, -1, "Badly formatted address:port");
+        _LSErrorSet(lserror, MSGID_LS_ADDR_ERR, -1, "Badly formatted address:port");
         goto error;
     }
 
@@ -1498,7 +1504,7 @@ _LSTransportSplitInetUniqueName(const char *unique_name, struct in_addr *ip, uin
 
     if (errno != 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_ADDR_ERR, errno);
         goto error;
     }
 
@@ -1556,7 +1562,7 @@ _LSTransportConnectLocal(const char *unique_name, bool new_socket, int *fd, LSEr
 
         if (tmp_fd < 0)
         {
-            _LSErrorSetFromErrno(lserror, errno);
+            _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
             return _LSTransportConnectStateOtherFailure;
         }
     }
@@ -1643,7 +1649,7 @@ _LSTransportConnectInet(const char *unique_name, int *fd, LSError *lserror)
 
     if (tmp_fd < 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
         return _LSTransportConnectStateOtherFailure;
     }
 
@@ -1761,14 +1767,14 @@ _LSTransportConnectClient(_LSTransport *transport, const char *service_name, con
     /* Make sure the channel is non-blocking */
     _LSTransportChannelSetNonblock(_LSTransportClientGetChannel(client), NULL);
 
-    _ls_verbose("%s: unique_name: %s, client: %p\n", __func__, unique_name, client);
+    LOG_LS_DEBUG("%s: unique_name: %s, client: %p\n", __func__, unique_name, client);
 
     return client;
 
 error:
-    /* Don't print the error, since it will show up when we're searching for the
+    /* Don't log the error, since it will show up when we're searching for the
      * right hub (for tethering) */
-    //LSErrorPrint(lserror, stderr);
+    // LOG_LSERROR(&lserror);
     LSErrorFree(lserror);
     _LSErrorSetNoPrint(lserror, LS_ERROR_CODE_CONNECT_FAILURE, LS_ERROR_TEXT_CONNECT_FAILURE, service_name, unique_name);
     return NULL;
@@ -1814,8 +1820,8 @@ _LSTransportRecvFd(int fd, int *fd_to_recv, bool *retry, LSError *lserror)
                 continue;
             }
         }
-        _LSErrorSetFromErrno(lserror, errno);
-        g_critical("recvmsg failed: errno: %d", errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Recvmsg failed: errno: %d", errno);
 
         return false;
     }
@@ -1832,7 +1838,7 @@ _LSTransportRecvFd(int fd, int *fd_to_recv, bool *retry, LSError *lserror)
     if (fdmsg.msg_controllen != sizeof(cmsg_buf))
     {
         /* expecting to get an fd, but it wasn't there */
-        _LSErrorSet(lserror, -1, "Expected an fd in message, but didn't receive one (expected len: %zd actual len: %zd)", sizeof(cmsg_buf), fdmsg.msg_controllen);
+        _LSErrorSet(lserror, MSGID_LS_SOCK_ERROR, -1, "Expected an fd in message, but didn't receive one (expected len: %zd actual len: %zd)", sizeof(cmsg_buf), fdmsg.msg_controllen);
         return false;
     }
 
@@ -1893,8 +1899,8 @@ _LSTransportSendFd(int fd, int fd_to_send, bool *retry, LSError *lserror)
         }
         else
         {
-            _LSErrorSetFromErrno(lserror, errno);
-            g_critical("sendmsg failed");
+            _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
+            LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Sendmsg failed");
         }
         return false;
     }
@@ -1941,7 +1947,7 @@ _LSTransportSendComplete(int fd, void *buf, int len, LSError *lserror)
             }
             else
             {
-                _LSErrorSetFromErrno(lserror, errno);
+                _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
                 return -1;
             }
         }
@@ -1978,7 +1984,7 @@ _LSTransportRecvComplete(int fd, void *buf, int len, LSError *lserror)
         {
             if (bytes_recvd == 0)
             {
-                _LSErrorSet(lserror, -1, "Orderly shutdown of connection");
+                _LSErrorSet(lserror, MSGID_LS_SOCK_ERROR, -1, "Orderly shutdown of connection");
                 return -1;
             }
             else if (errno == EAGAIN || errno == EINTR)
@@ -1988,7 +1994,7 @@ _LSTransportRecvComplete(int fd, void *buf, int len, LSError *lserror)
             }
             else
             {
-                _LSErrorSetFromErrno(lserror, errno);
+                _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
                 return -1;
             }
         }
@@ -2020,7 +2026,7 @@ _LSTransportRecvComplete(int fd, void *buf, int len, LSError *lserror)
 _LSTransportMessage*
 _LSTransportRecvMessageBlocking(_LSTransportClient *client, _LSTransportMessageType *types, int num_types, int timeout_ms, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     bool restore_watch = false;
     _LSTransportMessage *message = NULL;
@@ -2140,7 +2146,7 @@ bool
 _LSTransportSendMessageBlocking(_LSTransportMessage *message, _LSTransportClient *client,
                                 LSMessageToken *token, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p, message type: %d\n", __func__, client, _LSTransportMessageGetType(message));
+    LOG_LS_DEBUG("%s: client: %p, message type: %d\n", __func__, client, _LSTransportMessageGetType(message));
 
     bool ret = false;
     bool restore_watch = false;
@@ -2230,13 +2236,13 @@ _LSTransportHandleMonitor(_LSTransportMessage *message)
         return;
     }
 
-    _ls_verbose("%s: connecting to monitor: %s\n", __func__, unique_name);
+    LOG_LS_DEBUG("%s: connecting to monitor: %s\n", __func__, unique_name);
 
     transport->monitor = _LSTransportConnectClient(transport, NULL, unique_name, dup(_LSTransportMessageGetConnectionFd(message)), NULL, &lserror);
 
     if (!transport->monitor)
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_TRANSPORT_CONNECT_ERR, &lserror);
         LSErrorFree(&lserror);
         return;
     }
@@ -2244,7 +2250,7 @@ _LSTransportHandleMonitor(_LSTransportMessage *message)
     /* MONITOR -- send client info so monitor knows who we are */
     if (!_LSTransportSendMessageClientInfo(transport->monitor, transport->service_name, transport->unique_name, false, &lserror))
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -2273,7 +2279,7 @@ _LSTransportHandleMonitor(_LSTransportMessage *message)
 static void
 _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
 {
-    _ls_verbose("%s: calling user's msg_handler\n", __func__);
+    LOG_LS_DEBUG("%s: calling user's msg_handler\n", __func__);
 
     LSError lserror;
     LSErrorInit(&lserror);
@@ -2308,7 +2314,7 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
 
         if (!_LSTransportSendErrorReply(message, _LSTransportMessageTypeError, error_msg, &lserror))
         {
-            LSErrorPrint(&lserror, stderr);
+            LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
             LSErrorFree(&lserror);
         }
 
@@ -2326,7 +2332,7 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
 
         if (!_LSTransportSendErrorReply(message, _LSTransportMessageTypeErrorUnknownMethod, error_msg, &lserror))
         {
-            LSErrorPrint(&lserror, stderr);
+            LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
             LSErrorFree(&lserror);
         }
 
@@ -2336,7 +2342,7 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
     }
     default:
     {
-        g_critical("Unexpected handler result: %d", ret);
+        LOG_LS_ERROR(MSGID_LS_MSG_ERR, 0, "Unexpected handler result: %d", ret);
         LS_ASSERT(0);
         break;
     }
@@ -2347,7 +2353,7 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
 error:
     if (!_LSTransportSendErrorReply(message, _LSTransportMessageTypeError, "Error: OOM", &lserror))
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
         LSErrorFree(&lserror);
     }
 }
@@ -2410,7 +2416,7 @@ _LSTransportRequestNameLocal(const char *requested_name, _LSTransportClient *cli
     const char *unique_name_tmp = NULL;
     char *unique_name = NULL;
 
-    _ls_verbose("%s: requested_name: %s, client: %p\n", __func__, requested_name, client);
+    LOG_LS_DEBUG("%s: requested_name: %s, client: %p\n", __func__, requested_name, client);
 
     _LSTransportMessage *message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
 
@@ -2446,10 +2452,10 @@ _LSTransportRequestNameLocal(const char *requested_name, _LSTransportClient *cli
     int32_t err_code;
     if (!_LSTransportMessageGetInt32(&iter, &err_code))
     {
-        g_critical("FIXME!");
+        LOG_LS_ERROR(MSGID_LS_MSG_ERR, 0, "FIXME!");
     }
 
-    _ls_verbose("%s: received err_code: %"PRId32"\n", __func__, err_code);
+    LOG_LS_DEBUG("%s: received err_code: %"PRId32"\n", __func__, err_code);
 
     switch (err_code)
     {
@@ -2475,25 +2481,28 @@ _LSTransportRequestNameLocal(const char *requested_name, _LSTransportClient *cli
         *fd = dup(message_fd);
         if (-1 == *fd)
         {
-            g_critical("%s: dup() failed, errno %d, \"%s\"", __func__, errno, g_strerror(errno));
+            LOG_LS_ERROR(MSGID_LS_DUP_ERR, 2,
+                         PMLOGKFV("ERROR_CODE", "%d", errno),
+                         PMLOGKS("ERROR", g_strerror(errno)),
+                         "%s: dup() failed, errno %d, \"%s\"", __func__, errno, g_strerror(errno));
         }
         LS_ASSERT(*fd != -1);
 
-        _ls_verbose("%s: received unique_name: %s, %sprivileged\n", __func__, unique_name, *privileged ? "" : "not ");
+        LOG_LS_DEBUG("%s: received unique_name: %s, %sprivileged\n", __func__, unique_name, *privileged ? "" : "not ");
 
         break;
     }
 
     case LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED:
-        _LSErrorSet(lserror, LS_ERROR_CODE_PERMISSION, LS_ERROR_TEXT_PERMISSION, requested_name);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_PERMISSION, LS_ERROR_TEXT_PERMISSION, requested_name);
         break;
 
     case LS_TRANSPORT_REQUEST_NAME_NAME_ALREADY_REGISTERED:
-        _LSErrorSet(lserror, LS_ERROR_CODE_DUPLICATE_NAME, LS_ERROR_TEXT_DUPLICATE_NAME, requested_name);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_DUPLICATE_NAME, LS_ERROR_TEXT_DUPLICATE_NAME, requested_name);
         break;
 
     default:
-        _LSErrorSet(lserror, LS_ERROR_CODE_UNKNOWN_ERROR, LS_ERROR_TEXT_UNKNOWN_ERROR);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_UNKNOWN_ERROR, LS_ERROR_TEXT_UNKNOWN_ERROR);
         break;
     }
 
@@ -2533,7 +2542,7 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
     bool alloc_error = true;
     _LSTransportMessageIter iter;
 
-    _ls_verbose("%s: requested_name: %s, client: %p\n", __func__, requested_name, client);
+    LOG_LS_DEBUG("%s: requested_name: %s, client: %p\n", __func__, requested_name, client);
 
     int listen_fd = _LSTransportChannelGetFd(&client->transport->listen_channel);
 
@@ -2543,13 +2552,13 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
 
     if (getsockname(listen_fd, (struct sockaddr*) &addr, &addrlen) != 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
         goto exit;
     }
 
     port = ntohs(addr.sin_port);
 
-    _ls_verbose("%s: port: %d\n", __func__, port);
+    LOG_LS_DEBUG("%s: port: %d\n", __func__, port);
 
     message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
 
@@ -2579,10 +2588,10 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
     int32_t err_code;
     if (!_LSTransportMessageGetInt32(&iter, &err_code))
     {
-        g_critical("FIXME!");
+        LOG_LS_ERROR(MSGID_LS_MSG_ERR, 0, "FIXME!");
     }
 
-    _ls_verbose("%s: received err_code: %"PRId32"\n", __func__, err_code);
+    LOG_LS_DEBUG("%s: received err_code: %"PRId32"\n", __func__, err_code);
 
     switch (err_code)
     {
@@ -2602,26 +2611,26 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
             LS_ASSERT(0);
         }
 
-        _ls_verbose("%s: received unique_name: %s, %sprivileged\n", __func__, unique_name, *privileged ? "" : "not ");
+        LOG_LS_DEBUG("%s: received unique_name: %s, %sprivileged\n", __func__, unique_name, *privileged ? "" : "not ");
 
         break;
     }
 
     case LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED:
-        _LSErrorSet(lserror, LS_ERROR_CODE_PERMISSION, LS_ERROR_TEXT_PERMISSION, requested_name);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_PERMISSION, LS_ERROR_TEXT_PERMISSION, requested_name);
         break;
 
     case LS_TRANSPORT_REQUEST_NAME_NAME_ALREADY_REGISTERED:
-        _LSErrorSet(lserror, LS_ERROR_CODE_DUPLICATE_NAME, LS_ERROR_TEXT_DUPLICATE_NAME, requested_name);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_DUPLICATE_NAME, LS_ERROR_TEXT_DUPLICATE_NAME, requested_name);
         break;
 
     case LS_TRANSPORT_REQUEST_NAME_INVALID_PROTOCOL_VERSION:
-        _LSErrorSet(lserror, LS_ERROR_CODE_PROTOCOL_VERSION, LS_ERROR_TEXT_PROTOCOL_VERSION, LS_TRANSPORT_PROTOCOL_VERSION);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_PROTOCOL_VERSION, LS_ERROR_TEXT_PROTOCOL_VERSION, LS_TRANSPORT_PROTOCOL_VERSION);
 
         break;
 
     default:
-        _LSErrorSet(lserror, LS_ERROR_CODE_UNKNOWN_ERROR, LS_ERROR_TEXT_UNKNOWN_ERROR);
+        _LSErrorSet(lserror, MSGID_LS_REQUEST_NAME, LS_ERROR_CODE_UNKNOWN_ERROR, LS_ERROR_TEXT_UNKNOWN_ERROR);
         break;
     }
 
@@ -2669,7 +2678,7 @@ _LSTransportQueryName(_LSTransportClient *hub, _LSTransportMessage *trigger_mess
 {
     bool ret = true;
 
-    _ls_verbose("%s: service_name %s, hub: %p\n", __func__, service_name, hub);
+    LOG_LS_DEBUG("%s: service_name %s, hub: %p\n", __func__, service_name, hub);
 
     const char *app_id = _LSTransportMessageGetAppId(trigger_message);
 
@@ -2859,7 +2868,7 @@ _LSTransportSendMessageMonitorHelper(_LSTransportMessage *message, _LSTransportC
 static void
 _LSTransportSendPendingMonitorMessages(_LSTransport *transport, _LSTransportClient *client, _LSTransportOutgoing *pending)
 {
-    _ls_verbose("%s: client: %p, pending: %p\n", __func__, client, pending);
+    LOG_LS_DEBUG("%s: client: %p, pending: %p\n", __func__, client, pending);
 
     OUTGOING_LOCK(&pending->lock);
     g_queue_foreach(pending->queue, (GFunc)_LSTransportSendMessageMonitorHelper, client);
@@ -2888,7 +2897,7 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
 
     if (!service_name)
     {
-        g_critical("%s: NULL service name given in query name failure", __func__);
+        LOG_LS_ERROR(MSGID_LS_QNAME_ERR, 0, "%s: NULL service name given in query name failure", __func__);
         return;
     }
 
@@ -2901,7 +2910,10 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
 
     if (!pending)
     {
-        g_critical("%s: Unable to find service: \"%s\" when processing query name failure", __func__, service_name);
+        LOG_LS_ERROR(MSGID_LS_QNAME_ERR, 1,
+                     PMLOGKS("APP_ID", service_name),
+                     "%s: Unable to find service: \"%s\" when processing query name failure",
+                     __func__, service_name);
         TRANSPORT_UNLOCK(&transport->lock);
         return;
     }
@@ -2929,7 +2941,10 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
             g_queue_push_head(pending->queue, failed_message);
             OUTGOING_UNLOCK(&pending->lock);
 
-            g_warning("%s: retrying sending query name to service \"%s\", %d retries remain", __func__, service_name, failed_message->retries);
+            LOG_LS_WARNING(MSGID_LS_MSG_ERR, 1,
+                           PMLOGKS("APP_ID", service_name),
+                           "%s: retrying sending query name to service \"%s\", %d retries remain",
+                           __func__, service_name, failed_message->retries);
 
             if (!_LSTransportQueryName(transport->hub, failed_message, service_name, &lserror))
             {
@@ -2940,7 +2955,9 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
         }
         else
         {
-            g_critical("%s: too many retries sending query name to service \"%s\"", __func__, service_name);
+            LOG_LS_ERROR(MSGID_LS_MSG_ERR, 1,
+                         PMLOGKS("APP_ID", service_name),
+                         "%s: too many retries sending query name to service \"%s\"", __func__, service_name);
         }
     }
 
@@ -3027,7 +3044,7 @@ done:;
 void
 _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 {
-    _ls_verbose("%s\n", __func__);
+    LOG_LS_DEBUG("%s\n", __func__);
 
     LSError lserror;
     LSErrorInit(&lserror);
@@ -3078,7 +3095,7 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
         return;
     }
 
-    _ls_verbose("%s: service_name: %s, unique_name: %s, %s\n", __func__, service_name, unique_name, is_dynamic ? "dynamic" : "static");
+    LOG_LS_DEBUG("%s: service_name: %s, unique_name: %s, %s\n", __func__, service_name, unique_name, is_dynamic ? "dynamic" : "static");
 
     /* Atomically move messages from pending queue to hash of available services */
     TRANSPORT_LOCK(&transport->lock);
@@ -3093,7 +3110,10 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
         dup_fd = dup(message_fd);
         if (-1 == dup_fd)
         {
-            g_critical("%s: dup() failed, errno %d, \"%s\"", __func__, errno, g_strerror(errno));
+            LOG_LS_ERROR(MSGID_LS_DUP_ERR, 2,
+                         PMLOGKFV("ERROR_CODE", "%d", errno),
+                         PMLOGKS("ERROR", g_strerror(errno)),
+                         "%s: dup() failed", __func__);
         }
         LS_ASSERT(dup_fd != -1);
     }
@@ -3106,7 +3126,7 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 
     if (!client)
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_TRANSPORT_CONNECT_ERR, &lserror);
         LSErrorFree(&lserror);
         TRANSPORT_UNLOCK(&transport->lock);
         _LSTransportHandleQueryNameFailure(message, LS_TRANSPORT_QUERY_NAME_SERVICE_NOT_AVAILABLE, service_name, is_dynamic);
@@ -3150,7 +3170,7 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
      */
     if (!_LSTransportSendMessageClientInfo(client, transport->service_name, transport->unique_name, true, &lserror))
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -3169,7 +3189,7 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
     _LSTransportAddReceiveWatch(&client->channel, client->transport->mainloop_context, client);
 
     /* client ref -1 (total = 2) */
-    _ls_verbose("%s: unref'ing\n", __func__);
+    LOG_LS_DEBUG("%s: unref'ing\n", __func__);
     _LSTransportClientUnref(client);
 }
 
@@ -3187,7 +3207,7 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 bool
 _LSTransportNodeUp(_LSTransportClient *client, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     bool ret = true;
 
@@ -3230,7 +3250,7 @@ _LSTransportNodeUp(_LSTransportClient *client, LSError *lserror)
 bool
 _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSError *lserror)
 {
-    _ls_verbose("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
+    LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
 
     bool ret = false;
     const char *hub_addr = NULL;
@@ -3424,7 +3444,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
 
     _LSTransportClient *client = (_LSTransportClient*)data;
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* calculate bytes remaining in buf */
     int num_bytes_to_read;
@@ -3476,16 +3496,18 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
             {
                 if (ret == 0)
                 {
-                    _ls_verbose("%s: Orderly shutdown\n", __func__);
+                    LOG_LS_DEBUG("%s: Orderly shutdown\n", __func__);
                     shutdown = true;
                     break;
                 }
                 else if (errno != EAGAIN && errno != EINTR)
                 {
-                    g_critical("Encountered error during recv: %d, %s [fd: %d, client service name: %s, client unique name: %s",
-                                errno, strerror(errno), client->channel.fd,
-                                _LSTransportClientGetServiceName(client),
-                                _LSTransportClientGetUniqueName(client));
+                    LOG_LS_ERROR(MSGID_LS_MSG_ERR, 4,
+                                 PMLOGKFV("ERROR_CODE", "%d", errno),
+                                 PMLOGKS("ERROR", g_strerror(errno)),
+                                 PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                                 PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                                 "Encountered error during recv: fd: %d", client->channel.fd);
                     shutdown = true;
                     break;
                 }
@@ -3537,7 +3559,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                         else
                         {
                             /* real error */
-                            LSErrorPrint(&lserror, stderr);
+                            LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
                             LSErrorFree(&lserror);
                         }
                     }
@@ -3562,16 +3584,13 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                 if (incoming->tmp_header.len > MAX_MESSAGE_SIZE_BYTES)
                 {
                     const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-                    g_critical("Received message of size %ld bytes; shutting down client "
-                               "(service name: \"%s\", unique name: \"%s\", "
-                               "pid: "LS_PID_PRINTF_FORMAT", "
-                               "exe: \"%s\", cmdline: \"%s\")",
-                                incoming->tmp_header.len,
-                                _LSTransportClientGetServiceName(client),
-                                _LSTransportClientGetUniqueName(client),
-                                LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
-                                _LSTransportCredGetExePath(cred),
-                                _LSTransportCredGetCmdLine(cred));
+                    LOG_LS_ERROR(MSGID_LS_MSG_ERR, 4,
+                                 PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                                 PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                                 PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
+                                 PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
+                                 "Received message of size %ld bytes; shutting down client",
+                                 incoming->tmp_header.len);
                     shutdown = true;
                     break;
                 }
@@ -3582,7 +3601,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                 {
                     /* Not much we can do except give up and attempt to
                      * process any messages that we've already allocated */
-                    g_critical("Out of memory");
+                    LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "Out of memory");
                     break;
                 }
 
@@ -3625,7 +3644,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
 
     if (!_LSTransportProcessIncomingMessages(client, &lserror))
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -3679,7 +3698,10 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
 
         if (fd < 0)
         {
-            g_critical("accept error: %d, %s", errno, g_strerror(errno));
+            LOG_LS_CRITICAL(MSGID_LS_SOCK_ERROR, 2,
+                            PMLOGKFV("ERROR_CODE", "%d", errno),
+                            PMLOGKS("ERROR", g_strerror(errno)),
+                            "Accept error");
         }
         else
         {
@@ -3687,7 +3709,7 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
             _LSTransportClient *new_client = _LSTransportClientNewRef(transport, fd, NULL, NULL, NULL, false);
             if (new_client)
             {
-                _ls_verbose("%s: new_client: %p\n", __func__, new_client);
+                LOG_LS_DEBUG("%s: new_client: %p\n", __func__, new_client);
 
                 /* client ref +1 (total = 1) */
 
@@ -3700,7 +3722,7 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
                 _LSTransportAddReceiveWatch(&new_client->channel, transport->mainloop_context, new_client);
 
                 /* client ref -1 (total = 1) */
-                _ls_verbose("%s: unref'ing\n", __func__);
+                LOG_LS_DEBUG("%s: unref'ing\n", __func__);
                 _LSTransportClientUnref(new_client);
             }
         }
@@ -3708,7 +3730,7 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
     else
     {
         /* something unexpected -- probably an error */
-        g_debug("condition: %d", condition);
+        LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 0, "Condition: %d", condition);
     }
 
     return TRUE;    /* FALSE means this source should be removed */
@@ -3742,7 +3764,7 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
     //int i = 0;
     int bytes_written = 0;
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* If there is anything in the queue, we can't do a fast send
      * or we risk re-ordering the messages */
@@ -3773,7 +3795,7 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
                  * it's an error */
                 if (!client->is_dynamic)
                 {
-                    _LSErrorSetFromErrno(lserror, errno);
+                    _LSErrorSetFromErrno(lserror, MSGID_LS_CHANNEL_ERR, errno);
                     OUTGOING_UNLOCK(&client->outgoing->lock);
                     return false;
                 }
@@ -3784,7 +3806,7 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
             }
             else
             {
-                g_debug("writev error");
+                LOG_LS_ERROR(MSGID_LS_CHANNEL_ERR, 0, "writev error");
                 LS_ASSERT(0);
             }
         }
@@ -3861,7 +3883,7 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
     //int i = 0;
     int bytes_written = 0;
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* If there is anything in the queue, we can't do a fast send
      * or we risk re-ordering the messages */
@@ -3904,7 +3926,7 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
                 if (!client->is_dynamic)
                 {
                     _LSTransportMessageUnref(message);
-                    _LSErrorSetFromErrno(lserror, errno);
+                    _LSErrorSetFromErrno(lserror, MSGID_LS_CHANNEL_ERR, errno);
                     OUTGOING_UNLOCK(&client->outgoing->lock);
                     return NULL;
                 }
@@ -3915,7 +3937,7 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
             }
             else
             {
-                g_debug("writev error");
+                LOG_LS_ERROR(MSGID_LS_CHANNEL_ERR, 0, "writev error");
                 LS_ASSERT(0);
             }
         }
@@ -4046,7 +4068,7 @@ LSTransportSendMessageMonitorRequest(_LSTransport *transport, LSError *lserror)
 
     if (!message)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         return false;
     }
 
@@ -4086,7 +4108,7 @@ _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror)
 
     if (!message)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         return false;
     }
 
@@ -4132,7 +4154,7 @@ _LSTransportHandleClientInfo(_LSTransportMessage *message)
         client->service_name = g_strdup(service_name);
         if (!client->service_name)
         {
-            g_critical("OOM");
+            LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM");
         }
     }
 
@@ -4144,11 +4166,11 @@ _LSTransportHandleClientInfo(_LSTransportMessage *message)
         client->unique_name = g_strdup(unique_name);
         if (!client->unique_name)
         {
-            g_critical("OOM");
+            LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM");
         }
     }
 
-    _ls_verbose("%s: client: %p, service_name: %s, unique_name: %s\n", __func__, client, client->service_name, client->unique_name);
+    LOG_LS_DEBUG("%s: client: %p, service_name: %s, unique_name: %s\n", __func__, client, client->service_name, client->unique_name);
 }
 
 /**
@@ -4172,7 +4194,7 @@ bool
 _LSTransportSendMessagePrepend(_LSTransportMessage *message, _LSTransportClient *client,
                                LSMessageToken *token, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     return _LSTransportSendMessageRaw(message, client, true, token, true, lserror);
 }
@@ -4231,7 +4253,7 @@ error:
 bool
 _LSTransportSendMessageClientInfo(_LSTransportClient *client, const char *service_name, const char *unique_name, bool prepend, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     bool ret = false;
 
@@ -4239,7 +4261,7 @@ _LSTransportSendMessageClientInfo(_LSTransportClient *client, const char *servic
 
     if (!message)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         goto error;
     }
 
@@ -4280,7 +4302,7 @@ error:
 bool
 _LSTransportSendMessageNodeUp(_LSTransportClient *client, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* no body because this is just an ACK message */
     _LSTransportMessage *message = _LSTransportMessageNewRef(0);
@@ -4328,7 +4350,7 @@ _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *cli
     /* TODO: attempt fast send if queue is empty, but we can also use the vector
      * version for that */
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* add message to outgoing queue */
     _LSTransportMessageRef(message);
@@ -4487,7 +4509,7 @@ _LSTransportSendReplyRaw(const _LSTransportMessage *message, _LSTransportMessage
     offset += sizeof(LSMessageToken);
     memcpy(body + offset, payload, payload_size);
 
-    _ls_verbose("sending reply reply_token %d, type: %d, len: %d\n", (int)msg_token, (int)reply->raw->header.type, (int)reply->raw->header.len);
+    LOG_LS_DEBUG("sending reply reply_token %d, type: %d, len: %d\n", (int)msg_token, (int)reply->raw->header.type, (int)reply->raw->header.len);
 
     _LSTransportSendMessage(reply, message->client, NULL, NULL);
 
@@ -4566,7 +4588,7 @@ LSTransportCancelMethodCall(_LSTransport *transport, const char *service_name, L
     char *payload = g_strdup_printf("{\"token\":%li}", serial);
     if (!payload)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         ret = false;
         goto error;
     }
@@ -4579,7 +4601,7 @@ LSTransportCancelMethodCall(_LSTransport *transport, const char *service_name, L
 
     if (!message)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         ret = false;
         goto error;
     }
@@ -4689,7 +4711,7 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
             _LSTransportSerialSave(pending->serial, message, lserror);
         }
 
-        _ls_verbose("%s: adding message to queue: serial: %d\n", __func__, (int)msg_token);
+        LOG_LS_DEBUG("%s: adding message to queue: serial: %d\n", __func__, (int)msg_token);
 
         _LSTransportMessageRef(message);
         g_queue_push_tail(pending->queue, message);
@@ -4718,11 +4740,11 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
             _LSTransportSerialSave(out->serial, message, lserror);
         }
 
-        _ls_verbose("%s: adding message to new pending: %p, serial: %d\n", __func__, out, (int)msg_token);
+        LOG_LS_DEBUG("%s: adding message to new pending: %p, serial: %d\n", __func__, out, (int)msg_token);
         _LSTransportMessageRef(message);
         g_queue_push_tail(out->queue, message);
 
-        _ls_verbose("%s: inserting \"%s\" into pending: %p\n", __func__, service_name, transport->pending);
+        LOG_LS_DEBUG("%s: inserting \"%s\" into pending: %p\n", __func__, service_name, transport->pending);
         g_hash_table_insert(transport->pending, g_strdup(service_name), out);
 
         TRANSPORT_UNLOCK(&transport->lock);
@@ -4900,7 +4922,7 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             return false;
         }
 
-        _ls_verbose("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)_LSTransportMessageGetToken(message), _LSTransportMessageGetCategory(message), _LSTransportMessageGetMethod(message), _LSTransportMessageGetPayload(message));
+        LOG_LS_DEBUG("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)_LSTransportMessageGetToken(message), _LSTransportMessageGetCategory(message), _LSTransportMessageGetMethod(message), _LSTransportMessageGetPayload(message));
     }
     else
     {
@@ -4918,7 +4940,7 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             monitor_serial = _LSTransportShmGetSerial(client->transport->shm);
         }
 
-        _ls_verbose("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)msg_token, category, method, payload);
+        LOG_LS_DEBUG("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)msg_token, category, method, payload);
 
         header.token = msg_token;
 
@@ -5014,7 +5036,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
 
     _LSTransportClient *client = (_LSTransportClient*)data;
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* attempt to send out of this client queue */
     OUTGOING_LOCK(&client->outgoing->lock);
@@ -5038,7 +5060,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
         /* Warn and exit if we dequeue a null */
         if (!message)
         {
-            g_warning ("%s: Found null message in outgoing queue", __func__);
+            LOG_LS_WARNING(MSGID_LS_QUEUE_ERROR, 0, "%s: Found null message in outgoing queue", __func__);
             continue;
         }
 
@@ -5068,10 +5090,12 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
             else
             {
                 /* TODO: Handle better */
-                g_debug("Error when attempting to send: %d, %s [fd: %d, client service name: %s, client unique name: %s",
-                        errno, g_strerror(errno), client->channel.fd,
-                        _LSTransportClientGetServiceName(client),
-                        _LSTransportClientGetUniqueName(client));
+                LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 4,
+                             PMLOGKFV("ERROR_CODE", "%d", errno),
+                             PMLOGKS("ERROR", g_strerror(errno)),
+                             PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                             PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                             "Error when attempting to fd: %d", client->channel.fd);
                 _LSTransportMessageUnref(message);
                 goto Done;     /* <eeh> You're going to return TRUE here.  Want that? */
             }
@@ -5103,7 +5127,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
                     }
                     else
                     {
-                        LSErrorPrint(&lserror, stderr);
+                        LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
                         LSErrorFree(&lserror);
                     }
                 }
@@ -5112,7 +5136,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
             /* the fd is closed when the message ref count goes to 0 */
 
             //_LSTransportHeader *header = &message->raw->header;
-            _ls_verbose("%s: sent message: client: %p, token %d, type: %d, len: %d\n",
+            LOG_LS_DEBUG("%s: sent message: client: %p, token %d, type: %d, len: %d\n",
                         __func__,
                         client,
                         (int)_LSTransportMessageGetToken(message),
@@ -5224,7 +5248,7 @@ bool
 _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
                  LSTransportHandlers *handlers, LSError *lserror)
 {
-    _ls_verbose("%s\n", __func__);
+    LOG_LS_DEBUG("%s\n", __func__);
 
     _LSTransport *transport = g_new0(_LSTransport, 1);
 
@@ -5267,7 +5291,7 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
 
     if (!transport->clients)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         goto Error;
     }
 
@@ -5275,7 +5299,7 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
 
     if (!transport->all_connections)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         goto Error;
     }
 
@@ -5283,7 +5307,7 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
 
     if (!transport->pending)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         goto Error;
     }
 
@@ -5330,7 +5354,7 @@ Error:
 bool
 _LSTransportSendShutdownMessageBlocking(_LSTransportClient *client, LSError *lserror)
 {
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     bool ret = true;
 
@@ -5340,8 +5364,8 @@ _LSTransportSendShutdownMessageBlocking(_LSTransportClient *client, LSError *lse
     if (!message)
     {
         /* TODO: this should probably be fatal */
-        g_warning("Unable to send shutdown message");
-        _LSErrorSet(lserror, -ENOMEM, "OOM: unable to send shutdown message");
+        LOG_LS_WARNING(MSGID_LS_MSG_ERR, 0, "Unable to send shutdown message");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM: unable to send shutdown message");
         return false;
     }
 
@@ -5371,7 +5395,7 @@ _LSTransportFlushQueueMessages(_LSTransportClient *client, GQueue *queue, LSErro
         _LSTransportMessage *message = g_queue_pop_head(queue);
         if (!message)
         {
-            g_critical("queue should not be empty");
+            LOG_LS_ERROR(MSGID_LS_QUE_ERR, 0, "Message queue should not be empty");
             LS_ASSERT(0);
         }
 
@@ -5422,7 +5446,7 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
         //INCOMING_UNLOCK(&incoming->lock);
 
         /* Handle "internal" messages, otherwise, let the registered handler take over */
-        _ls_verbose("%s: received message token %d, type: %d, len: %d\n", __func__, (int)tmsg->raw->header.token, (int)tmsg->raw->header.type, (int)tmsg->raw->header.len);
+        LOG_LS_DEBUG("%s: received message token %d, type: %d, len: %d\n", __func__, (int)tmsg->raw->header.token, (int)tmsg->raw->header.type, (int)tmsg->raw->header.len);
 
         switch (_LSTransportMessageGetType(tmsg))
         {
@@ -5440,7 +5464,7 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
             /* FIXME -- signal replies currently have this same type,
              * but signals are not in the serial hash
              * -- see _LSHubHandleSignalRegister */
-            _ls_verbose("%s: removing reply serial: %d, message serial: %d\n", __func__, (int)_LSTransportMessageGetReplyToken(tmsg), (int)_LSTransportMessageGetToken(tmsg));
+            LOG_LS_DEBUG("%s: removing reply serial: %d, message serial: %d\n", __func__, (int)_LSTransportMessageGetReplyToken(tmsg), (int)_LSTransportMessageGetToken(tmsg));
             _LSTransportSerialRemove(client->outgoing->serial, _LSTransportMessageGetReplyToken(tmsg));
             _LSTransportHandleUserMessageHandler(tmsg);
             //client->transport->msg_handler(tmsg, client->transport->msg_context);
@@ -5495,7 +5519,7 @@ _LSTransportFlushOutgoingMessages(_LSTransportClient *client, LSError *lserror)
 {
     bool ret = true;
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     OUTGOING_LOCK(&client->outgoing->lock);
 
@@ -5506,17 +5530,19 @@ _LSTransportFlushOutgoingMessages(_LSTransportClient *client, LSError *lserror)
         {
             /* LOCKED */
             OUTGOING_UNLOCK(&client->outgoing->lock);
-            g_critical("queue should not be empty");
-            _LSErrorSet(lserror, -1, "Outgoing queue should not be empty");
+            LOG_LS_ERROR(MSGID_LS_QUEUE_ERROR, 0, "Queue should not be empty");
+            _LSErrorSet(lserror, MSGID_LS_QUEUE_ERROR, -1, "Outgoing queue should not be empty");
             return false;
         }
 
         /* See NOV-93612 */
         if (_LSTransportMessageGetType(message) == _LSTransportMessageTypeQueryName)
         {
-            g_critical("WARNING: Shutting down with unsent QueryName message for service: %s."
-                       " Any messages to that service will not be sent.",
-                       _LSTransportMessageTypeQueryNameGetQueryName(message));
+            LOG_LS_WARNING(MSGID_LS_QUEUE_ERROR, 1,
+                           PMLOGKS("APP_ID", _LSTransportMessageTypeQueryNameGetQueryName(message)),
+                           "Shutting down with unsent QueryName message for service: %s."
+                           " Any messages to that service will not be sent.",
+                           _LSTransportMessageTypeQueryNameGetQueryName(message));
         }
 
         ret = _LSTransportSendMessageBlocking(message, client, NULL, lserror);
@@ -5550,7 +5576,7 @@ _LSTransportSendShutdownMessages(gpointer key, gpointer value, gpointer user_dat
     _LSTransportClient *client = (_LSTransportClient*)value;
     bool flush_and_send_shutdown = (bool)(GPOINTER_TO_INT(user_data));
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     /* remove watches */
     if (client->channel.send_watch)
@@ -5588,7 +5614,7 @@ _LSTransportSendShutdownMessages(gpointer key, gpointer value, gpointer user_dat
         /* flush any remaining messages in the outgoing queue */
         if (!_LSTransportFlushOutgoingMessages(client, &lserror))
         {
-            LSErrorPrint(&lserror, stderr);
+            LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
             LSErrorFree(&lserror);
         }
 
@@ -5601,7 +5627,7 @@ _LSTransportSendShutdownMessages(gpointer key, gpointer value, gpointer user_dat
              * happened */
             if (!_LSTransportSendShutdownMessageBlocking(client, &lserror))
             {
-                LSErrorPrint(&lserror, stderr);
+                LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
                 LSErrorFree(&lserror);
             }
             client->state = _LSTransportClientStateShutdown;
@@ -5609,8 +5635,10 @@ _LSTransportSendShutdownMessages(gpointer key, gpointer value, gpointer user_dat
         else
         {
             /* We don't expect this to happen */
-            g_critical("%s: did not expect client [%s (%s)] to have already sent shut down message",
-                        __func__, client->service_name, client->unique_name);
+            LOG_LS_ERROR(MSGID_LS_ALREADY_SHUTDOWND, 1,
+                         PMLOGKS("APP_ID", client->service_name),
+                         "%s: did not expect client [%s (%s)] to have already sent shut down message",
+                         __func__, client->service_name, client->unique_name);
         }
     }
 
@@ -5633,7 +5661,7 @@ _LSTransportDiscardIncomingMessages(void *ignored, _LSTransportClient *client, G
 {
     LS_ASSERT(client != NULL);
 
-    _ls_verbose("%s: client: %p\n", __func__, client);
+    LOG_LS_DEBUG("%s: client: %p\n", __func__, client);
 
     _LSTransportClientRef(client);
     _LSTransportIncoming *incoming = client->incoming;
@@ -5648,7 +5676,7 @@ _LSTransportDiscardIncomingMessages(void *ignored, _LSTransportClient *client, G
 
     if (discards)
     {
-        g_warning("%s: discarded %d messages", __func__, discards);
+        LOG_LS_WARNING(MSGID_LS_QUEUE_ERROR, 0, "%s: discarded %d messages", __func__, discards);
     }
 
     _LSTransportClientUnref(client);
@@ -5689,7 +5717,7 @@ _LSTransportDisconnect(_LSTransport *transport, bool flush_and_send_shutdown)
 {
     LS_ASSERT(transport != NULL);
 
-    _ls_verbose("%s: transport: %p\n", __func__, transport);
+    LOG_LS_DEBUG("%s: transport: %p\n", __func__, transport);
 
     TRANSPORT_LOCK(&transport->lock);
     g_hash_table_foreach(transport->all_connections, _LSTransportSendShutdownMessages, GINT_TO_POINTER((gint)flush_and_send_shutdown));
@@ -5729,7 +5757,7 @@ _freePending(gpointer key, _LSTransportOutgoing *outgoing, gpointer user_data)
 void
 _LSTransportDeinit(_LSTransport *transport)
 {
-    _ls_verbose("%s: transport: %p\n", __func__, transport);
+    LOG_LS_DEBUG("%s: transport: %p\n", __func__, transport);
 
     if (transport)
     {
@@ -5849,11 +5877,11 @@ LSTransportPushRole(_LSTransport *transport, const char *path, LSError *lserror)
         const char *err_string = NULL;
         if (_LSTransportMessageGetString(&iter, &err_string))
         {
-            _LSErrorSet(lserror, err_code, "%s", err_string);
+            _LSErrorSet(lserror, MSGID_LS_MSG_ERR, err_code, "%s", err_string);
         }
         else
         {
-            _LSErrorSet(lserror, err_code, "Unable to get error string");
+            _LSErrorSet(lserror, MSGID_LS_MSG_ERR, err_code, "Unable to get error string");
         }
         ret = false;
     }

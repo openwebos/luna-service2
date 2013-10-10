@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@
 #define WATCHDOG_RDX_DETAIL     "Watchdog timeout"
 #define WATCHDOG_RDX_TEXT       "Watchdog timeout"
 
-#define WATCHDOG_RDX_REPORTER_CMD    "/bin/echo \"Watchdog timeout\" | /usr/bin/rdx_reporter --component \"ls-hubd.watchdog\" --cause \"Watchdog timer expired\" --detail \"Watchdog timeout\" &"
+#define WATCHDOG_RDX_REPORTER_CMD    "/bin/echo \"Watchdog timeout\" | /usr/sbin/rdx_reporter --component \"ls-hubd.watchdog\" --cause \"Watchdog timer expired\" --detail \"Watchdog timeout\" &"
 
 static gint last_count_seen = 0;
 static gint watchdog_count = 0;
@@ -61,7 +61,7 @@ _WatchdogGenerateRdxReport(void)
 
     if (!rdx_make_report(md, WATCHDOG_RDX_TEXT))
     {
-        g_critical("Unable to make rdx report!");
+        LOG_LS_WARNING(MSGID_LSHUB_RDX_REPORT, 0, "Unable to make rdx report!");
     }
 }
 #endif
@@ -69,7 +69,7 @@ _WatchdogGenerateRdxReport(void)
 static void
 _WatchdogGenerateRdxReport(void)
 {
-    g_critical("Generating RDX report");
+    LOG_LS_DEBUG("Generating RDX report");
     system(WATCHDOG_RDX_REPORTER_CMD);
 }
 #endif
@@ -84,16 +84,12 @@ _WatchdogGenerateRdxReport(void)
 static void
 _WatchdogSignalTimeout(int signal)
 {
-    /* NOTE: It's really not safe to call any printf() or glib functions
-     * (g_critical, etc.) here since they're not re-entrant. However, if we
-     * get here we're jammed anyway so it's probably ok to crash */
-
     gint cur_count = g_atomic_int_get(&watchdog_count);
 
     if (cur_count <= last_count_seen && cur_count != 0)
     {
         /* We're wedged -- take action */
-        g_critical("Watchdog timeout after %d seconds", g_conf_watchdog_timeout_sec);
+        LOG_LS_WARNING(MSGID_LSHUB_WATCHDOG_ERR, 0, "Watchdog timeout after %d seconds", g_conf_watchdog_timeout_sec);
         switch (g_conf_watchdog_failure_mode)
         {
         case LSHubWatchdogFailureModeNoop:
@@ -110,15 +106,16 @@ _WatchdogSignalTimeout(int signal)
              * this a separate thread. */
             _WatchdogGenerateRdxReport();
 #else
-            g_critical("Watchdog failure mode set to \"%s\", "
-                       "but this is not supported on the desktop. "
-                       "Check the ls2 hub config file.",
-                       WATCHDOG_FAILURE_MODE_STRING_RDX);
+            LOG_LS_WARNING(MSGID_LSHUB_WATCHDOG_ERR, 0,
+                           "Watchdog failure mode set to \"%s\", "
+                           "but this is not supported on the desktop. "
+                           "Check the ls2 hub config file.",
+                           WATCHDOG_FAILURE_MODE_STRING_RDX);
 #endif
             break;
         case LSHubWatchdogFailureModeInvalid:
         default:
-            g_critical("Unrecognized watchdog failure mode setting. Check ls2 hub config file");
+            LOG_LS_ERROR(MSGID_LSHUB_WATCHDOG_ERR, 0, "Unrecognized watchdog failure mode setting. Check ls2 hub config file");
             break;
         }
     }
@@ -164,7 +161,7 @@ SetupWatchdog(LSError *lserror)
     /* add to default mainloop */
     if (g_conf_watchdog_timeout_sec < 5)
     {
-        g_critical("Attempting to set watchdog timeout too low. Defaulting to 5 seconds");
+        LOG_LS_WARNING(MSGID_LSHUB_WATCHDOG_ERR, 0, "Attempting to set watchdog timeout too low. Defaulting to 5 seconds");
         g_conf_watchdog_timeout_sec = 5;
     }
 
@@ -186,7 +183,7 @@ SetupWatchdog(LSError *lserror)
 
     if (setitimer(ITIMER_REAL, &itimer, NULL) != 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LSHUB_TIMER_ERR, errno);
         return false;
     }
 

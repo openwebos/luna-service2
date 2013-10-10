@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,8 +25,7 @@
 #include <pthread.h>
 #include <glib.h>
 
-#define TRACE_LOCKS     1
-#define COMPILE_VERBOSE_MESSAGES
+#include "log.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(array[0]))
 
@@ -34,12 +33,6 @@ extern int _ls_debug_tracing;
 
 #define DEBUG_TRACING (_ls_debug_tracing)
 #define DEBUG_VERBOSE (_ls_debug_tracing > 1)
-
-#ifdef COMPILE_VERBOSE_MESSAGES
-void _ls_verbose(const char *format, ...) __attribute__((__format__ (__printf__, 1, 2)));
-#else
-#define _ls_verbose(format...)
-#endif
 
 int strlen_safe(const char *str);
 void DumpHashItem(gpointer key, gpointer value, gpointer user_data);
@@ -49,7 +42,7 @@ void _LSTransportFdSetBlock(int fd, bool *prev_state_blocking);
 void _LSTransportFdSetNonBlock(int fd, bool *prev_state_blocking);
 
 /* compile-time type check */
-#define TYPECHECK(type,val)                 \
+#define TYPECHECK(type,val)             \
 ({	type __type;                        \
 	typeof(val) __val;                  \
 	(void)(&__type == &__val);          \
@@ -58,20 +51,14 @@ void _LSTransportFdSetNonBlock(int fd, bool *prev_state_blocking);
 
 #define LOCK(name, mutex)                                   \
 do {                                                        \
-    if (TRACE_LOCKS)                                        \
-    {                                                       \
-        _ls_verbose("%s: LOCK %s\n", __func__, name);       \
-    }                                                       \
-    pthread_mutex_lock(mutex);                             \
+    LOG_LS_TRACE("%s: LOCK %s\n", __func__, name);          \
+    pthread_mutex_lock(mutex);                              \
 } while (0)
 
 #define UNLOCK(name, mutex)                                 \
 do {                                                        \
-    if (TRACE_LOCKS)                                        \
-    {                                                       \
-        _ls_verbose("%s: UNLOCK %s\n", __func__, name);     \
-    }                                                       \
-    pthread_mutex_unlock(mutex);                           \
+    LOG_LS_TRACE("%s: UNLOCK %s\n", __func__, name);        \
+    pthread_mutex_unlock(mutex);                            \
 } while (0)
 
 

@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -64,10 +64,10 @@ bool LSCustomMessageQueueIsEmpty(LSCustomMessageQueue *q);
 */
 bool LSGmainContextAttach(LSHandle *sh, GMainContext *mainContext, LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
     LSHANDLE_VALIDATE(sh);
 
-    _LSErrorIfFailMsg(mainContext != NULL, lserror, -1,
+    _LSErrorIfFailMsg(mainContext != NULL, lserror, MSGID_LS_MAINCONTEXT_ERROR, -1,
                    "%s: %s", __FUNCTION__, ": No maincontext.");
 
     _LSTransportGmainAttach(sh->transport, mainContext);
@@ -88,15 +88,15 @@ bool LSGmainContextAttach(LSHandle *sh, GMainContext *mainContext, LSError *lser
 bool
 LSGmainAttach(LSHandle *sh, GMainLoop *mainLoop, LSError *lserror)
 {
-    _LSErrorIfFail(mainLoop != NULL, lserror);
+    _LSErrorIfFail(mainLoop != NULL, lserror, MSGID_LS_MAINLOOP_ERROR);
     GMainContext *context = g_main_loop_get_context(mainLoop);
     return LSGmainContextAttach(sh, context, lserror);
 }
 
 bool LSGmainContextAttachPalmService(LSPalmService *psh, GMainContext *mainContext, LSError *lserror)
 {
-    _LSErrorIfFail(psh != NULL, lserror);
-    _LSErrorIfFail(mainContext != NULL, lserror);
+    _LSErrorIfFail(psh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    _LSErrorIfFail(mainContext != NULL, lserror, MSGID_LS_MAINCONTEXT_ERROR);
 
     bool retVal;
     retVal = LSGmainContextAttach(psh->public_sh, mainContext, lserror);
@@ -110,7 +110,7 @@ bool LSGmainContextAttachPalmService(LSPalmService *psh, GMainContext *mainConte
 bool
 LSGmainAttachPalmService(LSPalmService *psh, GMainLoop *mainLoop, LSError *lserror)
 {
-    _LSErrorIfFail(mainLoop != NULL, lserror);
+    _LSErrorIfFail(mainLoop != NULL, lserror, MSGID_LS_MAINLOOP_ERROR);
     GMainContext *context = g_main_loop_get_context(mainLoop);
     return LSGmainContextAttachPalmService(psh, context, lserror);
 }
@@ -132,8 +132,8 @@ LSGmainAttachPalmService(LSPalmService *psh, GMainLoop *mainLoop, LSError *lserr
 bool
 LSGmainDetach(LSHandle *sh, LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
-    _LSErrorIfFailMsg(sh->context != NULL, lserror, -1,
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    _LSErrorIfFailMsg(sh->context != NULL, lserror, MSGID_LS_MAINCONTEXT_ERROR, -1,
                       "%s: %s", __FUNCTION__, ": No maincontext.");
 
     /* We "unregister" without actually flushing or sending shutdown messages */
@@ -179,7 +179,7 @@ LSGmainDetachPalmService(LSPalmService *psh, LSError *lserror)
 bool
 LSGmainSetPriority(LSHandle *sh, int priority, LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
 
     LSHANDLE_VALIDATE(sh);
 
@@ -190,7 +190,7 @@ bool
 LSGmainSetPriorityPalmService(LSPalmService *psh, int priority, LSError *lserror)
 {
     bool retVal;
-    _LSErrorIfFail(psh != NULL, lserror);
+    _LSErrorIfFail(psh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
 
     if (psh->public_sh)
     {
@@ -339,8 +339,8 @@ bool
 LSCustomWaitForMessage(LSHandle *sh, LSMessage **message,
                                LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
-    _LSErrorIfFail(message != NULL, lserror);
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    _LSErrorIfFail(message != NULL, lserror, MSGID_LS_MSG_ERR);
 
     LSHANDLE_VALIDATE(sh);
 
@@ -363,7 +363,7 @@ LSCustomWaitForMessage(LSHandle *sh, LSMessage **message,
 
         if (!sh->transport->mainloop_context)
         {
-            _LSErrorSet(lserror, -ENOMEM, "OOM");
+            _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
             return false;
         }
 
@@ -405,7 +405,7 @@ LSFetchQueueWakeUp(LSFetchQueue *fq, LSError *lserror)
 {
     if (!fq || !fq->sh_list)
     {
-        _LSErrorSet(lserror, -1, "LSFetchQueue not initialized.");
+        _LSErrorSet(lserror, MSGID_LS_QUEUE_ERROR, -1, "LSFetchQueue not initialized.");
         return false;
     }
 
@@ -413,7 +413,7 @@ LSFetchQueueWakeUp(LSFetchQueue *fq, LSError *lserror)
 
     if (!sh)
     {
-        _LSErrorSet(lserror, -1, "No servers associated with FetchQueue.");
+        _LSErrorSet(lserror, MSGID_LS_QUEUE_ERROR, -1, "No servers associated with FetchQueue.");
         return false;
     }
 
@@ -463,8 +463,8 @@ bool
 LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
                                  LSError *lserror)
 {
-    _LSErrorIfFail(fq != NULL, lserror);
-    _LSErrorIfFail(ret_message != NULL, lserror);
+    _LSErrorIfFail(fq != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    _LSErrorIfFail(ret_message != NULL, lserror, MSGID_LS_MSG_ERR);
 
     GSList *iter;
     //int nfd = -1;
@@ -516,13 +516,11 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
     {
         LSHandle *sh = (LSHandle*)fq->dispatch_iter->data;
 
-        //g_debug("%d Fetching message from %p %s", ++i, sh, sh->name);
-
         /* Fetch 1 message off incoming queue. */
         retVal = LSCustomFetchMessage(sh, &message, lserror);
         if (!retVal)
         {
-            g_message("LSCustomFetchMessage returned false.");
+            LOG_LS_WARNING(MSGID_LS_MSG_ERR, 0, "LSCustomFetchMessage returned false.");
             return false;
         }
 
@@ -530,13 +528,11 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
         fq->dispatch_iter = fq->dispatch_iter->next;
         if (!fq->dispatch_iter)
         {
-            //g_message("dispatch iter end");
             fq->dispatch_iter = fq->sh_list;
         }
 
         if (fq->dispatch_iter == first)
         {
-            //g_debug("Reached the first %p stopping...", first->data);
             fq->dispatch_iter = NULL;
         }
 

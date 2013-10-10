@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #endif
 
 #include <luna-service2/lunaservice-errors.h>
+#include <PmLogLib.h>
 
 #ifndef _LUNASERVICE_H_
 #define _LUNASERVICE_H_
@@ -81,7 +82,7 @@ listContacts(LSHandle *sh, LSMessage *message)
      retVal = LSMessageReply(sh, message, "{ JSON REPLY PAYLOAD }", &lserror);
      if (!retVal)
      {
-         LSErrorPrint(&lserror, stderr);
+         LSErrorLog(loggingCtx, msgId, &lserror);
          LSErrorFree(&lserror);
      }
 
@@ -143,7 +144,7 @@ SomeOtherThread()
     ...
     if (!LSMessageReply(sh, message, "{PAYLOAD IN JSON}", lserror))
     {
-        LSErrorPrint(&lserror);
+        LSErrorLog(loggingCtx, msgId, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -386,6 +387,7 @@ void LSErrorFree(LSError *error);
 bool LSErrorIsSet(LSError *lserror);
 
 void LSErrorPrint(LSError *lserror, FILE *out);
+void LSErrorLog(PmLogContext context, const char *message_id, LSError *lserror);
 
 /* @} END OF LunaServiceError */
 

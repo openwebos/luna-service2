@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include "transport.h"
 #include "transport_priv.h"
 #include "transport_utils.h"
+#include "log.h"
 //#include "transport_client.h"
 
 /**
@@ -57,7 +58,7 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
 
     if (!new_client)
     {
-        g_debug("OOM when attempting to add new incoming connection");
+        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM when attempting to add new incoming connection");
         return NULL;
     }
 
@@ -87,7 +88,7 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
 
         if (!_LSTransportGetCredentials(fd, new_client->cred, &lserror))
         {
-            LSErrorPrint(&lserror, stderr);
+            LOG_LSERROR(MSGID_LS_TRANSPORT_NETWORK_ERR, &lserror);
             LSErrorFree(&lserror);
         }
     }
@@ -181,7 +182,7 @@ _LSTransportClientNewRef(_LSTransport* transport, int fd, const char *service_na
     if (client)
     {
         client->ref = 1;
-        _ls_verbose("%s: %d (%p)\n", __func__, client->ref, client);
+        LOG_LS_DEBUG("%s: %d (%p)\n", __func__, client->ref, client);
     }
 
 
@@ -203,7 +204,7 @@ _LSTransportClientRef(_LSTransportClient *client)
 
     g_atomic_int_inc(&client->ref);
 
-    _ls_verbose("%s: %d (%p)\n", __func__, client->ref, client);
+    LOG_LS_DEBUG("%s: %d (%p)\n", __func__, client->ref, client);
 }
 
 /**
@@ -221,12 +222,12 @@ _LSTransportClientUnref(_LSTransportClient *client)
 
     if (g_atomic_int_dec_and_test(&client->ref))
     {
-        _ls_verbose("%s: %d (%p)\n", __func__, client->ref, client);
+        LOG_LS_DEBUG("%s: %d (%p)\n", __func__, client->ref, client);
         _LSTransportClientFree(client);
     }
     else
     {
-        _ls_verbose("%s: %d (%p)\n", __func__, client->ref, client);
+        LOG_LS_DEBUG("%s: %d (%p)\n", __func__, client->ref, client);
     }
 }
 

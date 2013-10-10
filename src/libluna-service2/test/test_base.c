@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -79,6 +79,22 @@ test_teardown(TestData *fixture, gconstpointer user_data)
     test_data = NULL;
 }
 
+// PmLogLib.h
+PmLogErr _PmLogMsgKV(PmLogContext context, PmLogLevel level, unsigned int flags,
+                     const char *msgid, size_t kv_count, const char *check_keywords,
+                     const char *check_formats, const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+
+    putc('\n', stderr);
+
+    return kPmLogErr_None;
+}
+
 /* Test cases *****************************************************************/
 
 static void
@@ -138,9 +154,37 @@ test_LSErrorPrint(TestData *fixture, gconstpointer user_data)
         LSErrorPrint(NULL, stderr);
         exit(0);
     }
-    g_test_trap_assert_stderr("LUNASERVICE ERROR: lserror is NULL. Did you pass in an LSError?");
+    g_test_trap_assert_stderr("LUNASERVICE ERROR: lserror is NULL. Did you pass in a LSError?");
 
     LSErrorFree(&error);
+}
+
+static void
+test_LSErrorLog(TestData *fixture, gconstpointer user_data)
+{
+    LSError lserror;
+    LSErrorInit(&lserror);
+    _LSErrorSetNoPrint(&lserror, LS_ERROR_CODE_UNKNOWN_ERROR, LS_ERROR_TEXT_UNKNOWN_ERROR);
+
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
+    {
+        LOG_LSERROR("LS_TEST_ERROR", &lserror);
+        exit(0);
+    }
+    gchar *expected_stderr = g_strdup_printf("{\"ERROR_CODE\":%d,\"ERROR\":\"%s\",\"FUNC\":\"%s\",\"FILE\":\"%s\",\"LINE\":%d"
+                                             "} LUNASERVICE ERROR\n",
+                                             lserror.error_code, lserror.message, lserror.func, lserror.file, lserror.line);
+    g_test_trap_assert_stderr(expected_stderr);
+    g_free(expected_stderr);
+
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
+    {
+        LOG_LSERROR("LS_TEST_ERROR", NULL);
+        exit(0);
+    }
+    g_test_trap_assert_stderr("lserror is NULL. Did you pass in a LSError?\n");
+
+    LSErrorFree(&lserror);
 }
 
 static void
@@ -162,7 +206,7 @@ test_LSErrorSetFunc(TestData *fixture, gconstpointer user_data)
     g_assert_cmpstr(error.message, ==, LS_ERROR_TEXT_OOM);
 
     // error already set, should not touch given error, but just return true
-    g_assert(_LSErrorSetFunc(&error,  "file", 0, "func", LS_ERROR_CODE_UNKNOWN_ERROR, "msg"));
+    g_assert(_LSErrorSetFunc(&error, "file", 0, "func", LS_ERROR_CODE_UNKNOWN_ERROR, "msg"));
     g_assert_cmpstr(error.file, ==, file);
     g_assert_cmpint(error.line, ==, line);
     g_assert_cmpstr(error.func, ==, func);
@@ -198,37 +242,37 @@ test_LSErrorSetFromErrnoFunc(TestData *fixture, gconstpointer user_data)
 static void
 test_LSDebugLogIncoming(TestData *fixture, gconstpointer user_data)
 {
-    const char *expected_stdout = "*RX: where token <<0>> sender: com.name.service sender_unique: com.name.service.0\n";
-    const char *expected_verbose_stdout = "*RX: where token <<0>> sender: com.name.service sender_unique: com.name.service.0 payload: {}\n";
+    const char *expected_stdout = "RX: where token <<0>> sender: com.name.service sender_unique: com.name.service.0\n";
+    const char *expected_verbose_stdout = "RX: where token <<0>> sender: com.name.service sender_unique: com.name.service.0 payload: {}\n";
 
     setenv("G_MESSAGES_DEBUG", "all", 1);
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
     {
         LSDebugLogIncoming("where", GINT_TO_POINTER(1));
         exit(0);
     }
-    g_test_trap_assert_stdout_unmatched(expected_stdout);
+    g_test_trap_assert_stderr_unmatched(expected_stdout);
 
     // enable DEBUG_TRACING
     _ls_debug_tracing = 1;
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
     {
         LSDebugLogIncoming("where", GINT_TO_POINTER(1));
         exit(0);
     }
-    g_test_trap_assert_stdout(expected_stdout);
+    g_test_trap_assert_stderr(expected_stdout);
 
     // enable DEBUG_VERBOSE
     _ls_debug_tracing = 2;
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
     {
         LSDebugLogIncoming("where", GINT_TO_POINTER(1));
         exit(0);
     }
-    g_test_trap_assert_stdout(expected_verbose_stdout);
+    g_test_trap_assert_stderr(expected_verbose_stdout);
 
     _ls_debug_tracing = 0;
 }
@@ -241,21 +285,19 @@ test_LSRegisterAndUnregister(TestData *fixture, gconstpointer user_data)
 
     LSHandle *sh = NULL;
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
+    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
     {
         setenv("LS_DEBUG", "2", 1);
         setenv("LS_ENABLE_UTF8", "2", 1);
 
         LSRegister("com.name.service", &sh, &error);
-
         g_assert_cmpint(_ls_debug_tracing, ==, 2);
         g_assert(_ls_enable_utf8_validation == true);
-
         LSUnregister(sh, &error);
         exit(0);
     }
+    g_test_trap_assert_stderr("Log mode enabled to level 2\nEnable UTF8 validation on payloads\n");
     g_test_trap_assert_passed();
-    g_test_trap_assert_stdout("*Debug mode enabled to level 2\n*Enable UTF8 validation on payloads\n");
 
     g_assert(LSRegister("com.name.service", &sh, &error));
     g_assert(NULL != sh);
@@ -286,7 +328,7 @@ test_LSRegisterAndUnregister(TestData *fixture, gconstpointer user_data)
 #else
     g_test_trap_assert_failed();
 #endif
-    g_test_trap_assert_stderr("*LunaService*Invalid handle*");
+    g_test_trap_assert_stderr("*Invalid LSHandle*");
 
     g_assert(LSUnregister(sh, &error));
     g_assert(!LSErrorIsSet(&error));
@@ -811,6 +853,7 @@ main(int argc, char *argv[])
     LSTEST_ADD("/luna-service2/LSErrorSet", test_LSErrorSet);
     LSTEST_ADD("/luna-service2/LSErrorFree", test_LSErrorFree);
     LSTEST_ADD("/luna-service2/LSErrorPrint", test_LSErrorPrint);
+    LSTEST_ADD("/luna-service2/LSErrorLog", test_LSErrorLog);
     LSTEST_ADD("/luna-service2/LSErrorSetFunc", test_LSErrorSetFunc);
     LSTEST_ADD("/luna-service2/LSErrorSetFromErrnoFunc", test_LSErrorSetFromErrnoFunc);
     LSTEST_ADD("/luna-service2/LSDebugLogIncoming", test_LSDebugLogIncoming);

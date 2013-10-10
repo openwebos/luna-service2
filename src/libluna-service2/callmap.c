@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -282,7 +282,7 @@ _UriParse(const char *uri, LSError *lserror)
     }
     else
     {
-        _LSErrorSet(lserror, -EINVAL,
+        _LSErrorSet(lserror, MSGID_LS_INVALID_URI, -EINVAL,
             "%s: Not a valid uri %s - it doesn't begin with " LUNA_PREFIX,
                 __FUNCTION__, uri);
         goto error;
@@ -291,7 +291,7 @@ _UriParse(const char *uri, LSError *lserror)
     first_slash = strchr(uri_p, '/');
     if (!first_slash)
     {
-        _LSErrorSet(lserror, -EINVAL,
+        _LSErrorSet(lserror, MSGID_LS_INVALID_URI, -EINVAL,
             "%s: Not a valid uri %s", __FUNCTION__, uri);
         goto error;
     }
@@ -299,7 +299,7 @@ _UriParse(const char *uri, LSError *lserror)
     luri = g_new0(_Uri, 1);
     if (!luri)
     {
-        _LSErrorSet(lserror, -ENOMEM, "%s: OOM", __FUNCTION__);
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "%s: OOM", __FUNCTION__);
         goto error;
     }
 
@@ -309,7 +309,7 @@ _UriParse(const char *uri, LSError *lserror)
 
     if (!luri->serviceName)
     {
-        _LSErrorSet(lserror, -ENOMEM, "%s: OOM", __FUNCTION__);
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "%s: OOM", __FUNCTION__);
         goto error;
     }
 
@@ -318,13 +318,13 @@ _UriParse(const char *uri, LSError *lserror)
 
     if (!luri->objectPath || !luri->methodName)
     {
-        _LSErrorSet(lserror, -ENOMEM, "%s: OOM", __FUNCTION__);
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "%s: OOM", __FUNCTION__);
         goto error;
     }
 
     if (!_validate_service_name(luri->serviceName))
     {
-        _LSErrorSet(lserror, -EINVAL,
+        _LSErrorSet(lserror, MSGID_LS_INVALID_URI_SERVICE_NAME, -EINVAL,
                     "%s: Not a valid service name in uri %s (service name: %s)",
                     __FUNCTION__, uri, luri->serviceName);
         goto error;
@@ -332,7 +332,7 @@ _UriParse(const char *uri, LSError *lserror)
 
     if (!_validate_path(luri->objectPath))
     {
-        _LSErrorSet(lserror, -EINVAL,
+        _LSErrorSet(lserror, MSGID_LS_INVALID_URI_PATH, -EINVAL,
                     "%s: Not a valid path in uri %s (path: %s)",
                     __FUNCTION__, uri, luri->objectPath);
         goto error;
@@ -340,7 +340,7 @@ _UriParse(const char *uri, LSError *lserror)
 
     if (!_validate_method(luri->methodName))
     {
-        _LSErrorSet(lserror, -EINVAL,
+        _LSErrorSet(lserror, MSGID_LS_INVALID_URI_METHOD, -EINVAL,
                     "%s: Not a valid method name in uri %s (method: %s)",
                     __FUNCTION__, uri, luri->methodName);
         goto error;
@@ -494,8 +494,6 @@ _CallNew(int type, const char *serviceName,
     _Call *call = g_new0(_Call, 1);
     if (!call) return NULL;
 
-    //g_debug("CallNew %ld", token);
-
     call->serviceName = g_strdup(serviceName); /* FIXME: could fail */
     call->callback = callback;
     call->ctx = ctx;
@@ -512,8 +510,6 @@ void
 _CallFree(_Call *call)
 {
     if (!call) return;
-
-    //g_debug("CallFree %ld", call->token);
 
     g_free(call->serviceName);
     //g_free(call->rule);
@@ -581,7 +577,7 @@ _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
         key   = call->match_key;
         break;
     default:
-        _LSErrorSet(lserror, -1, "Unsupported call type.");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_CALL, -1, "Unsupported call type.");
         return false;
     }
 
@@ -600,7 +596,7 @@ _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
 
             if (!token_list)
             {
-                _LSErrorSet(lserror, -ENOMEM, "OOM Could not allocate tokens list.");
+                _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM Could not allocate tokens list.");
                 retVal = false;
                 goto error;
             }
@@ -704,7 +700,7 @@ _CallMapInit(LSHandle *sh, _CallMap **ret_map, LSError *lserror)
     _CallMap *map = g_new0(_CallMap, 1);
     if (!map)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         return false;
     }
 
@@ -718,12 +714,12 @@ _CallMapInit(LSHandle *sh, _CallMap **ret_map, LSError *lserror)
 
     if (!map->tokenMap || !map->signalMap)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         goto error;
     }
     if (pthread_mutex_init(&map->lock, NULL))
     {
-        _LSErrorSet(lserror, -1, "Could not initialize mutex.");
+        _LSErrorSet(lserror, MSGID_LS_MUTEX_ERR, -1, "Could not initialize mutex.");
         goto error;
     }
 
@@ -752,7 +748,7 @@ _CallMapDeinit(LSHandle *sh, _CallMap *map)
 
         if (pthread_mutex_destroy(&map->lock))
         {
-            g_warning("Could not destroy mutex &map->lock");
+            LOG_LS_WARNING(MSGID_LS_MUTEX_ERR, 0, "Could not destroy mutex &map->lock");
         }
 
         g_free(map);
@@ -792,7 +788,8 @@ _LSMessageSetFromError(_LSTransportMessage *transport_msg, _Call *call, LSMessag
 
     default:
     {
-        g_critical("%s: The message type %d is not an error type", __func__, _LSTransportMessageGetType(transport_msg));
+        LOG_LS_ERROR(MSGID_LS_NOT_AN_ERROR, 0,
+                     "%s: The message type %d is not an error type", __func__, _LSTransportMessageGetType(transport_msg));
         LS_ASSERT(0);
     }
     }
@@ -886,9 +883,6 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
                 }
                 break;
             case CALL_TYPE_SIGNAL_SERVER_STATUS:
-
-                //g_critical("%s, Received \"service %s\" signal: service_name: %s, token: %d", __func__, server_info->connected ? "up" : "down", call->serviceName, (int)call->token);
-
                 reply->category = LUNABUS_SIGNAL_CATEGORY;
                 reply->method = LUNABUS_SIGNAL_SERVERSTATUS;
 
@@ -913,8 +907,6 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
          * reply serial */
         /* skip over reply serial to get available value */
         int available = *((int*)(_LSTransportMessageGetBody(msg) + sizeof(LSMessageToken)));
-
-        //g_critical("%s, Received service status reply: service_name: %s, available: %d, token: %d", __func__, call->serviceName, available, (int)call->token);
 
         if (available)
         {
@@ -948,7 +940,7 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
 
     default:
     {
-        g_critical("Unknown message type: %d", type);
+        LOG_LS_ERROR(MSGID_LS_UNKNOWN_MSG, 0, "Unknown message type: %d", type);
         break;
     }
     }
@@ -997,7 +989,6 @@ _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
 
         if (!call)
         {
-            //g_critical("Expected to find call with token: %lu in callmap", (unsigned long)token);
             continue;
         }
 
@@ -1023,15 +1014,15 @@ _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
                 {
                     ClockGetTime(&current_time);
                     ClockDiff(&gap_time, &current_time, &call->time);
-                    g_debug("TYPE=method call response time | TIME=%ld | FROM=%s | TO=%s",
-                        ClockGetMs(&gap_time), sh->name, call->serviceName);
+                    LOG_LS_DEBUG("TYPE=method call response time | TIME=%ld | FROM=%s | TO=%s",
+                              ClockGetMs(&gap_time), sh->name, call->serviceName);
                 }
                 ret = call->callback(sh, reply, call->ctx);
                 if (DEBUG_TRACING)
                 {
                     ClockGetTime(&current_time);
                     ClockDiff(&gap_time, &current_time, &call->time);
-                    g_debug("TYPE=client handler execution time | TIME=%ld", ClockGetMs(&gap_time));
+                    LOG_LS_DEBUG("TYPE=client handler execution time | TIME=%ld", ClockGetMs(&gap_time));
                 }
 
                 if (!ret)
@@ -1070,7 +1061,7 @@ _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureT
 
     if (!call)
     {
-        g_debug("_CallAcquire failed");
+        LOG_LS_DEBUG("_CallAcquire failed");
         return;
     }
 
@@ -1165,7 +1156,9 @@ _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureT
             break;
 
         default:
-            g_critical("Unknown failure_type: %d", failure_type);
+            LOG_LS_ERROR(MSGID_LS_UNKNOWN_FAILURE, 1,
+                         PMLOGKFV("FLR_TYPE", "%d", failure_type),
+                         "Unknown failure_type: %d", failure_type);
             LS_ASSERT(0);
         }
 
@@ -1196,7 +1189,8 @@ void _send_not_running(LSHandle *sh, _TokenList *tokens)
 
         if (!call)
         {
-            g_critical("%s: Expected to find call with token: %lu in callmap", __func__, (unsigned long)token);
+            LOG_LS_ERROR(MSGID_LS_NO_TOKEN, 0,
+                         "%s: Expected to find call with token: %lu in callmap", __func__, (unsigned long)token);
             continue;
         }
 
@@ -1290,7 +1284,7 @@ _parse_service_status_signal(_LSTransportMessage *msg, _ServerInfo *server_info)
     }
     else if (type == _LSTransportMessageTypeServiceUpSignal)
     {
-        g_debug("ServiceUpSignal");
+        LOG_LS_DEBUG("ServiceUpSignal");
         server_info->ServiceStatusChanged = true;
         server_info->serviceName = LSTransportServiceStatusSignalGetServiceName(msg);
         server_info->connected = true;
@@ -1379,7 +1373,9 @@ _MessageFindTokens(_CallMap *callmap, _LSTransportMessage *msg,
          * calls this function for all types of messages */
         break;
     default:
-        g_critical("Unhandled message type: %d", message_type);
+        LOG_LS_ERROR(MSGID_LS_UNHANDLED_MSG, 1,
+                     PMLOGKFV("MSG_TYPE", "%d", message_type),
+                     "Unhandled message type: %d", message_type);
         break;
     }
 }
@@ -1465,7 +1461,7 @@ _send_match(LSHandle        *sh,
 
     if (JSON_ERROR(object))
     {
-        _LSErrorSet(lserror, -EINVAL, "Invalid signal/addmatch payload");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Invalid signal/addmatch payload");
         goto error;
     }
 
@@ -1486,7 +1482,7 @@ _send_match(LSHandle        *sh,
 
     if (!key)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM could not allocate signal key.");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM could not allocate signal key.");
         retVal = false;
         goto error;
     }
@@ -1494,7 +1490,7 @@ _send_match(LSHandle        *sh,
     _Call *call = _CallNew(CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token, method);
     if (!call)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM could not allocate call.");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM could not allocate call.");
         retVal = false;
         goto error;
     }
@@ -1505,7 +1501,7 @@ _send_match(LSHandle        *sh,
     call->match_key = g_strdup(key);
     if ((method && !call->signal_method) || !call->signal_category || !call->match_key)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM could not alloc signal_method | signal_category | match_key.");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM could not alloc signal_method | signal_category | match_key.");
         retVal = false;
         goto error;
     }
@@ -1538,7 +1534,7 @@ _send_reg_server_status(LSHandle *sh,
     struct json_object *object = json_tokener_parse(payload);
     if (is_error(object))
     {
-        _LSErrorSet(lserror, -1, "Malformed json.");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Malformed json.");
         goto error;
     }
 
@@ -1548,7 +1544,7 @@ _send_reg_server_status(LSHandle *sh,
 
     if (!serviceName)
     {
-        _LSErrorSet(lserror, -1, "Invalid payload.");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1, "Invalid payload.");
         goto error;
     }
 
@@ -1556,7 +1552,7 @@ _send_reg_server_status(LSHandle *sh,
                                                &token, lserror);
     if (!retVal)
     {
-        _LSErrorSet(lserror, -1, "Could not send QueryServiceStatus.");
+        _LSErrorSet(lserror, MSGID_LS_SEND_ERROR, -1, "Could not send QueryServiceStatus.");
         goto error;
     }
 
@@ -1564,7 +1560,7 @@ _send_reg_server_status(LSHandle *sh,
         serviceName, callback, ctx, token, luri ? luri->methodName : NULL);
     if (!call)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         goto error;
     }
 
@@ -1609,7 +1605,7 @@ _send_method_call(LSHandle *sh,
         _Call *call = _CallNew(CALL_TYPE_METHOD_CALL, luri->serviceName, callback, ctx, token, luri->methodName);
         if (!call)
         {
-            _LSErrorSet(lserror, -ENOMEM, "OOM: Could not send message");
+            _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM: Could not send message");
             goto error;
         }
 
@@ -1628,7 +1624,7 @@ _cancel_method_call(LSHandle *sh, _Call *call, LSError *lserror)
 {
     if (DEBUG_TRACING)
     {
-        g_debug("TX: %s \"%s\" token <<%ld>>", __FUNCTION__, call->serviceName, call->token);
+        LOG_LS_DEBUG("TX: %s \"%s\" token <<%ld>>", __FUNCTION__, call->serviceName, call->token);
     }
 
     // palm://com.hhahha.haha/com/palm/luna/private/cancel {"token":17}
@@ -1641,7 +1637,7 @@ _cancel_signal(LSHandle *sh, _Call *call, LSError *lserror)
 {
     if (DEBUG_TRACING)
     {
-        g_debug("TX: %s token <<%ld>>", __FUNCTION__, call->token);
+        LOG_LS_DEBUG("TX: %s token <<%ld>>", __FUNCTION__, call->token);
     }
 
     /* SIGNAL */
@@ -1675,7 +1671,7 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
     {
         if (!g_utf8_validate (payload, -1, NULL))
         {
-            _LSErrorSet(lserror, -EINVAL, "%s: payload is not utf-8",
+            _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -EINVAL, "%s: payload is not utf-8",
                         __FUNCTION__);
             return false;
         }
@@ -1683,7 +1679,7 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
 
     if (unlikely(strcmp(payload, "") == 0))
     {
-        _LSErrorSet(lserror, -EINVAL, "Empty payload is not valid JSON. Use {}");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -EINVAL, "Empty payload is not valid JSON. Use {}");
         return false;
     }
 
@@ -1697,8 +1693,10 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
             g_hash_table_lookup(sh->tableHandlers, luri->objectPath);
         if (!table || !g_hash_table_lookup(table->signals, luri->methodName))
         {
-            g_warning("%s: Warning: you did not register signal %s via "
-                 "LSRegisterCategory().", __FUNCTION__, uri);
+            LOG_LS_WARNING(MSGID_LS_SIGNAL_NOT_REGISTERED, 1,
+                           PMLOGKS("URI", uri),
+                           "%s: Warning: you did not register signal %s via "
+                           "LSRegisterCategory().", __FUNCTION__, uri);
         }
     }
 
@@ -1843,13 +1841,13 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
        LSFilterFunc callback, void *ctx,
        LSMessageToken *ret_token, bool single, LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
-    _LSErrorIfFail(uri != NULL, lserror);
-    _LSErrorIfFail(payload != NULL, lserror);
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    _LSErrorIfFail(uri != NULL, lserror, MSGID_LS_INVALID_URI);
+    _LSErrorIfFail(payload != NULL, lserror, MSGID_LS_INVALID_PAYLOAD);
 
     if (applicationID && !_LSTransportGetPrivileged(sh->transport))
     {
-        _LSErrorSet(lserror, LS_ERROR_CODE_NOT_PRIVILEGED, LS_ERROR_TEXT_NOT_PRIVILEGED, applicationID);
+        _LSErrorSet(lserror, MSGID_LS_PRIVILEDGES_ERROR, LS_ERROR_CODE_NOT_PRIVILEGED, LS_ERROR_TEXT_NOT_PRIVILEGED, applicationID);
         return false;
     }
 
@@ -1862,7 +1860,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
     if (!g_str_has_prefix(uri, LUNA_PREFIX) &&
         !g_str_has_prefix(uri, LUNA_OLD_PREFIX)) /* TODO: we need to get rid of this */
     {
-        _LSErrorSet(lserror, -EINVAL,
+        _LSErrorSet(lserror, MSGID_LS_INVALID_URI, -EINVAL,
                 "%s: Invalid syntax for uri", __FUNCTION__);
         return false;
     }
@@ -1871,7 +1869,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
     {
         if (!g_utf8_validate (payload, -1, NULL))
         {
-            _LSErrorSet(lserror, -EINVAL, "%s: payload is not utf-8",
+            _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -EINVAL, "%s: payload is not utf-8",
                         __FUNCTION__);
             return false;
         }
@@ -1879,7 +1877,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
 
     if (unlikely(strcmp(payload, "") == 0))
     {
-        _LSErrorSet(lserror, -EINVAL, "Empty payload is not valid JSON. Use {}");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -EINVAL, "Empty payload is not valid JSON. Use {}");
         return false;
     }
 
@@ -1897,7 +1895,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
     {
         if (!callback)
         {
-            _LSErrorSet(lserror, -EINVAL,
+            _LSErrorSet(lserror, MSGID_LS_NO_CALLBACK, -EINVAL,
                             "Invalid parameters to lunabus LSCall.  "
                             "No callback specified.");
             goto error;
@@ -1921,12 +1919,10 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
 
                 ret =  _service_watch_enable(sh, call, lserror);
                 if (!ret) goto error;
-
-                //g_critical("registerServerStatus: handle: %p, client service name: \"%s\", client unique name: \"%s\", payload: \"%s\"", sh, sh->transport->service_name, sh->transport->unique_name, payload);
             }
             else
             {
-                _LSErrorSet(lserror, -EINVAL,
+                _LSErrorSet(lserror, MSGID_LS_INVALID_METHOD, -EINVAL,
                             "Invalid method %s to lunabus LSCall.",
                             luri->methodName);
                 goto error;
@@ -1934,7 +1930,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
         }
         else
         {
-            _LSErrorSet(lserror, -EINVAL, "Invalid parameters to LSCall.");
+            _LSErrorSet(lserror, MSGID_LS_INVALID_CALL, -EINVAL, "Invalid parameters to LSCall.");
             goto error;
         }
     }
@@ -1958,7 +1954,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
     {
         if (!call)
         {
-            _LSErrorSet(lserror, -1, "Call is null. we should not be here.");
+            _LSErrorSet(lserror, MSGID_LS_UNKNOWN_FAILURE, -1, "Call is null. we should not be here.");
             goto error;
         }
 
@@ -1969,13 +1965,13 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
         {
             if (DEBUG_VERBOSE)
             {
-                g_debug("TX: LCall token <<%ld>> %s %s",
+                LOG_LS_DEBUG("TX: LCall token <<%ld>> %s %s",
                         call->token, uri, payload);
             }
             else
             {
                 ClockGetTime(&call->time);
-                g_debug("TX: LSCall token <<%ld>> %s", call->token, uri);
+                LOG_LS_DEBUG("TX: LSCall token <<%ld>> %s", call->token, uri);
             }
         }
     }
@@ -1984,7 +1980,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
         /* LS_ASSERT(!call); */
         if (DEBUG_TRACING)
         {
-            g_debug("TX: LSCall no token");
+            LOG_LS_DEBUG("TX: LSCall no token");
         }
     }
 
@@ -2013,11 +2009,11 @@ error:
 bool
 LSCallCancel(LSHandle *sh, LSMessageToken token, LSError *lserror)
 {
-    _LSErrorIfFail(sh != NULL, lserror);
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
 
     if (DEBUG_TRACING)
     {
-        g_debug("TX: %s token <<%ld>>", __FUNCTION__, token);
+        LOG_LS_DEBUG("TX: %s token <<%ld>>", __FUNCTION__, token);
     }
 
     LSHANDLE_VALIDATE(sh);
@@ -2143,7 +2139,7 @@ bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
     payload = g_strdup_printf("{\"serviceName\":\"%s\"}", serviceName);
     if (!payload)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         return false;
     }
 
@@ -2151,7 +2147,7 @@ bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
     server_status = g_new0(_ServerStatus, 1);
     if (!server_status)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         g_free(payload);
         return false;
     }
@@ -2258,13 +2254,13 @@ LSSignalCall(LSHandle *sh,
     }
     else
     {
-        _LSErrorSet(lserror, -EINVAL, "Invalid arguments to %s", __FUNCTION__);
+        _LSErrorSet(lserror, MSGID_LS_INVALID_CALL, -EINVAL, "Invalid arguments to %s", __FUNCTION__);
         return false;
     }
 
     if (!payload)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM: Could not allocate payload for message");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM: Could not allocate payload for message");
         return false;
     }
 
@@ -2442,7 +2438,7 @@ _FetchMessageQueueGet(LSHandle *sh, LSMessage **ret_message, LSError *lserror)
 
     if (!sh->fetch_message_queue)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         return false;
     }
 
@@ -2474,7 +2470,7 @@ _FetchMessageQueueGet(LSHandle *sh, LSMessage **ret_message, LSError *lserror)
     LSMessage *reply = _LSMessageNewRef(queue->message, sh);
     if (!reply)
     {
-        _LSErrorSet(lserror, -ENOMEM, "ENOMEM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "ENOMEM");
         retVal = false;
         goto done_empty;
     }

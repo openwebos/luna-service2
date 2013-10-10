@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#      Copyright (c) 2008-2013 LG Electronics, Inc.
+#      Copyright (c) 2008-2014 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@ set(MONITOR_SOURCE_FILES
     monitor.c
     monitor_queue.c
     )
-
-add_definitions(-DG_LOG_DOMAIN="LunaServiceMonitor")
 
 if(TARGET_DESKTOP)
 	add_definitions(-DPID_DIR="/tmp")

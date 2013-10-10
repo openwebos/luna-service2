@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -241,14 +241,14 @@ _LSTransportGetCredentials(int fd, _LSTransportCred *cred, LSError *lserror)
 }
 
 void
-LSErrorPrint(LSError *lserror, FILE *out)
+LSErrorFree(LSError *error)
 {
-    mvar_errorprint_count++;
 }
 
 void
-LSErrorFree(LSError *error)
+LSErrorLog(PmLogContext context, const char *message_id, LSError *lserror)
 {
+    mvar_errorprint_count++;
 }
 
 _LSTransportOutgoing *

@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -356,7 +356,7 @@ static void
 _ConfigHandleSignal(int signal)
 {
     /* See signal(7) for list of async-signal-safe functions */
-    _ls_verbose("%s: handling signal: %d\n", __func__, signal);
+    LOG_LS_DEBUG("%s: handling signal: %d\n", __func__, signal);
     int reload = RELOAD_UNKNOWN;
     switch (signal) {
         case SIGHUP: reload = RELOAD_CONFIGURATION; break;
@@ -367,7 +367,7 @@ _ConfigHandleSignal(int signal)
 
     if (ret != write_size)
     {
-        g_critical("Unable to write to reload pipe");
+        LOG_LS_ERROR(MSGID_LSHUB_PIPE_ERR, 0, "Unable to write to reload pipe");
     }
 }
 
@@ -396,7 +396,10 @@ ConfigInotifyCallback(GIOChannel *channel, GIOCondition condition, gpointer data
 
     if (status != G_IO_STATUS_NORMAL)
     {
-        g_critical("Error reading inotify event: \"%s\"", error->message);
+        LOG_LS_ERROR(MSGID_LSHUB_INOTIFY_ERR, 2,
+                     PMLOGKFV("ERROR_CODE", "%d", error->code),
+                     PMLOGKS("ERROR", error->message),
+                     "Error reading inotify event: \"%s\"", error->message);
         g_error_free(error);
         return TRUE;
     }
@@ -407,17 +410,20 @@ ConfigInotifyCallback(GIOChannel *channel, GIOCondition condition, gpointer data
     {
         event = (struct inotify_event*)&event_buf[offset];
 
-        _ls_verbose("%s: event: wd: %d, mask: %08X, cookie: %d, len: %d, name: \"%s\"\n",
+        LOG_LS_DEBUG("%s: event: wd: %d, mask: %08X, cookie: %d, len: %d, name: \"%s\"\n",
                     __func__, event->wd, event->mask,
                     event->cookie, event->len, event->len > 0 ? event->name : NULL);
 
         if ((event->mask & INOTIFY_MASK) && (event->wd == inotify_conf_file_wd)
             && event->len > 0 && strcmp(event->name, config_file_name) == 0)
         {
-            _ls_verbose("%s: config file modified; sending SIGHUP\n", __func__);
+            LOG_LS_DEBUG("%s: config file modified; sending SIGHUP\n", __func__);
             if (kill(getpid(), SIGHUP) != 0)
             {
-                g_critical("Error sending SIGHUP: %d", errno);
+                LOG_LS_ERROR(MSGID_LSHUB_INOTIFY_ERR, 2,
+                             PMLOGKFV("ERROR_CODE", "%d", errno),
+                             PMLOGKS("ERROR", g_strerror(errno)),
+                             "Error sending SIGHUP: %d", errno);
             }
         }
         offset += sizeof(struct inotify_event) + event->len;
@@ -445,14 +451,17 @@ _ConfigParseFileWrapper(GIOChannel *channel, GIOCondition condition, gpointer da
     int read_data = 0;
     gsize bytes_read = 0;
 
-    _ls_verbose("%s: parsing config file\n", __func__);
+    LOG_LS_DEBUG("%s: parsing config file\n", __func__);
 
     GIOStatus status = g_io_channel_read_chars(channel, (gchar*)&read_data, sizeof(read_data),
                                                &bytes_read, &error);
 
     if (status != G_IO_STATUS_NORMAL)
     {
-        g_critical("Error reading config pipe: \"%s\"", error->message);
+        LOG_LS_ERROR(MSGID_LSHUB_PIPE_ERR, 2,
+                     PMLOGKFV("ERROR_CODE", "%d", error->code),
+                     PMLOGKS("ERROR", error->message),
+                     "Error reading config pipe: \"%s\"", error->message);
         g_error_free(error);
         return TRUE;
     }
@@ -465,19 +474,19 @@ _ConfigParseFileWrapper(GIOChannel *channel, GIOCondition condition, gpointer da
         case RELOAD_CONFIGURATION:
             if (!ConfigParseFile(config_file_path, &lserror))
             {
-                LSErrorPrint(&lserror, stderr);
+                LOG_LSERROR(MSGID_LSHUB_CONF_FILE_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
             break;
         case RESCAN_VOLATILE:
             if (!ConfigKeyProcessDynamicServiceDirs((const char**)service_volatile_dirs, GINT_TO_POINTER(VOLATILE_DIRS), &lserror))
             {
-                LSErrorPrint(&lserror, stderr);
+                LOG_LSERROR(MSGID_LSHUB_CONF_FILE_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
             if (!ProcessRoleDirectories((const char**)roles_volatile_dirs, GINT_TO_POINTER(VOLATILE_DIRS), &lserror))
             {
-                LSErrorPrint(&lserror, stderr);
+                LOG_LSERROR(MSGID_LSHUB_CONF_FILE_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
             break;
@@ -509,7 +518,7 @@ _ConfigCreateBinaryChannel(int fd, LSError *lserror)
 
     if (G_IO_STATUS_NORMAL != g_io_channel_set_encoding(channel, NULL, &error))
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LS_CHANNEL_ERR, error);
         return NULL;
     }
 
@@ -537,12 +546,12 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
     GIOChannel *config_reload_channel = NULL;
     GIOChannel *inotify_channel = NULL;
 
-    _ls_verbose("%s: setting up inotify and signal handler\n", __func__);
+    LOG_LS_DEBUG("%s: setting up inotify and signal handler\n", __func__);
 
     /* install signal handler */
     if (pipe(config_reload_pipe) != 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_PIPE_ERR, errno);
         return false;
     }
 
@@ -567,7 +576,7 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
 
     if (inotify_fd < 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LSHUB_INOTIFY_ERR, errno);
         goto error;
     }
 
@@ -582,7 +591,7 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
 
     if (inotify_conf_file_wd < 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LSHUB_INOTIFY_ERR, errno);
         goto error;
     }
 
@@ -631,7 +640,7 @@ _ConfigKeyGetInt(GKeyFile *key_file, const char *group_name,
 
     if (error)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LSHUB_KEYFILE_ERR, error);
         return false;
     }
 
@@ -657,7 +666,7 @@ _ConfigKeyGetBool(GKeyFile *key_file, const char *group_name,
 
     if (error)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LSHUB_KEYFILE_ERR, error);
         return false;
     }
 
@@ -683,7 +692,7 @@ _ConfigKeyGetString(GKeyFile *key_file, const char *group_name,
 
     if (error)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LSHUB_KEYFILE_ERR, error);
         return false;
     }
 
@@ -730,7 +739,7 @@ _ConfigKeyGetStringList(GKeyFile *key_file, const char *group_name,
 
     if (!value)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LSHUB_KEYFILE_ERR, error);
         return false;
     }
 
@@ -904,7 +913,7 @@ ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserr
     {
         if (!ParseServiceDirectory(*cur_dir, lserror, is_volatile_dir))
         {
-            LSErrorPrint(lserror, stderr);
+            LOG_LSERROR(MSGID_LSHUB_ROLE_FILE_ERR, lserror);
             LSErrorFree(lserror);
         }
     }
@@ -945,7 +954,7 @@ _ConfigParseKeys(GKeyFile *key_file, const _ConfigGroup *group, LSError *lserror
 
     if (!keys)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LSHUB_KEYFILE_ERR, error);
         return false;
     }
 
@@ -997,7 +1006,7 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
     GKeyFile *key_file = NULL;
     char **groups = NULL;
 
-    _ls_verbose("%s: parsing file: \"%s\"\n", __func__, path);
+    LOG_LS_DEBUG("%s: parsing file: \"%s\"\n", __func__, path);
 
     /* Free old settings */
     _ConfigFreeSettings();
@@ -1015,7 +1024,7 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
 
     if (!g_key_file_load_from_file(key_file, path, G_KEY_FILE_NONE, &gerror))
     {
-        _LSErrorSet(lserror, -1, "Error loading key file: \"%s\"\n", gerror->message);
+        _LSErrorSet(lserror, MSGID_LSHUB_KEYFILE_ERR, -1, "Error loading key file: \"%s\"\n", gerror->message);
         goto error;
     }
 
@@ -1024,7 +1033,7 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
 
     if (!groups)
     {
-        _LSErrorSet(lserror, -1, "No groups in config file: \"%s\"\n", path);
+        _LSErrorSet(lserror, MSGID_LSHUB_KEYFILE_ERR, -1, "No groups in config file: \"%s\"\n", path);
         goto error;
     }
 

@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@
 bool LSTransportRegisterSignal(_LSTransport *transport, const char *category, const char *method, LSMessageToken *token, LSError *lserror);
 bool LSTransportUnregisterSignal(_LSTransport *transport, const char *category, const char *method, LSMessageToken *token, LSError *lserror);
 bool LSTransportSendSignal(_LSTransport *transport, const char *category, const char *method, const char *payload, LSError *lserror);
-;
 
 bool LSTransportRegisterSignalServiceStatus(_LSTransport *transport, const char *service_name,  LSMessageToken *token, LSError *lserror);
 bool LSTransportUnregisterSignalServiceStatus(_LSTransport *transport, const char *service_name,  LSMessageToken *token, LSError *lserror);

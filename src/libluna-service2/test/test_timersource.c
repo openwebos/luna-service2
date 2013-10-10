@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,10 +16,30 @@
 *
 * LICENSE@@@ */
 
-
 #include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 #include <glib.h>
 #include <timersource.h>
+#include <PmLogLib.h>
+
+/* PmLogLib ******************************************************************/
+PmLogErr _PmLogMsgKV(PmLogContext context, PmLogLevel level, unsigned int flags,
+                     const char *msgid, size_t kv_count, const char *check_keywords,
+                     const char *check_formats, const char *fmt, ...)
+{
+    if (level == kPmLogLevel_Debug) return kPmLogErr_None;
+
+    va_list args;
+
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+
+    putc('\n', stderr);
+
+    return kPmLogErr_None;
+}
 
 /* Test utils *****************************************************************/
 

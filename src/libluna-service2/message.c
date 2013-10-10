@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -52,7 +52,6 @@ _LSMessageNewRef(_LSTransportMessage *transport_msg, LSHandle *sh)
 
         message->sh  = sh;
         message->ref = 1;
-        //g_debug("%s(%p)", __FUNCTION__, message);
     }
     return message;
 }
@@ -127,8 +126,6 @@ LSMessageRef(LSMessage *message)
     LS_ASSERT(message != NULL);
     LS_ASSERT(g_atomic_int_get (&message->ref) > 0);
 
-    //g_debug("%s(%p)", __FUNCTION__, message);
-
     g_atomic_int_inc(&message->ref);
 }
 
@@ -142,8 +139,6 @@ LSMessageUnref(LSMessage *message)
 {
     LS_ASSERT(message != NULL);
     LS_ASSERT(g_atomic_int_get (&message->ref) > 0);
-
-    //g_debug("%s(%p)", __FUNCTION__, message);
 
     if (g_atomic_int_dec_and_test(&message->ref))
     {
@@ -162,7 +157,7 @@ LSMessageUnref(LSMessage *message)
 bool
 LSMessagePrint(LSMessage *message, FILE *out)
 {
-    _LSErrorIfFail(NULL != message, NULL);
+    _LSErrorIfFail(NULL != message, NULL, MSGID_LS_MSG_ERR);
 
     fprintf(out, "%s/%s <%s>\n",
         LSMessageGetCategory(message),
@@ -202,7 +197,7 @@ LSMessageIsHubErrorMessage(LSMessage *message)
 const char *
 LSMessageGetMethod(LSMessage *message)
 {
-    _LSErrorIfFail(NULL != message, NULL);
+    _LSErrorIfFail(NULL != message, NULL, MSGID_LS_MSG_ERR);
 
     if (message->method) return message->method;
 
@@ -246,7 +241,7 @@ LSMessageGetApplicationID(LSMessage *message)
 const char *
 LSMessageGetSender(LSMessage *message)
 {
-    _LSErrorIfFail(NULL != message, NULL);
+    _LSErrorIfFail(NULL != message, NULL, MSGID_LS_MSG_ERR);
 
     const char *sender = _LSTransportMessageGetSenderUniqueName(message->transport_msg);
 
@@ -265,7 +260,7 @@ LSMessageGetSender(LSMessage *message)
 const char *
 LSMessageGetSenderServiceName(LSMessage *message)
 {
-    _LSErrorIfFail(NULL != message, NULL);
+    _LSErrorIfFail(NULL != message, NULL, MSGID_LS_MSG_ERR);
 
     const char *service_name = _LSTransportMessageGetSenderServiceName(message->transport_msg);
 
@@ -283,7 +278,7 @@ LSMessageGetSenderServiceName(LSMessage *message)
 LSMessageToken
 LSMessageGetToken(LSMessage *message)
 {
-    _LSErrorIfFail(NULL != message, NULL);
+    _LSErrorIfFail(NULL != message, NULL, MSGID_LS_MSG_ERR);
 
     LSMessageToken serial = _LSTransportMessageGetToken(message->transport_msg);
     return serial;
@@ -303,7 +298,7 @@ LSMessageGetToken(LSMessage *message)
 LSMessageToken
 LSMessageGetResponseToken(LSMessage *reply)
 {
-    _LSErrorIfFail(NULL != reply, NULL);
+    _LSErrorIfFail(NULL != reply, NULL, MSGID_LS_MSG_ERR);
 
     if (reply->responseToken)
         return reply->responseToken;
@@ -323,7 +318,7 @@ LSMessageGetResponseToken(LSMessage *reply)
 const char *
 LSMessageGetCategory(LSMessage *message)
 {
-    _LSErrorIfFail(NULL != message, NULL);
+    _LSErrorIfFail(NULL != message, NULL, MSGID_LS_MSG_ERR);
 
     if (message->category)
         return message->category;
@@ -343,7 +338,7 @@ LSMessageGetCategory(LSMessage *message)
 const char *
 LSMessageGetPayload(LSMessage *message)
 {
-    _LSErrorIfFail(message != NULL, NULL);
+    _LSErrorIfFail(message != NULL, NULL, MSGID_LS_MSG_ERR);
 
     if (message->payload)
     {
@@ -369,7 +364,7 @@ LSMessageGetPayload(LSMessage *message)
 LS_DEPRECATED void*
 LSMessageGetPayloadJSON(LSMessage  *message)
 {
-    _LSErrorIfFailMsg(NULL, NULL, LS_ERROR_CODE_DEPRECATED,
+    _LSErrorIfFailMsg(NULL, NULL, MSGID_LS_DEPRECATED, LS_ERROR_CODE_DEPRECATED,
                       LS_ERROR_TEXT_DEPRECATED);
     return NULL;
 }
@@ -396,7 +391,7 @@ LSMessageIsSubscription(LSMessage *message)
     if (!json_object_object_get_ex(object, "subscribe", &sub_object) || JSON_ERROR(sub_object))
         goto exit;
 
-    _LSErrorIfFail(json_object_get_type(sub_object) == json_type_boolean, NULL);
+    _LSErrorIfFail(json_object_get_type(sub_object) == json_type_boolean, NULL, MSGID_LS_INVALID_JSON);
 
     ret = json_object_get_boolean(sub_object);
 
@@ -441,9 +436,9 @@ bool
 LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
                 LSError *lserror)
 {
-    _LSErrorIfFail (sh != NULL, lserror);
-    _LSErrorIfFail (lsmsg != NULL, lserror);
-    _LSErrorIfFail (replyPayload != NULL, lserror);
+    _LSErrorIfFail (sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    _LSErrorIfFail (lsmsg != NULL, lserror, MSGID_LS_MSG_ERR);
+    _LSErrorIfFail (replyPayload != NULL, lserror, MSGID_LS_PARAMETER_IS_NULL);
 
     LSHANDLE_VALIDATE(sh);
 
@@ -451,7 +446,7 @@ LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
     {
         if (!g_utf8_validate (replyPayload, -1, NULL))
         {
-            _LSErrorSet(lserror, -EINVAL, "%s: payload is not utf-8",
+            _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "%s: payload is not utf-8",
                         __FUNCTION__);
             return false;
         }
@@ -459,7 +454,7 @@ LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
 
     if (unlikely(strcmp(replyPayload, "") == 0))
     {
-        _LSErrorSet(lserror, -EINVAL, "Empty payload is not valid JSON. Use {}");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Empty payload is not valid JSON. Use {}");
         return false;
     }
 
@@ -467,32 +462,33 @@ LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
     {
         if (DEBUG_VERBOSE)
         {
-                g_debug("TX: LSMessageReply token <<%ld>> %s",
+                LOG_LS_DEBUG("TX: LSMessageReply token <<%ld>> %s",
                         LSMessageGetToken(lsmsg), replyPayload);
         }
         else
         {
-                g_debug("TX: LSMessageReply token <<%ld>>",
+                LOG_LS_DEBUG("TX: LSMessageReply token <<%ld>>",
                         LSMessageGetToken(lsmsg));
         }
     }
 
     if (_LSTransportMessageGetType(lsmsg->transport_msg) == _LSTransportMessageTypeReply)
     {
-        g_warning("%s: \nYou are attempting to send a reply to a reply message.  \n"
-            "I'm going to allow this for now to more easily reproduce some bugs \n"
-            "we encountered with services using LSCustomWaitForMessage \n"
-            "receiving a reply-to-a-reply, but soon this will return an error.",
-                    __FUNCTION__);
+        LOG_LS_WARNING(MSGID_LS_MSG_ERR, 0,
+                       "%s: \nYou are attempting to send a reply to a reply message.  \n"
+                       "I'm going to allow this for now to more easily reproduce some bugs \n"
+                       "we encountered with services using LSCustomWaitForMessage \n"
+                       "receiving a reply-to-a-reply, but soon this will return an error.",
+                       __FUNCTION__);
     }
 
     if (unlikely(LSMessageGetConnection(lsmsg) != sh))
     {
-        _LSErrorSet(lserror, -EINVAL,
-            "%s: You are replying to message on different bus.\n"
-            " If you can't identify which bus, "
-            "try LSMessageRespond() instead.",
-            __FUNCTION__);
+        _LSErrorSet(lserror, MSGID_LS_INVALID_BUS, -EINVAL,
+                    "%s: You are replying to message on different bus.\n"
+                    " If you can't identify which bus, "
+                    "try LSMessageRespond() instead.",
+                    __FUNCTION__);
         return false;
     }
 
@@ -518,7 +514,7 @@ LS_DEPRECATED bool
 LSMessageReturn(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
                 LSError *lserror)
 {
-    _LSErrorSet(lserror, LS_ERROR_CODE_DEPRECATED, LS_ERROR_TEXT_DEPRECATED);
+    _LSErrorSet(lserror, MSGID_LS_DEPRECATED, LS_ERROR_CODE_DEPRECATED, LS_ERROR_TEXT_DEPRECATED);
     return false;
 }
 

@@ -18,7 +18,6 @@
 
 
 #include <string.h>
-#include <syslog.h>
 #include <unistd.h>
 #include "error.h"
 #include "transport.h"
@@ -107,7 +106,7 @@ _LSTransportMessageNew(unsigned long payload_size)
 
     if (!ret)
     {
-        g_critical("OOM");
+        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM: Can not allocate memory slice");
         return NULL;
     }
 
@@ -115,7 +114,7 @@ _LSTransportMessageNew(unsigned long payload_size)
 
     if (!ret->raw)
     {
-        g_critical("OOM");
+        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM: Memory allocation error");
         g_free(ret);
         return NULL;
     }
@@ -751,7 +750,9 @@ _LSTransportMessageGetReplyToken(const _LSTransportMessage *message)
     {
         /* match legacy behavior when attempting to get reply tokens
          * on method calls... */
-        g_critical("Getting reply token for message type: %d", _LSTransportMessageGetType(message));
+        LOG_LS_WARNING(MSGID_LS_REPLY_TOK, 1,
+                       PMLOGKFV("MSG_TYPE", "%d", _LSTransportMessageGetType(message)),
+                       "Getting reply token for message type: %d", _LSTransportMessageGetType(message));
         return 0;
     }
 
@@ -898,8 +899,9 @@ _LSTransportMessageIsValidMessageBodyPtr(const _LSTransportMessage *message, con
     {
         return true;
     }
-    g_critical("Message access out of bounds: requested: %p, end: %p",
-                ptr, message->raw->data + _LSTransportMessageGetBodySize(message));
+    LOG_LS_WARNING(MSGID_LS_ACCESS_ERR, 0,
+                   "Message access out of bounds: requested: %p, end: %p",
+                   ptr, message->raw->data + _LSTransportMessageGetBodySize(message));
     return false;
 }
 
@@ -976,7 +978,7 @@ _LSTransportMessageBodyExpand(_LSTransportMessage *message, unsigned long bytes_
         {
             new_body_size = 0;
             alloc_body_size = 0;
-            g_critical("Unable to re-allocate message body, OOM");
+            LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "Unable to re-allocate message body, OOM");
         }
 
         _LSTransportMessageSetRawMessage(message, raw);
@@ -1044,7 +1046,7 @@ _LSTransportMessageGetPayload(const _LSTransportMessage *message)
          * all types of messages; otherwise we don't */
         if (!DEBUG_VERBOSE)
         {
-            g_critical("No payload for message type: %d\n", _LSTransportMessageGetType(message));
+            LOG_LS_DEBUG("No payload for message type: %d\n", _LSTransportMessageGetType(message));
         }
         return NULL;
     }
@@ -1100,7 +1102,7 @@ _LSTransportMessageGetAppIdPtr(_LSTransportMessage *message)
         }
         else
         {
-            g_critical("AppId msg type: %d", msg_type);
+            LOG_LS_DEBUG("AppId msg type: %d", msg_type);
             return NULL;
         }
     }
@@ -1164,7 +1166,7 @@ _LSTransportMessageGetMethod(const _LSTransportMessage *message)
         return ret;
     }
     default:
-        _ls_verbose("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
+        LOG_LS_DEBUG("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
         return NULL;
     }
 }
@@ -1192,7 +1194,7 @@ _LSTransportMessageGetCategory(const _LSTransportMessage *message)
     case _LSTransportMessageTypeServiceDownSignal:
         return message->raw->data;
     default:
-        _ls_verbose("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
+        LOG_LS_DEBUG("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
         return NULL;
     }
 }
@@ -1280,7 +1282,7 @@ _LSTransportMessageGetDestServiceName(_LSTransportMessage *message)
         return ret;
     }
     default:
-        _ls_verbose("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
+        LOG_LS_DEBUG("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
         return NULL;
     }
 }
@@ -1316,7 +1318,7 @@ _LSTransportMessageGetDestUniqueName(_LSTransportMessage *message)
         return ret;
     }
     default:
-        _ls_verbose("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
+        LOG_LS_DEBUG("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
         return NULL;
     }
 }
@@ -1358,7 +1360,7 @@ _LSTransportMessageGetMonitorSerial(_LSTransportMessage *message)
         return *((_LSTransportMonitorSerial*)ret);
     }
     default:
-        _ls_verbose("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
+        LOG_LS_DEBUG("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
         return MONITOR_SERIAL_INVALID;
     }
 }

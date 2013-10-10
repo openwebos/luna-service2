@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <luna-service2/lunaservice.h>
+
+#include "log.h"
 
 /**
  * @defgroup LunaServiceErrorInternal   LunaServiceErrorInternal
@@ -52,10 +54,15 @@
 
 #define LS_ASSERT(cond) \
 do {                    \
-    if (!(cond)) {                      \
-        g_critical(#cond ": failed in %s, %s, %d", __FUNCTION__, LS__FILE__BASENAME, __LINE__ );    \
-        assert(!#cond);                 \
-    }                                   \
+    if (!(cond)) {      \
+        LOG_LS_ERROR(MSGID_LS_ASSERT, 4,                  \
+                     PMLOGKS("COND", #cond),              \
+                     PMLOGKS("FUNC", __FUNCTION__),       \
+                     PMLOGKS("FILE" , LS__FILE__BASENAME),\
+                     PMLOGKFV("LINE", "%d", __LINE__),    \
+                     "%s: failed", #cond);                \
+        assert(!#cond);  \
+    }                    \
 } while (0)
 
 
@@ -74,14 +81,14 @@ do {                                               \
     (object)->magic = LS_MAGIC(#type);             \
 } while (0)
 
-#define LS_MAGIC_ASSERT(object,type, ...)                            \
-do {                                                                 \
-    if ( (object) && ((object)->magic !=  LS_MAGIC(#type)) )         \
-    {                                                                \
-        g_critical(__VA_ARGS__);                                     \
-        LS_ASSERT((object) &&                                        \
-               ((object)->magic == LS_MAGIC(#type)));                \
-    }                                                                \
+#define LS_MAGIC_ASSERT(object,type, ...)                    \
+do {                                                         \
+    if ( (object) && ((object)->magic !=  LS_MAGIC(#type)) ) \
+    {                                                        \
+        LOG_LS_CRITICAL(MSGID_LS_MAGIC_ASSERT, 0, __VA_ARGS__); \
+        LS_ASSERT((object) &&                                \
+               ((object)->magic == LS_MAGIC(#type)));        \
+    }                                                        \
 } while (0)
 
 
@@ -95,7 +102,7 @@ do {                                                \
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-bool _LSErrorSetFunc(LSError *error,
+bool _LSErrorSetFunc(LSError *lserror,
                 const char *file, int line, const char *function,
                 int error_code, const char *error_message, ...);
 
@@ -103,27 +110,33 @@ bool _LSErrorSetFromErrnoFunc(LSError *lserror,
                          const char *file, int line, const char *function,
                          int error_code);
 
-#define _LSErrorIfFail(cond, lserror)                                 \
+#define _LSErrorIfFail(cond, lserror, message_id)                     \
 do {                                                                  \
     if (unlikely(!(cond)))                                            \
     {                                                                 \
-        g_critical(#cond " from %s :%d @ %s",LS__FILE__BASENAME,      \
-                   __LINE__, __FUNCTION__);                           \
-        _LSErrorSetFunc(lserror,LS__FILE__BASENAME, __LINE__, __FUNCTION__,    \
+        LOG_LS_ERROR(message_id, 4,                                   \
+                     PMLOGKS("COND", #cond),                          \
+                     PMLOGKS("FUNC", __FUNCTION__),                   \
+                     PMLOGKS("FILE" , LS__FILE__BASENAME),            \
+                     PMLOGKFV("LINE", "%d", __LINE__),                \
+                     "%s: failed", #cond);                            \
+        _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__,\
             -1,                                                       \
             #cond );                                                  \
         return false;                                                 \
     } 								      \
 } while (0)
 
-#define _LSErrorIfFailMsg(cond, lserror, error_code, ...) \
+#define _LSErrorIfFailMsg(cond, lserror, message_id, error_code, ...) \
 do {                                                                  \
     if (unlikely(!(cond)))                                            \
     {                                                                 \
-        g_critical(#cond " from " __FILE__ ":"                        \
-                     __VA_ARGS__);                                    \
+        LOG_LS_ERROR(message_id, 2,                                   \
+                     PMLOGKS("COND", #cond),                          \
+                     PMLOGKS("FILE", __FILE__),                       \
+                     #cond ": failed. " __VA_ARGS__);                 \
                                                                       \
-        _LSErrorSetFunc(lserror,LS__FILE__BASENAME, __LINE__, __FUNCTION__,    \
+        _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__, \
             error_code,                                               \
             #cond ": "                                                \
             __VA_ARGS__);                                             \
@@ -131,14 +144,16 @@ do {                                                                  \
     }                                                                 \
 } while (0)
 
-#define _LSErrorGotoIfFail(label, cond, lserror, error_code, ...) \
+#define _LSErrorGotoIfFail(label, cond, lserror, message_id, error_code, ...) \
 do {                                                                  \
     if (unlikely(!(cond)))                                            \
     {                                                                 \
-        g_critical(#cond " from " __FILE__ ":"                        \
-                     __VA_ARGS__);                                    \
+        LOG_LS_ERROR(message_id, 2,                                   \
+                     PMLOGKS("COND", #cond),                          \
+                     PMLOGKS("FILE", __FILE__),                       \
+                     #cond ": failed. " __VA_ARGS__);                 \
                                                                       \
-        _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__,    \
+        _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__, \
             error_code,                                               \
             #cond ": "                                                \
             __VA_ARGS__);                                             \
@@ -148,14 +163,14 @@ do {                                                                  \
 
 #define _LSErrorSetNoPrint(lserror, error_code, ...)              \
 do {                                                              \
-    _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__,    \
+    _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__, \
              error_code,                                          \
              __VA_ARGS__);                                        \
 } while (0)
 
 #define _LSErrorSetNoPrintLiteral(lserror, error_code, error_message)   \
 do {                                                                    \
-    _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__,          \
+    _LSErrorSetFunc(lserror, LS__FILE__BASENAME, __LINE__, __FUNCTION__,\
                     error_code, error_message);                         \
 } while (0)
 
@@ -168,11 +183,13 @@ do {                                                                    \
  * @param  ...          IN  printf-style format
  *******************************************************************************
  */
-#define _LSErrorSet(lserror, error_code, ...)                     \
-do {                                                              \
-    g_critical("Error in %s:%d", LS__FILE__BASENAME, __LINE__);             \
-    g_critical(__VA_ARGS__);                                      \
-    _LSErrorSetNoPrint(lserror, error_code, __VA_ARGS__);         \
+#define _LSErrorSet(lserror, message_id, error_code, ...) \
+do {                                                      \
+    LOG_LS_ERROR(message_id, 2,                           \
+                 PMLOGKS("FILE", LS__FILE__BASENAME),     \
+                 PMLOGKFV("LINE", "%d", __LINE__),        \
+                 __VA_ARGS__);                            \
+    _LSErrorSetNoPrint(lserror, error_code, __VA_ARGS__); \
 } while (0)
 
 /**
@@ -186,10 +203,13 @@ do {                                                              \
  * @param  error_message    IN  error_message
  *******************************************************************************
  */
-#define _LSErrorSetLiteral(lserror, error_code, error_message)              \
-do {                                                                        \
-    g_critical("Error in %s:%d, %s", LS__FILE__BASENAME, __LINE__, error_message);    \
-    _LSErrorSetNoPrintLiteral(lserror, error_code, error_message);          \
+#define _LSErrorSetLiteral(lserror, message_id, error_code, error_message) \
+do {                                                                       \
+    LOG_LS_ERROR(message_id, 3,                                            \
+                 PMLOGKS("ERROR", error_message),                          \
+                 PMLOGKS("FILE", LS__FILE__BASENAME),                      \
+                 PMLOGKFV("LINE", "%d", __LINE__));                        \
+    _LSErrorSetNoPrintLiteral(lserror, error_code, error_message);         \
 } while (0)
 
 /**
@@ -205,7 +225,7 @@ do {                                                                        \
  */
 #define _LSErrorSetOOM(lserror)                                 \
 do {                                                            \
-    _LSErrorSet(lserror, LS_ERROR_CODE_OOM, LS_ERROR_TEXT_OOM); \
+    _LSErrorSet(lserror, MSGID_LS_OOM_ERR, LS_ERROR_CODE_OOM, LS_ERROR_TEXT_OOM); \
 } while (0)
 
 /**
@@ -217,8 +237,8 @@ do {                                                            \
  *******************************************************************************
  */
 #define _LSErrorSetEAgain(lserror)                                 \
-do {                                                            \
-    _LSErrorSet(lserror, LS_ERROR_CODE_EAGAIN, LS_ERROR_TEXT_EAGAIN); \
+do {                                                               \
+    _LSErrorSet(lserror, MSGID_LS_EAGAIN_ERR, LS_ERROR_CODE_EAGAIN, LS_ERROR_TEXT_EAGAIN); \
 } while (0)
 
 /**
@@ -230,11 +250,16 @@ do {                                                            \
  * @param  gerror   IN  GError ptr
  *******************************************************************************
  */
-#define _LSErrorSetFromGError(lserror, gerror)                              \
-do {                                                                        \
-    g_critical("Error in %s:%d, %s", LS__FILE__BASENAME, __LINE__, gerror->message);  \
-    _LSErrorSetNoPrintLiteral(lserror, gerror->code, gerror->message);      \
-    g_error_free(gerror);                                                   \
+#define _LSErrorSetFromGError(lserror, message_id, gerror)             \
+do {                                                                   \
+    LOG_LS_ERROR(message_id, 4,                                        \
+                 PMLOGKFV("ERROR_CODE", "%d", gerror->code),           \
+                 PMLOGKS("ERROR", gerror->message),                    \
+                 PMLOGKS("FILE", LS__FILE__BASENAME),                  \
+                 PMLOGKFV("LINE", "%d", __LINE__),                     \
+                 "GLIB Error");                                        \
+    _LSErrorSetNoPrintLiteral(lserror, gerror->code, gerror->message); \
+    g_error_free(gerror);                                              \
 } while (0)
 
 /**
@@ -246,10 +271,14 @@ do {                                                                        \
  * @param  error_code   IN  errno
  *******************************************************************************
  */
-#define _LSErrorSetFromErrno(lserror, error_code)                   \
+#define _LSErrorSetFromErrno(lserror, message_id, error_code)       \
 do {                                                                \
-    g_critical("Error in %s:%d", LS__FILE__BASENAME, __LINE__);               \
-    g_critical("%s", g_strerror(error_code));                       \
+    LOG_LS_ERROR(message_id, 4,                                     \
+                 PMLOGKFV("ERROR_CODE", "%d", error_code),          \
+                 PMLOGKS("ERROR", g_strerror(error_code)),          \
+                 PMLOGKS("FILE", LS__FILE__BASENAME),               \
+                 PMLOGKFV("LINE", "%d", __LINE__),                  \
+                 "GLIB Error");                                     \
     _LSErrorSetFromErrnoFunc(lserror, __FILE__, __LINE__,           \
                              __FUNCTION__, error_code);             \
 } while (0)

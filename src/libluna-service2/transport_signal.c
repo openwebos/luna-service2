@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -64,13 +64,13 @@ _LSTransportSignalRegistration(_LSTransport *transport, bool reg, const char *ca
     int category_len = strlen_safe(category) + 1;
     int method_len = strlen_safe(method) + 1;
 
-    _ls_verbose("%s: category: %s, method: %s\n", __func__, category, method);
+    LOG_LS_TRACE("%s: category: %s, method: %s\n", __func__, category, method);
 
     _LSTransportMessage *message = _LSTransportMessageNewRef(category_len + method_len);
 
     if (!message)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         return false;
     }
 
@@ -260,7 +260,7 @@ LSTransportSendSignal(_LSTransport *transport, const char *category, const char 
 
     if (!message)
     {
-        _LSErrorSet(lserror, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
         return false;
     }
 
@@ -296,7 +296,7 @@ LSTransportServiceStatusSignalGetServiceName(_LSTransportMessage *message)
 
     if (!payload)
     {
-        g_critical("Unable to get payload from message");
+        LOG_LS_ERROR(MSGID_LS_INVALID_JSON, 0, "Unable to get payload from message");
         return NULL;
     }
 
@@ -311,7 +311,7 @@ LSTransportServiceStatusSignalGetServiceName(_LSTransportMessage *message)
     }
     else
     {
-        g_critical("Unable to get service name string from payload: %s", payload);
+        LOG_LS_ERROR(MSGID_LS_INVALID_JSON, 0, "Unable to get service name string from payload: %s", payload);
     }
 
     json_object_put(payload_json);
@@ -333,7 +333,7 @@ const char*
 LSTransportServiceStatusSignalGetUniqueName(_LSTransportMessage *message)
 {
     /* TODO: we may want this eventually, it's pretty much the same as GetServiceName */
-    g_critical("Not yet implemented!");
+    LOG_LS_ERROR(MSGID_LS_NOT_IMPLEMENTED, 0, "Not yet implemented!");
     LS_ASSERT(0);
     return NULL;
 }

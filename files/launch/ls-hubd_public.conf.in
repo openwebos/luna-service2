@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#      Copyright (c) 2012-2013 LG Electronics, Inc.
+#      Copyright (c) 2012-2014 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,5 +34,5 @@ script
 	then
 		. /etc/init.d/webos-nicer.sh
 	fi
-	exec $WEBOS_NICE @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf --pmloglib
+	exec $WEBOS_NICE @WEBOS_INSTALL_SBINDIR@/ls-hubd --public --conf @WEBOS_INSTALL_SYSCONFDIR@/luna-service2/ls-public.conf
 end script

@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -41,9 +41,11 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
     if ( !sender ||
          ( (strcmp(sender, MONITOR_NAME) != 0) && (strcmp(sender, MONITOR_NAME_PUB) != 0)) )
     {
-        g_critical("WARNING: subscription debug method not called by monitor;"
-                   " ignoring (service name: %s, unique_name: %s)",
-                   sender, LSMessageGetSender(message));
+        LOG_LS_WARNING(MSGID_LS_DEBG_NOT_SUBSCRIBED, 1,
+                       PMLOGKS("APP_ID", sender),
+                       "Subscription debug method not called by monitor;"
+                       " ignoring (service name: %s, unique_name: %s)",
+                       sender, LSMessageGetSender(message));
         return true;
     }
 
@@ -51,7 +53,7 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
     bool json_ret = _LSSubscriptionGetJson(sh, &ret_obj, &lserror);
     if (!json_ret)
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_INVALID_JSON, &lserror);
         LSErrorFree(&lserror);
         return true;
     }
@@ -59,8 +61,7 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
     bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
     if (!reply_ret)
     {
-        g_critical("%s: sending subscription info failed", __FUNCTION__);
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_SUBSEND_FAILED, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -95,9 +96,11 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
     if ( !sender ||
          ( (strcmp(sender, MONITOR_NAME) != 0) && (strcmp(sender, MONITOR_NAME_PUB) != 0)) )
     {
-        g_critical("WARNING: mallinfo debug method not called by monitor;"
-                   " ignoring (service name: %s, unique_name: %s)",
-                   sender, LSMessageGetSender(message));
+        LOG_LS_WARNING(MSGID_LS_MSG_ERR, 1,
+                       PMLOGKS("APP_ID", sender),
+                       "Mallinfo debug method not called by monitor;"
+                       " ignoring (service name: %s, unique_name: %s)",
+                       sender, LSMessageGetSender(message));
         return true;
     }
 
@@ -168,8 +171,7 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
     bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
     if (!reply_ret)
     {
-        g_critical("%s: sending malloc info failed", __FUNCTION__);
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_MALLOC_SEND_FAILED, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -241,8 +243,7 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
     bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
     if (!reply_ret)
     {
-        g_critical("%s: sending malloc trim result failed", __FUNCTION__);
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_MALLOC_TRIM_SEND_FAILED, &lserror);
         LSErrorFree(&lserror);
     }
 
@@ -309,8 +310,7 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
     bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
     if (!reply_ret)
     {
-        g_critical("%s: sending introspection data failed", __FUNCTION__);
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_INTROS_SEND_FAILED, &lserror);
         LSErrorFree(&lserror);
         goto error;
     }

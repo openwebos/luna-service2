@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2010-2013 LG Electronics, Inc.
+*      Copyright (c) 2010-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -214,14 +214,14 @@ _LSTransportPidToExe(pid_t pid, LSError *lserror)
 
     if (!exe)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LS_PID_PATH_ERR, error);
         goto cleanup;
     }
 
     root = g_file_read_link(proc_root_path, &error);
     if (!root)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LS_PID_PATH_ERR, error);
         goto cleanup;
     }
 
@@ -278,7 +278,7 @@ _LSTransportPidToCmdLine(pid_t pid, LSError *lserror)
 
     if (!ret)
     {
-        _LSErrorSetFromGError(lserror, error);
+        _LSErrorSetFromGError(lserror, MSGID_LS_PID_READ_ERR, error);
         goto cleanup;
     }
 
@@ -332,7 +332,7 @@ _LSTransportGetCredentials(int fd, _LSTransportCred *cred, LSError *lserror)
 
     if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &tmp_cred, &len) != 0)
     {
-        _LSErrorSetFromErrno(lserror, errno);
+        _LSErrorSetFromErrno(lserror, MSGID_LS_SOCK_ERROR, errno);
         return false;
     }
 

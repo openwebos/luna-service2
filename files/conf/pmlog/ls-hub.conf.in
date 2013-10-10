@@ -1,0 +1,29 @@
+{
+    "contexts" :
+    [
+        {
+            "name" : "ls-hubd.debug",
+            "level" : "debug",
+        },
+        {
+            "name" : "ls-hubd.distinct",
+            "level" : "debug",
+            "logProcessIds" : false,
+            "logThreadIds" : false,
+            "logToConsole" : false,
+            "rules" :
+            [
+                {"filter" : "*.*", "output" : "ls-hubd-log"}
+            ]
+        }
+    ],
+    "outputs" :
+    [
+        {
+            "name" : "ls-hubd-log",
+            "file" : "@WEBOS_INSTALL_LOGDIR@/ls-hubd.log",
+            "maxSize" : 10000,
+            "rotations" : 5
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -130,9 +130,7 @@ _SubscriptionFree(_Catalog *catalog, _Subscription *subs)
                         &lserror);
             if (!retVal)
             {
-                g_critical("%s Could not cancel server status watch",
-                    __FUNCTION__);
-                LSErrorPrint(&lserror, stderr);
+                LOG_LSERROR(MSGID_LS_CANC_WATCH_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
         }
@@ -217,7 +215,7 @@ _SubscriptionNew(LSHandle *sh, LSMessage *message)
 
     if (!retVal)
     {
-        LSErrorPrint(&lserror, stderr);
+        LOG_LSERROR(MSGID_LS_SUBSCRIPTION_ERR, &lserror);
         LSErrorFree(&lserror);
         goto error;
     }
@@ -352,10 +350,11 @@ _SubListGet(_SubList *tokens, int i)
 {
     if (i < 0 || i >= tokens->len)
     {
-        g_critical("%s: attempting to get out of range subscription %d\n"
-               "It is possible you forgot to follow the pattern: "
-               " LSSubscriptionHasNext() + LSSubscriptionNext()",
-            __FUNCTION__, i);
+        LOG_LS_ERROR(MSGID_LS_SUBSCRIPTION_ERR, 0,
+                     "%s: attempting to get out of range subscription %d\n"
+                     "It is possible you forgot to follow the pattern: "
+                     " LSSubscriptionHasNext() + LSSubscriptionNext()",
+                     __FUNCTION__, i);
         return NULL;
     }
 
@@ -431,7 +430,7 @@ _CatalogAdd(_Catalog *catalog, const char *key,
     const char *token = LSMessageGetUniqueToken(message);
     if (!token)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         return false;
     }
 
@@ -448,7 +447,7 @@ _CatalogAdd(_Catalog *catalog, const char *key,
 
     if (!list)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         goto cleanup;
     }
 
@@ -535,7 +534,7 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
     struct json_object *object = json_tokener_parse(payload);
     if (JSON_ERROR(object))
     {
-        _LSErrorSet(lserror, -EINVAL, "Invalid json");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Invalid json");
         goto error;
     }
 
@@ -544,7 +543,7 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
     if (!json_object_object_get_ex(object, "token", &tokenObj) ||
         JSON_ERROR(tokenObj) || json_object_get_type(tokenObj) != json_type_int)
     {
-        _LSErrorSet(lserror, -EINVAL, "Invalid json");
+        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Invalid json");
         goto error;
     }
 
@@ -553,7 +552,7 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
     char *uniqueToken = g_strdup_printf("%s.%d", sender, token);
     if (!uniqueToken)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         goto error;
     }
 
@@ -593,7 +592,7 @@ _subscriber_down(LSHandle *sh, LSMessage *message, void *ctx)
 
     if (JSON_ERROR(object))
     {
-        g_critical("%s: Invalid JSON: %s", __func__, payload);
+        LOG_LS_ERROR(MSGID_LS_INVALID_JSON, 0, "%s: Invalid JSON: %s", __func__, payload);
         goto error;
     }
 
@@ -824,7 +823,7 @@ LSSubscriptionAcquire(LSHandle *sh, const char *key,
     LSSubscriptionIter *iter = g_new0(LSSubscriptionIter, 1);
     if (!iter)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         return false;
     }
 
@@ -1038,7 +1037,7 @@ LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,
 
     if (JSON_ERROR(object))
     {
-        _LSErrorSet(lserror, -1, "Unable to parse JSON: %s", payload);
+        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Unable to parse JSON: %s", payload);
         goto exit;
     }
 
@@ -1104,7 +1103,7 @@ LSSubscriptionPost(LSHandle *sh, const char *category,
     char *key = _LSMessageGetKindHelper(category, method);
     if (!key)
     {
-        _LSErrorSet(lserror, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
         return false;
     }
 

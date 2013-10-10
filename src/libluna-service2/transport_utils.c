@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,23 +25,6 @@
 
 int _ls_debug_tracing = 0;
 
-#ifdef COMPILE_VERBOSE_MESSAGES
-void
-_ls_verbose(const char *format, ...)
-{
-    va_list vargs;
-
-    if (DEBUG_VERBOSE)/*(DEBUG_VERBOSE)*/
-    {
-        fprintf(stderr, "%lx: ", pthread_self());
-        va_start(vargs, format);
-        vfprintf(stderr, format, vargs);
-        va_end(vargs);
-
-        fflush(stderr);
-    }
-}
-#endif
 
 int
 strlen_safe(const char *str)

@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#      Copyright (c) 2008-2013 LG Electronics, Inc.
+#      Copyright (c) 2008-2014 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,13 +18,11 @@
 
 set(HUB_SOURCE_FILES
     conf.c
-    log.c
     pattern.c
+    hub.c
     security.c
     watchdog.c
     )
-
-add_definitions(-DG_LOG_DOMAIN="LunaServiceHub")
 
 # The following definitions avoid the need to configure any source files
 add_definitions(-DDEFAULT_SYSMGR_EXE_PATH="${WEBOS_INSTALL_BINDIR}/LunaSysMgr")

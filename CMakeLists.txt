@@ -27,6 +27,9 @@ webos_component(3 5 1)
 
 include(FindPkgConfig)
 
+include_directories(src/libluna-service2)
+include_directories(include/public)
+
 pkg_check_modules(GLIB2 REQUIRED glib-2.0)
 include_directories(${GLIB2_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${GLIB2_CFLAGS_OTHER})
@@ -59,9 +62,6 @@ if(WEBOS_TARGET_MACHINE_IMPL STREQUAL hardware)
 	# once it is implemented.
 	set(LS2_RESTRICTED RESTRICTED_PERMISSIONS)
 endif()
-
-include_directories(src/libluna-service2)
-include_directories(include/public)
 
 # TODO: Is there a better way than setting all the flags (i.e., built in support)?
 if(USE_GCOV)

@@ -63,6 +63,11 @@ if(WEBOS_TARGET_MACHINE_IMPL STREQUAL hardware)
 	set(LS2_RESTRICTED RESTRICTED_PERMISSIONS)
 endif()
 
+# Enable asserts in development release builds
+if(WEBOS_DISTRO_PRERELEASE STREQUAL "devel")
+	webos_add_compiler_flags(RELEASE -UNDEBUG -DWEBOS_DISTRO_PRERELEASE_DEVEL)
+endif()
+
 # TODO: Is there a better way than setting all the flags (i.e., built in support)?
 if(USE_GCOV)
 	message("Building with gcov support")

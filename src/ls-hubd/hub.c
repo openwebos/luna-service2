@@ -1755,22 +1755,15 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
     _ls_verbose("%s: service_name: \"%s\"\n", __func__, service_name);
     
-    if (NULL == IsMediaService(service_name))
+    /* Check security permissions */
+    if (!LSHubIsClientAllowedToRequestName(client, service_name))
     {
-        /* Check security permissions */
-        if (!LSHubIsClientAllowedToRequestName(client, service_name))
+        if (!_LSHubSendRequestNameReply(message, transport_type, LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED, NULL, &lserror))
         {
-            if (!_LSHubSendRequestNameReply(message, transport_type, LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED, NULL, &lserror))
-            {
-                LSErrorPrint(&lserror, stderr);
-                LSErrorFree(&lserror);
-            }
-            return;
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
         }
-    }
-    else
-    {
-        _ls_verbose("%s: \"%s\" is a media service -- skipping client permissions check\n", __func__, service_name);
+        return;
     }
 
     if (NULL != service_name)
@@ -2597,7 +2590,7 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
     
     /* Check to see if the service exists */
     _Service *service = _ServiceMapLookup(service_name);
-    if (!service && !IsMediaService(service_name))
+    if (!service)
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(_LSTransportMessageGetClient(message));
         g_critical("Service not listed in service files: \"%s\" "

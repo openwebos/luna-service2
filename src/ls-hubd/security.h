@@ -42,6 +42,5 @@ bool LSHubPushRole(const _LSTransportClient *client, const char *path, LSError *
 bool LSHubActiveRoleMapClientRemove(const _LSTransportClient *client, LSError *lserror);
 gchar * LSHubRoleAllowedNamesForExe(const char * exe_path);
 bool LSHubClientGetPrivileged(const _LSTransportClient *client);
-const char* IsMediaService(const char *service_name);
 
 #endif  /* _SECURITY_H */

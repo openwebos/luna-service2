@@ -53,7 +53,7 @@
  * @{
  */
 
-#if defined(NDEBUG) && defined(WEBOS_DISTRO_PRERELEASE_DEVEL)
+#if defined(NDEBUG) && defined(WEBOS_DISTRO_PRERELEASE_ASSERTS)
 #error NDEBUG should not be defined for luna-service2 in development build
 #endif
 

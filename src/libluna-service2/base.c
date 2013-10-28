@@ -47,6 +47,8 @@
 #include <arpa/inet.h>
 #endif
 
+#include <pmtrace_ls2.h>
+
 /* FIXME -- create a callmap.h header file (this function is in callmap.c */
 void _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureType failure_type, void *context);
 void _LSDisconnectHandler(_LSTransportClient *client, _LSTransportDisconnectType type, void *context);
@@ -383,6 +385,9 @@ _LSHandleMethodCall(LSHandle *sh, _LSTransportMessage *transport_msg)
         goto exit;
     }
 
+    // pmtrace point before call a handler
+    PMTRACE_SERVER_RECEIVE(transport_msg->client->service_name, sh->name, (char*)method_name, LSMessageGetToken(message));
+
     struct timespec start_time, end_time, gap_time;
     if (DEBUG_TRACING)
     {
@@ -396,6 +401,9 @@ _LSHandleMethodCall(LSHandle *sh, _LSTransportMessage *transport_msg)
         g_debug("TYPE=service handler execution time | TIME=%ld | SERVICE=%s | CATEGORY=%s | METHOD=%s",
                 ClockGetMs(&gap_time), sh->name, category_name, method_name);
     }
+
+    // pmtrace point after handler
+    PMTRACE_SERVER_REPLY(transport_msg->client->service_name, sh->name, (char*)method_name, LSMessageGetToken(message));
 
     if (!handled)
     {

@@ -39,6 +39,8 @@ set(SOURCE
     utils.c
     )
 
+set(SOURCE_TEST ${SOURCE})
+
 add_definitions(-DG_LOG_DOMAIN="LunaService")
 
 set(LIBRARIES
@@ -50,10 +52,17 @@ set(LIBRARIES
     rt
     )
 
+# Enable LLtng
+if(WEBOS_LTTNG_ENABLED)
+    add_definitions(-DHAS_LTTNG)
+    set(SOURCE ${SOURCE} pmtrace_ls2_provider.c)
+    set(LIBRARIES ${LIBRARIES} urcu-bp lttng-ust)
+endif()
+
 set(TESTLIB_PREFIX "_test")
 set(TESTLIBNAME ${CMAKE_PROJECT_NAME}${TESTLIB_PREFIX})
 add_library(${CMAKE_PROJECT_NAME} SHARED ${SOURCE})
-add_library(${TESTLIBNAME} SHARED ${SOURCE})
+add_library(${TESTLIBNAME} SHARED ${SOURCE_TEST})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBRARIES})
 target_link_libraries(${TESTLIBNAME} ${LIBRARIES})
 webos_build_library()

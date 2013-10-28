@@ -38,6 +38,7 @@
 #include "base.h"
 #include "transport_utils.h"
 #include "clock.h"
+#include "pmtrace_ls2.h"
 
 /**
  * @addtogroup LunaServiceClientInternals
@@ -461,6 +462,9 @@ typedef struct _Call {
 
     int           ref;
     char         *serviceName;
+#ifdef HAS_LTTNG
+    char         *methodName;
+#endif
     LSHandle     *sh;
     LSFilterFunc  callback;
 
@@ -485,7 +489,7 @@ typedef struct _Call {
 _Call *
 _CallNew(int type, const char *serviceName,
          LSFilterFunc callback, void *ctx,
-         LSMessageToken token)
+         LSMessageToken token, const char *methodName)
 {
     _Call *call = g_new0(_Call, 1);
     if (!call) return NULL;
@@ -497,6 +501,9 @@ _CallNew(int type, const char *serviceName,
     call->ctx = ctx;
     call->token = token;
     call->type = type;
+#ifdef HAS_LTTNG
+    call->methodName = g_strdup(methodName);
+#endif
 
     return call;
 }
@@ -513,6 +520,10 @@ _CallFree(_Call *call)
     g_free(call->signal_method);
     g_free(call->signal_category);
     g_free(call->match_key);
+
+#ifdef HAS_LTTNG
+    g_free(call->methodName);
+#endif
 
 #ifdef MEMCHECK
     memset(call, 0xFF, sizeof(_Call));
@@ -1005,6 +1016,8 @@ _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
 
             if (!reply->ignore)
             {
+                PMTRACE_CLIENT_CALLBACK(sh->name, call->serviceName, call->methodName, token);
+
                 struct timespec current_time, gap_time;
                 if (DEBUG_TRACING)
                 {
@@ -1473,7 +1486,7 @@ _send_match(LSHandle        *sh,
         goto error;
     }
 
-    _Call *call = _CallNew(CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token);
+    _Call *call = _CallNew(CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token, method);
     if (!call)
     {
         _LSErrorSet(lserror, -ENOMEM, "OOM could not allocate call.");
@@ -1543,7 +1556,7 @@ _send_reg_server_status(LSHandle *sh,
     }
 
     _Call *call = _CallNew(CALL_TYPE_SIGNAL_SERVER_STATUS,
-        serviceName, callback, ctx, token);
+        serviceName, callback, ctx, token, luri ? luri->methodName : NULL);
     if (!call)
     {
         _LSErrorSet(lserror, -ENOMEM, "Out of memory");
@@ -1576,15 +1589,19 @@ _send_method_call(LSHandle *sh,
     bool retVal;
     LSMessageToken token;
 
+    PMTRACE_CLIENT_PREPARE(sh->name, luri->serviceName, luri->methodName);
+
     retVal = LSTransportSend(sh->transport, luri->serviceName, luri->objectPath, luri->methodName, payload, applicationID, &token, lserror);
     if (!retVal)
     {
         goto error;
     }
 
+    PMTRACE_CLIENT_CALL(sh->name, luri->serviceName, luri->methodName, token);
+
     if (callback)
     {
-        _Call *call = _CallNew(CALL_TYPE_METHOD_CALL, luri->serviceName, callback, ctx, token);
+        _Call *call = _CallNew(CALL_TYPE_METHOD_CALL, luri->serviceName, callback, ctx, token, luri->methodName);
         if (!call)
         {
             _LSErrorSet(lserror, -ENOMEM, "OOM: Could not send message");

@@ -18,6 +18,7 @@
 # LICENSE@@@
 
 set(UNIT_TEST_SOURCES
+    test_pattern
     test_security
     )
 

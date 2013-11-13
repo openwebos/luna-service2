@@ -41,6 +41,7 @@
 #include "transport_security.h"
 #include "timersource.h"
 #include "utils.h"
+#include "pattern.h"
 
 /**
  * @defgroup LunaServiceHub
@@ -167,7 +168,7 @@ static GSList *waiting_for_connect = NULL;      /**< list of messages waiting fo
 static GHashTable *dynamic_service_states = NULL;
 
 /**
- * Set of all services. The service files are scanned and loaded
+ * Set of all services without wildcards. The service files are scanned and loaded
  * into this hash, but state is not tracked by these.
  *
  * HASH: service name to _Service ptr
@@ -175,6 +176,15 @@ static GHashTable *dynamic_service_states = NULL;
 static GHashTable *all_services = NULL;
 
 // NOTE: All connected nodes are available in the clients hash in transport
+
+
+/**
+ * Map of services with glob-style wildcards in names. Wildcards are sorted
+ * and looked up by their prefixes.
+ *
+ * MAP: pattern spec to _Service ptr
+ */
+static GTree *wildcard_services = NULL;
 
 
 typedef struct _LSTransportBodyRequestNameLocalReply {
@@ -484,42 +494,41 @@ _ServiceMapAdd(_Service *service, LSError *lserror)
 
     int i = 0;
 
-     for (i = 0; i < service->num_services; i++)
-    {
-        _ls_verbose("%s: adding service name: \"%s\" to service map\n", __func__, service->service_names[i]);
-        _ServiceRef(service);
-        g_hash_table_replace(all_services, service->service_names[i], service);
-    }
-    return true;
-}
-
-/** 
- *******************************************************************************
- * @brief Remove all services provided by the given service from the service map.
- * 
- * @param  service  IN  service
- * 
- * @retval  true on success
- * @retval  false on failure (service not found in map)
- *******************************************************************************
- */
-bool
-_ServiceMapRemove(_Service *service)
-{
-    LS_ASSERT(service != NULL);
-
-    int i = 0;
-    bool ret = true;
-
     for (i = 0; i < service->num_services; i++)
     {
-        /* unref'ing of the service done by the hash table */
-        if (!g_hash_table_remove(all_services, service->service_names[i]))
+        char const *service_name = service->service_names[i];
+
+        _ls_verbose("%s: adding service name: \"%s\" to service map\n", __func__, service_name);
+        size_t prefix = strcspn(service_name, "*?");
+        if (!service_name[prefix])
         {
-            ret = false;
+            if (unlikely(g_hash_table_lookup(all_services, service_name)))
+                g_warning("service name \"%s\" has already been registered\n", service_name);
+            else
+            {
+                _ServiceRef(service);
+                g_hash_table_replace(all_services, (gpointer) service_name, service);
+            }
+        }
+        else
+        {
+            _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(service_name);
+            _LSHubPatternSpec const *old_pattern = NULL;
+            if (unlikely(g_tree_lookup_extended(wildcard_services, pattern,
+                                                (gpointer *) &old_pattern, NULL)))
+            {
+                g_warning("service name \"%s\" clashes with already registered \"%s\"\n",
+                          service_name, old_pattern->pattern_str);
+                _LSHubPatternSpecUnref(pattern);
+            }
+            else
+            {
+                _ServiceRef(service);
+                g_tree_insert(wildcard_services, pattern, service);
+            }
         }
     }
-    return ret;
+    return true;
 }
 
 /** 
@@ -536,7 +545,17 @@ _Service*
 _ServiceMapLookup(const char *service_name)
 {
     LS_ASSERT(service_name != NULL);
-    return g_hash_table_lookup(all_services, service_name);
+
+    /* First look up in the hash map for exact name */
+    _Service *service = g_hash_table_lookup(all_services, service_name);
+    if (service)
+        return service;
+
+    /* If not found, try to match against a pattern */
+    _LSHubPatternSpec key = _LSHubPatternSpecNoPattern(service_name);
+    service = g_tree_lookup(wildcard_services, &key);
+
+    return service;
 }
 
 /** 
@@ -909,6 +928,23 @@ _ServiceInitMap(GHashTable **service_map, LSError *lserror)
     return true;
 }
 
+static bool
+ServiceWildcardInitMap(GTree **map, LSError *lserror)
+{
+    /* destroy the old wildcard service map */
+    if (*map)
+        g_tree_destroy(*map);
+
+    *map = g_tree_new_full((GCompareDataFunc) _LSHubPatternSpecCompare, NULL,
+                           (GDestroyNotify) _LSHubPatternSpecUnref, (GDestroyNotify) _ServiceUnref);
+    if (!*map)
+    {
+        _LSErrorSetOOM(lserror);
+        return false;
+    }
+    return true;
+}
+
 /** 
  *******************************************************************************
  * @brief Initialize the service map that contains all services.
@@ -922,7 +958,8 @@ _ServiceInitMap(GHashTable **service_map, LSError *lserror)
 bool
 ServiceInitMap(LSError *lserror)
 {
-    return _ServiceInitMap(&all_services, lserror);
+    return ServiceWildcardInitMap(&wildcard_services, lserror)
+        || _ServiceInitMap(&all_services, lserror);
 }
 
 /** 

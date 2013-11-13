@@ -19,6 +19,7 @@
 set(HUB_SOURCE_FILES
     conf.c
     log.c
+    pattern.c
     security.c
     watchdog.c
     )

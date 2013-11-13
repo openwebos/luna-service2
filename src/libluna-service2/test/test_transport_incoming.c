@@ -58,12 +58,6 @@ test_LSTransportIncoming_execute(int number_of_messages)
         _LSTransportMessageUnref(message);
     }
 
-    /* Free the struct. */
-    _LSTransportIncomingFree(inqueue);
-
-    /* The mutex should be destroyed. */
-    g_assert_cmpint(pthread_mutex_trylock(&inqueue->lock), ==, EINVAL);
-
     /* See if the messages in the queue were unreferenced. */
     for(i = 0; i < number_of_messages; i++)
     {
@@ -71,6 +65,7 @@ test_LSTransportIncoming_execute(int number_of_messages)
     }
 
     /* Cleanup. All testing is now over. */
+    _LSTransportIncomingFree(inqueue);
     for(i = 0; i < number_of_messages; i++)
     {
         _LSTransportMessageUnref(messages[i]);

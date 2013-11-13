@@ -145,6 +145,12 @@ _LSTransportClientGetTransport(const _LSTransportClient *client)
     return this_transport;
 }
 
+// Redefined g_log to reduce memcheck error count
+void g_log(const gchar *log_domain, GLogLevelFlags log_level, const gchar *format, ...)
+{
+    g_assert(false);
+}
+
 void
 _LSTransportChannelClose(_LSTransportChannel *channel, bool flush)
 {
@@ -183,11 +189,21 @@ _LSTransportClientUnref(_LSTransportClient *client)
     {
         if(client->incoming)
         {
+            while (!g_queue_is_empty(client->incoming->complete_messages))
+            {
+                _LSTransportMessage *message = g_queue_pop_head(client->incoming->complete_messages);
+                _LSTransportMessageUnref(message);
+            }
             g_queue_free(client->incoming->complete_messages);
             g_slice_free(_LSTransportIncoming, client->incoming);
         }
         if(client->outgoing)
         {
+            while (!g_queue_is_empty(client->outgoing->queue))
+            {
+                _LSTransportMessage *message = g_queue_pop_head(client->outgoing->queue);
+                _LSTransportMessageUnref(message);
+            }
             g_queue_free(client->outgoing->queue);
             g_slice_free(_LSTransportOutgoing, client->outgoing);
         }
@@ -238,8 +254,7 @@ _LSTransportMessageUnref(_LSTransportMessage *message)
 
     if(message->ref == 0)
     {
-        g_free(message->raw);
-        g_slice_free(_LSTransportMessage, message);
+        _LSTransportMessageFree(message);
     }
 }
 
@@ -259,7 +274,7 @@ _LSTransportMessageSetType(_LSTransportMessage *message, _LSTransportMessageType
 _LSTransportMessageType
 _LSTransportMessageGetType(const _LSTransportMessage *message)
 {
-	return message->raw->header.type;
+    return message->raw->header.type;
 }
 
 char*
@@ -368,8 +383,6 @@ _LSTransportOutgoingNew()
 bool
 _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *message, LSError *lserror)
 {
-    message->ref++;
-
     return true;
 }
 
@@ -578,7 +591,7 @@ test_LSTransportSend_execute(const char *service_name, const char *category, con
     /*First let's create a minimal transport struct for the test.*/
     _LSTransport *transport = g_new0(_LSTransport, 1);
     transport->clients = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify)g_free, (GDestroyNotify)_LSTransportClientUnref);
-    transport->pending = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    transport->pending = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)_LSTransportOutgoingFree);
     transport->global_token = g_new0(_LSTransportGlobalToken, 1);
     transport->global_token->value = LSMESSAGE_TOKEN_INVALID;
     transport->hub = g_slice_new0(_LSTransportClient);
@@ -598,6 +611,11 @@ test_LSTransportSend_execute(const char *service_name, const char *category, con
     g_hash_table_unref(transport->clients);
     g_hash_table_unref(transport->pending);
     g_free(transport->global_token);
+    while (!g_queue_is_empty(transport->hub->outgoing->queue))
+    {
+        _LSTransportMessage *message = g_queue_pop_head(transport->hub->outgoing->queue);
+        _LSTransportMessageUnref(message);
+    }
     g_queue_free(transport->hub->outgoing->queue);
     g_slice_free(_LSTransportOutgoing, transport->hub->outgoing);
     g_slice_free(_LSTransportClient, transport->hub);
@@ -643,6 +661,7 @@ test_LSTransportPushRole_execute(const char *path, gboolean expeced_success)
     transport->hub = g_slice_new0(_LSTransportClient);
     transport->hub->transport = transport;
     transport->hub->outgoing = g_slice_new0(_LSTransportOutgoing);
+    transport->hub->outgoing->queue = g_queue_new();
     transport->global_token = g_new0(_LSTransportGlobalToken, 1);
     transport->global_token->value = LSMESSAGE_TOKEN_INVALID;
 
@@ -654,8 +673,6 @@ test_LSTransportPushRole_execute(const char *path, gboolean expeced_success)
 
     /* Cleanup. */
     g_free(transport->global_token);
-    g_slice_free(_LSTransportOutgoing, transport->hub->outgoing);
-    g_slice_free(_LSTransportClient, transport->hub);
     g_free(transport);
     transport = NULL;
 }
@@ -698,6 +715,12 @@ test_LSTransportSendMessageMonitorRequest()
 
     /* Cleanup. */
     g_free(transport->global_token);
+    while (!g_queue_is_empty(transport->hub->outgoing->queue))
+    {
+        _LSTransportMessage *message = g_queue_pop_head(transport->hub->outgoing->queue);
+        _LSTransportMessageUnref(message);
+    }
+    g_queue_free(transport->hub->outgoing->queue);
     g_slice_free(_LSTransportOutgoing, transport->hub->outgoing);
     g_slice_free(_LSTransportClient, transport->hub);
     g_free(transport);
@@ -720,7 +743,7 @@ test_LSTransportCancelMethodCall_execute(char *service_name, int number_of_clien
     /*First let's create a minimal transport struct for the test.*/
     _LSTransport *transport = g_new0(_LSTransport, 1);
     transport->clients = g_hash_table_new_full(g_str_hash, g_str_equal, (GDestroyNotify)g_free, (GDestroyNotify)_LSTransportClientUnref);
-    transport->pending = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    transport->pending = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)_LSTransportOutgoingFree);
     transport->global_token = g_new0(_LSTransportGlobalToken, 1);
     transport->global_token->value = LSMESSAGE_TOKEN_INVALID;
     transport->hub = g_slice_new0(_LSTransportClient);
@@ -751,7 +774,7 @@ test_LSTransportCancelMethodCall_execute(char *service_name, int number_of_clien
     }
     for(i=0; i<number_of_pending; i++)
     {
-        g_hash_table_insert(transport->pending, g_strdup_printf("key%d", i), GINT_TO_POINTER(0xDEADBEEF));
+        g_hash_table_insert(transport->pending, g_strdup_printf("key%d", i), _LSTransportOutgoingNew());
     }
     LSMessageToken serial = 11111;
 
@@ -778,9 +801,16 @@ test_LSTransportCancelMethodCall_execute(char *service_name, int number_of_clien
     g_assert_cmpint(number_of_clients, ==, g_hash_table_size(transport->clients));
 
     /* Cleanup. */
+
     g_assert_cmpint(g_hash_table_size(transport->clients), ==, number_of_clients);
     g_hash_table_destroy(transport->clients);
     g_hash_table_destroy(transport->pending);
+    while (!g_queue_is_empty(transport->hub->outgoing->queue))
+    {
+        _LSTransportMessage *message = g_queue_pop_head(transport->hub->outgoing->queue);
+        _LSTransportMessageUnref(message);
+    }
+    g_queue_free(transport->hub->outgoing->queue);
     g_slice_free(_LSTransportOutgoing, transport->hub->outgoing);
     g_slice_free(_LSTransportClient, transport->hub);
     g_free(transport->global_token);
@@ -839,6 +869,18 @@ test_LSTransportSendQueryServiceStatus_execute(char *service_name)
     LSTransportSendQueryServiceStatus(transport, service_name, &serial, &error);
     g_assert_cmpint(calls_to_messageunref, ==, calls_to_messagenewref + calls_to_messageref - 1);
     g_assert_cmpint(calls_to_messagesettype, ==, 1);
+
+    /* Cleanup. */
+    while (!g_queue_is_empty(transport->hub->outgoing->queue))
+    {
+        _LSTransportMessage *message = g_queue_pop_head(transport->hub->outgoing->queue);
+        _LSTransportMessageUnref(message);
+    }
+    g_queue_free(transport->hub->outgoing->queue);
+    g_slice_free(_LSTransportOutgoing, transport->hub->outgoing);
+    g_slice_free(_LSTransportClient, transport->hub);
+    g_free(transport->global_token);
+    g_free(transport);
 }
 
 void
@@ -888,7 +930,7 @@ test_LSTransportSendClient_execute(int number_of_messages, int include_null, int
     /* return_value is TRUE if there's still data to be sent */
     /* In some cases we expect failure (g_warning or g_critical causes assert etc).
        Some branches aren't reachable when warnings or criticals are fatal. */
-    if (g_test_trap_fork(1000000, G_TEST_TRAP_SILENCE_STDOUT))
+    if (g_test_trap_fork(1000000, G_TEST_TRAP_SILENCE_STDOUT | G_TEST_TRAP_SILENCE_STDERR))
     {
         gboolean return_value = _LSTransportSendClient(NULL, 0, client);
 
@@ -912,7 +954,18 @@ test_LSTransportSendClient_execute(int number_of_messages, int include_null, int
     }
 
     /* Cleanup. */
-    _LSTransportClientUnref(client);
+    while (!g_queue_is_empty(client->outgoing->queue))
+    {
+        _LSTransportMessage *message = g_queue_pop_head(client->outgoing->queue);
+        // Message can be NULL when `include_null` parameter is set.
+        if (message)
+        {
+            _LSTransportMessageUnref(message);
+        }
+    }
+    g_queue_free(client->outgoing->queue);
+    g_slice_free(_LSTransportOutgoing, client->outgoing);
+    g_slice_free(_LSTransportClient, client);
 }
 
 void

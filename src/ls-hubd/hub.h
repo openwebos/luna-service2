@@ -26,9 +26,12 @@
 #include <stdbool.h>
 #include "error.h"
 
-bool ServiceInitMap(LSError *lserror);
-bool ParseServiceDirectory(const char *path, LSError *lserror);
+bool ServiceInitMap(LSError *lserror, bool volatile_dirs);
+bool ParseServiceDirectory(const char *path, LSError *lserror, bool isVolatileDir);
 bool SetupSignalHandler(int signal, void (*handler)(int));
 bool LSHubSendConfScanCompleteSignal(void);
+
+typedef struct _Service _Service;
+_Service* ServiceMapLookup(const char *service_name);
 
 #endif  /* _HUB_H */

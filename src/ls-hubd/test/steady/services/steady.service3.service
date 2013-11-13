@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=steady.service3*
+Exec=/usr/bin/steady.service3
+Type=dynamic

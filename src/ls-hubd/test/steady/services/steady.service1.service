@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=steady.service1
+Exec=/usr/bin/steady.service1
+Type=static

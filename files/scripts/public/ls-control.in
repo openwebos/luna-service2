@@ -23,6 +23,7 @@ UPSTART_PRV=/etc/event.d/ls-hubd_private
 TETHER="false"
 TETHER_STATUS="disabled"
 SCAN_SERVICES="false"
+SCAN_VOLATILE_DIRS="false"
 
 grep -qs "ls-hubd \-n" $UPSTART_PUB 
 if [ "$?" -eq 0 ] ; then
@@ -41,16 +42,20 @@ case x$1 in
     xscan-services)
         SCAN_SERVICES="true"
         ;;
+    xscan-volatile-dirs)
+        SCAN_VOLATILE_DIRS="true"
+        ;;
 
     *)
         echo "Options:"
         echo "     enable-tether            turn on tethering (reboots)"
         echo "     disable-tether           turn off tethering (reboots)"
-        echo "     scan-services            tell the hub to rescan for dynamic services"
+        echo "     scan-services            tell the hub to reload settings and rescan all directories"
+        echo "     scan-volatile-dirs       tell the hub to rescan services/roles from volatile directories"
         exit 0
 esac
 
-if [ "x$SCAN_SERVICES" = "xtrue" ]
+if [ "x$SCAN_SERVICES" = "xtrue" -o "x$SCAN_VOLATILE_DIRS" = "xtrue" ]
 then
     PRV_TMP=`mktemp -t`
     PUB_TMP=`mktemp -t`
@@ -90,10 +95,17 @@ then
         fi
     done
 
-    echo "telling hub to rescan for dynamic services"
-    for i in $(pidof ls-hubd); do
-        kill -HUP $i
-    done
+    if [ "x$SCAN_SERVICES" = "xtrue" ]; then
+        echo "telling hub to reload setting and rescan all directories"
+        for i in $(pidof ls-hubd); do
+            kill -HUP $i
+        done
+    elif [ "x$SCAN_VOLATILE_DIRS" = "xtrue" ]; then
+        echo "telling hub to rescan volatile directories"
+        for i in $(pidof ls-hubd); do
+            kill -USR1 $i
+        done
+    fi
 
     wait ${PRV_PID} ${PUB_PID}
 

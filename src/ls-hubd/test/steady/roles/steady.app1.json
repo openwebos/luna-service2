@@ -1,0 +1,14 @@
+{
+	"role": {
+		"exeName": "/bin/steady.app1",
+		"type": "regular",
+		"allowedNames": ["steady.app1*"]
+	},
+	"permissions": [
+		{
+			"service": "steady.app1*",
+			"inbound": ["*"],
+			"outbound": ["*"]
+		}
+	]
+}

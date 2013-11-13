@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=volatile.service4*
+Exec=/usr/bin/volatile.service4
+Type=dynamic

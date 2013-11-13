@@ -251,7 +251,8 @@ typedef struct _Service {
     bool is_dynamic;            /**< true if dynamic; false if static */
     char *service_file_dir;     /**< directory where the service file for this service lives */
     char *service_file_name;    /**< file name of the service file for this service */
-} _Service;              /**< struct representing a dynamic service */
+    bool from_volatile_dir;     /**< service was added from volatile directory*/
+} _Service;                     /**< struct representing a dynamic service */
 
 static void _LSHubCleanupSocketLocal(const char *unique_name);
 static bool _LSHubRemoveClientSignals(_LSTransportClient *client);
@@ -542,7 +543,7 @@ _ServiceMapAdd(_Service *service, LSError *lserror)
  *******************************************************************************
  */
 _Service*
-_ServiceMapLookup(const char *service_name)
+ServiceMapLookup(const char *service_name)
 {
     LS_ASSERT(service_name != NULL);
 
@@ -816,7 +817,7 @@ bool
 _DynamicServiceFindandLaunch(const char *service_name, const _LSTransportClient *client, const char *requester_app_id, LSError *lserror)
 {
     /* Check to see if this dynamic service is in one of the service files */
-    _Service *service = _ServiceMapLookup(service_name);
+    _Service *service = ServiceMapLookup(service_name);
 
     if (service)
     {
@@ -928,21 +929,71 @@ _ServiceInitMap(GHashTable **service_map, LSError *lserror)
     return true;
 }
 
-static bool
-ServiceWildcardInitMap(GTree **map, LSError *lserror)
+#ifdef DEBUG_PRINTSERVICE
+static void PrintAvailableServices()
 {
-    /* destroy the old wildcard service map */
-    if (*map)
-        g_tree_destroy(*map);
+    fprintf(stderr, "//////////////////// Services ////////////////////////////\n");
 
-    *map = g_tree_new_full((GCompareDataFunc) _LSHubPatternSpecCompare, NULL,
-                           (GDestroyNotify) _LSHubPatternSpecUnref, (GDestroyNotify) _ServiceUnref);
-    if (!*map)
+    if (!all_services)
+        return;
+
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init (&iter, all_services);
+    while (g_hash_table_iter_next (&iter, &key, &value))
     {
-        _LSErrorSetOOM(lserror);
-        return false;
+        _Service* service = value;
+        fprintf(stderr, "Service: \"%s\", volatile: %s\n",
+               (char*)key, service->from_volatile_dir ? "true" : "false");
     }
-    return true;
+}
+#endif
+
+struct ServiceTreeTraverseData
+{
+    GSList* list_to_remove;
+    bool from_volatile_dir;
+};
+typedef struct ServiceTreeTraverseData ServiceTreeTraverseData;
+
+static gboolean ServiceTreeTraverse(gpointer key, gpointer value, gpointer data)
+{
+    ServiceTreeTraverseData* arg = (ServiceTreeTraverseData*)data;
+    _Service* service = (_Service*)value;
+    if (arg->from_volatile_dir == service->from_volatile_dir)
+    {
+        arg->list_to_remove = g_slist_prepend(arg->list_to_remove, key);
+    }
+
+    return false;
+}
+
+void
+LSHubWildcardServiceTreeClear(bool from_volatile_dir)
+{
+    _ls_verbose("%s: clearing wildcard service tree\n", __func__);
+
+    ServiceTreeTraverseData traverse_data;
+    traverse_data.from_volatile_dir = from_volatile_dir;
+    traverse_data.list_to_remove = NULL;
+
+    g_tree_foreach(wildcard_services, ServiceTreeTraverse, &traverse_data);
+
+    for (; traverse_data.list_to_remove != NULL;
+         traverse_data.list_to_remove = g_slist_delete_link(traverse_data.list_to_remove,
+                                                            traverse_data.list_to_remove))
+    {
+        _Service* service = (_Service*)traverse_data.list_to_remove->data;
+        g_tree_remove(wildcard_services, service);
+    }
+}
+
+gboolean ServiceMapRemoveSpecDirectory(gpointer key, gpointer value, gpointer user_data)
+{
+    _Service* service = value;
+    bool from_volatile_dir = *(bool*)user_data;
+    return from_volatile_dir == service->from_volatile_dir;
 }
 
 /** 
@@ -956,11 +1007,42 @@ ServiceWildcardInitMap(GTree **map, LSError *lserror)
  *******************************************************************************
  */
 bool
-ServiceInitMap(LSError *lserror)
+ServiceInitMap(LSError *lserror, bool volatile_dirs)
 {
-    return ServiceWildcardInitMap(&wildcard_services, lserror)
-        || _ServiceInitMap(&all_services, lserror);
+    if (!wildcard_services)
+    {
+        wildcard_services = g_tree_new_full((GCompareDataFunc) _LSHubPatternSpecCompare, NULL,
+                                            (GDestroyNotify) _LSHubPatternSpecUnref, (GDestroyNotify) _ServiceUnref);
+        if (!wildcard_services)
+        {
+            _LSErrorSetOOM(lserror);
+            return false;
+        }
+    }
+    else
+    {
+        LSHubWildcardServiceTreeClear(volatile_dirs);
+    }
+
+    if (!all_services)
+    {
+        /* create the new map */
+        all_services = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)_ServiceUnref);
+
+        if (!all_services)
+        {
+            _LSErrorSetOOM(lserror);
+            return false;
+        }
+    }
+    else
+    {
+        g_hash_table_foreach_remove(all_services, &ServiceMapRemoveSpecDirectory, &volatile_dirs);
+    }
+
+    return true;
 }
+
 
 /** 
  *******************************************************************************
@@ -1176,7 +1258,7 @@ error:
  *******************************************************************************
  */
 bool
-ParseServiceDirectory(const char *path, LSError *lserror)
+ParseServiceDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
 {
     GError *gerror = NULL;
     const char *filename = NULL;
@@ -1201,6 +1283,8 @@ ParseServiceDirectory(const char *path, LSError *lserror)
 
             if (new_service)
             {
+                // mark the service if it is from volatileDir
+                new_service->from_volatile_dir = is_volatile_dir;
                 /* hash up the new service */
                 if (!_ServiceMapAdd(new_service, lserror))
                 {
@@ -1381,7 +1465,7 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
     /* remove from available_services and/or pending */
     if (id->service_name != NULL)
     {
-        _Service *service = _ServiceMapLookup(id->service_name);
+        _Service *service = ServiceMapLookup(id->service_name);
         bool is_dynamic = service && service->is_dynamic;
 
         _ls_verbose("%s: disconnecting: \"%s\"\n", __func__, id->service_name);
@@ -2633,7 +2717,7 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
     const char *app_id = _LSTransportMessageTypeQueryNameGetAppId(message);
     
     /* Check to see if the service exists */
-    _Service *service = _ServiceMapLookup(service_name);
+    _Service *service = ServiceMapLookup(service_name);
     if (!service && !IsMediaService(service_name))
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(_LSTransportMessageGetClient(message));
@@ -3771,7 +3855,7 @@ _LSHubHandleListClients(const _LSTransportMessage *message)
 
         if (id->service_name)
         {
-            service = _ServiceMapLookup(id->service_name);
+            service = ServiceMapLookup(id->service_name);
         }
 
         if (service)
@@ -4033,9 +4117,11 @@ _ProcessConfFileOptions(char **cmdline_local_socket_path, char **cmdline_pid_dir
 
 static LSTransportHandlers _LSHubHandler;
 
-
-int
-main(int argc, char *argv[])
+#ifdef UNIT_TESTS
+int main_hub(int argc, char *argv[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
     GError *gerror = NULL;
     LSError lserror;

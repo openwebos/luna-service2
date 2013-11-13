@@ -1,0 +1,14 @@
+{
+	"role": {
+		"exeName": "/bin/volatile.app4",
+		"type": "regular",
+		"allowedNames": ["volatile.app4*"]
+	},
+	"permissions": [
+		{
+			"service": "volatile.app4*",
+			"inbound": ["*"],
+			"outbound": ["*"]
+		}
+	]
+}

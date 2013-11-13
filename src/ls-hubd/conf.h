@@ -28,6 +28,8 @@
 
 bool ConfigParseFile(const char *path, LSError *lserror);
 bool ConfigSetupInotify(const char* conf_file, LSError *lserror);
+bool ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserror);
+void ConfigSetDefaults(void);
 
 extern int g_conf_watchdog_timeout_sec;
 extern LSHubWatchdogFailureMode g_conf_watchdog_failure_mode;
@@ -47,5 +49,7 @@ extern bool g_conf_mojo_apps_allow_all_outbound_by_default;
 extern bool g_conf_allow_null_outbound_by_default;
 extern char *g_conf_pid_dir;
 extern char *g_conf_local_socket_path;
+
+enum ScanDirectoriesContext {STEADY_DIRS = 0, VOLATILE_DIRS};
 
 #endif

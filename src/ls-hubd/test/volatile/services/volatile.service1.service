@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=volatile.service1
+Exec=/usr/bin/volatile.service1
+Type=static

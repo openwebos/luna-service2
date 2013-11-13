@@ -101,15 +101,14 @@ _ConfigKeyGetString(GKeyFile *key_file, const char *group_name,
                     const char *key, _ConfigKeyUser *user, void *ctxt, LSError *lserror);
 bool
 _ConfigKeySetString(const char *value, const char **conf_var, LSError *lserror);
-bool
-_ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserror);
 
 static bool
 _ConfigKeyProcessDynamicServiceExecPrefix(char *value, const char **conf_var, LSError *lserror);
 static bool
 _ConfigKeyProcessWatchdogFailureMode(char *mode_str, LSHubWatchdogFailureMode *conf_var, LSError *lserror);
+static bool
+_ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror);
 
-void _ConfigSetDefaults(void);
 void _ConfigFreeSettings(void);
 
 /**
@@ -203,8 +202,14 @@ static _ConfigDOM conf_file_dom = {
                 {
                     .key = "Directories",
                     .get_value = _ConfigKeyGetStringList,
-                    .user_cb = (_ConfigKeyUser*)_ConfigKeyProcessDynamicServiceDirs,
-                    .user_ctxt = NULL,
+                    .user_cb = (_ConfigKeyUser*)ConfigKeyProcessDynamicServiceDirs,
+                    .user_ctxt = GINT_TO_POINTER(STEADY_DIRS),
+                },
+                {
+                    .key = "VolatileDirectories",
+                    .get_value = _ConfigKeyGetStringList,
+                    .user_cb = (_ConfigKeyUser*)ConfigKeyProcessDynamicServiceDirs,
+                    .user_ctxt = GINT_TO_POINTER(VOLATILE_DIRS),
                 },
                 {
                     .key = "LaunchTimeout",
@@ -284,7 +289,15 @@ static _ConfigDOM conf_file_dom = {
                     .key = "Directories",
                     .get_value = _ConfigKeyGetStringList,
                     .user_cb = (_ConfigKeyUser*) ProcessRoleDirectories,
-                    .user_ctxt = NULL,
+                    .user_ctxt = GINT_TO_POINTER(STEADY_DIRS),
+                },
+                {
+                    /* Keep this after the others since it depends on the
+                     * other settings to be set */
+                    .key = "VolatileDirectories",
+                    .get_value = _ConfigKeyGetStringList,
+                    .user_cb = (_ConfigKeyUser*) ProcessRoleDirectories,
+                    .user_ctxt = GINT_TO_POINTER(VOLATILE_DIRS),
                 },
                 { NULL }
             }
@@ -316,24 +329,27 @@ char *g_conf_pid_dir = NULL;                    /**< PID file directory */
 char *g_conf_local_socket_path = NULL;          /**< directory that contains domain sockets */
 
 /* static -- local to this file */
-static char *config_file_path = NULL;           /**< full path to config file */
-static char *config_file_name = NULL;           /**< filename only */
+static char *config_file_path = NULL;                /**< full path to config file */
+static char *config_file_name = NULL;                /**< filename only */
+static gchar **service_volatile_dirs = NULL;         /**< volatile directories with service description files*/
+extern gchar **roles_volatile_dirs;                  /**< volatile directories with role files*/
 
 #ifdef HAVE_SYS_INOTIFY_H
 static int inotify_watch_id = -1;
 static int inotify_conf_file_wd = -1;
 #endif
 
+enum RELOAD_EVENTS_ENUM {RELOAD_UNKNOWN = 0, RELOAD_CONFIGURATION, RESCAN_VOLATILE}; /**< Items is used to designate directories in parsers of roles/sevices*/
 static int config_reload_pipe[2] = {-1, -1};    /**< used for alerting mainloop
                                                      about SIGHUP signal to reload
                                                      the config file */
 
 /** 
  *******************************************************************************
- * @brief SIGHUP signal handler that notifies the mainloop that we should
- * reload the config file.
- * 
- * @param  signal  SIGHUP
+ * @brief SIGHUP|SIGUSR1 signal handler that notifies the mainloop that we should
+ * reload the config file or rescan volatile directories.
+ *
+ * @param  signal  SIGHUP|SIGUSR1
  *******************************************************************************
  */
 static void
@@ -341,7 +357,11 @@ _ConfigHandleSignal(int signal)
 {
     /* See signal(7) for list of async-signal-safe functions */
     _ls_verbose("%s: handling signal: %d\n", __func__, signal);
-    int reload = 1;
+    int reload = RELOAD_UNKNOWN;
+    switch (signal) {
+        case SIGHUP: reload = RELOAD_CONFIGURATION; break;
+        case SIGUSR1: reload = RESCAN_VOLATILE; break;
+    }
     int write_size = sizeof(reload);
     int ret = write(config_reload_pipe[PIPE_WRITE_END], &reload, write_size);
 
@@ -440,10 +460,27 @@ _ConfigParseFileWrapper(GIOChannel *channel, GIOCondition condition, gpointer da
     LSError lserror;
     LSErrorInit(&lserror);
     
-    if (!ConfigParseFile(config_file_path, &lserror))
+    switch(read_data)
     {
-        LSErrorPrint(&lserror, stderr);
-        LSErrorFree(&lserror);
+        case RELOAD_CONFIGURATION:
+            if (!ConfigParseFile(config_file_path, &lserror))
+            {
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+            }
+            break;
+        case RESCAN_VOLATILE:
+            if (!ConfigKeyProcessDynamicServiceDirs((const char**)service_volatile_dirs, GINT_TO_POINTER(VOLATILE_DIRS), &lserror))
+            {
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+            }
+            if (!ProcessRoleDirectories((const char**)roles_volatile_dirs, GINT_TO_POINTER(VOLATILE_DIRS), &lserror))
+            {
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+            }
+            break;
     }
 
     /* Send out a signal that we've completed the scanning */
@@ -522,6 +559,7 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
     g_io_channel_unref(config_reload_channel);
 
     _LSTransportSetupSignalHandler(SIGHUP, _ConfigHandleSignal);
+    _LSTransportSetupSignalHandler(SIGUSR1, _ConfigHandleSignal);
 
 #ifdef HAVE_SYS_INOTIFY_H
     /* add inotify on config file */
@@ -709,7 +747,7 @@ _ConfigKeyGetStringList(GKeyFile *key_file, const char *group_name,
  *******************************************************************************
  */
 void
-_ConfigSetDefaults(void)
+ConfigSetDefaults(void)
 {
     /* NOTE: All strings should be copied since they are free'd when we reload
      * the conf file */
@@ -837,8 +875,9 @@ _ConfigKeyProcessWatchdogFailureMode(char *mode_str, LSHubWatchdogFailureMode *c
 
 /** 
  *******************************************************************************
- * @brief Parse all dynamic service directories and load dynamic service map.
+ * @brief Parse dynamic services from steady directories and load dynamic service map.
  * This function can safely be called multiple times to reload data.
+ * The service map is reset before loading data.
  * 
  * @param  *dirs    IN  array of directories 
  * @param  ctxt     IN  unused 
@@ -849,24 +888,33 @@ _ConfigKeyProcessWatchdogFailureMode(char *mode_str, LSHubWatchdogFailureMode *c
  *******************************************************************************
  */
 bool
-_ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserror)
+ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserror)
 {
     /* process all the service files in the specified directories */
-    LS_ASSERT(dirs != NULL);
 
+    bool is_volatile_dir = (GPOINTER_TO_INT(ctxt) == VOLATILE_DIRS);
     const char **cur_dir = NULL;
 
-    if (!ServiceInitMap(lserror))
+    if (!ServiceInitMap(lserror, is_volatile_dir))
     {
         return false;
     }
 
-    for (cur_dir = dirs; *cur_dir != NULL; cur_dir++)
+    for (cur_dir = dirs; cur_dir != NULL && *cur_dir != NULL; cur_dir++)
     {
-        if (!ParseServiceDirectory(*cur_dir, lserror))
+        if (!ParseServiceDirectory(*cur_dir, lserror, is_volatile_dir))
         {
             LSErrorPrint(lserror, stderr);
             LSErrorFree(lserror);
+        }
+    }
+
+    if (is_volatile_dir)
+    {
+        if (service_volatile_dirs != (gchar**)dirs)
+        {
+            g_strfreev(service_volatile_dirs);
+            service_volatile_dirs = g_strdupv((gchar**)dirs);
         }
     }
 
@@ -955,7 +1003,7 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
     _ConfigFreeSettings();
 
     /* Set the defaults */
-    _ConfigSetDefaults();
+    ConfigSetDefaults();
 
     key_file = g_key_file_new();
 

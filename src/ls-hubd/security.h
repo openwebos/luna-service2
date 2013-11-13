@@ -43,5 +43,8 @@ bool LSHubActiveRoleMapClientRemove(const _LSTransportClient *client, LSError *l
 gchar * LSHubRoleAllowedNamesForExe(const char * exe_path);
 bool LSHubClientGetPrivileged(const _LSTransportClient *client);
 const char* IsMediaService(const char *service_name);
+LSHubRole* LSHubRoleMapLookup(const char *exe_path);
+bool PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir);
+LSHubPermission* LSHubPermissionMapLookup(const char *service_name);
 
 #endif  /* _SECURITY_H */

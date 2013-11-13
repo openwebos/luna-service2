@@ -20,13 +20,17 @@
 set(UNIT_TEST_SOURCES
     test_pattern
     test_security
+    test_directories_scan
     )
 
-add_definitions(-DTEST_ROLES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/roles")
+add_definitions(-DTEST_STEADY_ROLES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/steady/roles")
+add_definitions(-DTEST_VOLATILE_ROLES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/volatile/roles")
+add_definitions(-DTEST_STEADY_SERVICES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/steady/services")
+add_definitions(-DTEST_VOLATILE_SERVICES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/volatile/services")
 add_definitions(-DUNIT_TESTS)
 
 foreach (TEST ${UNIT_TEST_SOURCES})
-    add_executable(${TEST} ${TEST}.c)
-    target_link_libraries(${TEST} ls-hublib ${CMAKE_PROJECT_NAME} ${TESTLIBNAME})
+    add_executable(${TEST} ${TEST}.c ../hub.c)
+    target_link_libraries(${TEST} ls-hublib ${CMAKE_PROJECT_NAME} ${TESTLIBNAME} ${PMLOGLIB_LDFLAGS})
     add_test(${TEST} ${TEST})
 endforeach ()

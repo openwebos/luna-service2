@@ -27,36 +27,16 @@
 #include "../../libluna-service2/transport_security.h"
 
 
-void _ConfigSetDefaults(void);
+void ConfigSetDefaults(void);
 void _ConfigFreeSettings(void);
 bool LSHubActiveRoleMapUnref(pid_t pid);
-
-// Define mock functions.
-bool
-ServiceInitMap(LSError *lserror)
-{
-    return true;
-}
-
-bool
-ParseServiceDirectory(const char *path, LSError *lserror)
-{
-    return true;
-}
-
-bool
-LSHubSendConfScanCompleteSignal(void)
-{
-    return true;
-}
-
 
 static void
 test_LSHubPermissionMapLookup(void *fixture, gconstpointer user_data)
 {
-    _ConfigSetDefaults();
+    ConfigSetDefaults();
 
-    char const *dirs[] = { TEST_ROLES_DIRECTORY, NULL };
+    char const *dirs[] = { TEST_STEADY_ROLES_DIRECTORY, NULL };
     LSError error;
     LSErrorInit(&error);
     g_assert(ProcessRoleDirectories(dirs, NULL, &error));

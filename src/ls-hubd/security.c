@@ -68,6 +68,7 @@ struct LSHubRole {
     const char *exe_path;
     LSHubRoleType type;
     _LSHubPatternQueue *allowed_names;
+    bool from_volatile_dir;
 };
 
 struct LSHubPermission {
@@ -75,8 +76,10 @@ struct LSHubPermission {
     const char *service_name;
     _LSHubPatternQueue *inbound;
     _LSHubPatternQueue *outbound;
+    bool from_volatile_dir;
 };
 
+gchar **roles_volatile_dirs = NULL;        /**< volatile directories with service description files*/
 
 /**
  * Hash of pid to LSHubRole.
@@ -96,7 +99,7 @@ static GHashTable *role_map = NULL;
 static GHashTable *permission_map = NULL;
 
 /**
- * @brief Map of service name pattern to LSHubPermissions.
+ * @brief Tree of service name pattern to LSHubPermissions.
  *
  * Patterns are ordered by comparing prefixes up to the first '?' or '*'.
  */
@@ -288,7 +291,7 @@ LSHubGetPermissionMap(void)
 GTree*
 LSHubGetPermissionWildcardMap(void)
 {
-	return permission_wildcard_map;
+    return permission_wildcard_map;
 }
 
 GHashTable*
@@ -895,7 +898,7 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
 }
 
 bool
-LSHubRoleMapClear(LSError *lserror)
+LSHubRoleMapClear(LSError *lserror, bool from_volatile_dir)
 {
     // TODO: use g_hash_table_remove_all()
     gpointer key = NULL;
@@ -908,23 +911,73 @@ LSHubRoleMapClear(LSError *lserror)
 
     while (g_hash_table_iter_next(&iter, &key, &value))
     {
-        LSHubRoleUnref((LSHubRole*)value);
-        g_hash_table_iter_remove(&iter);    /* this frees the key due to the
-                                             * key_destroy_func set in
-                                             * g_hash_table_new_full */
+        LSHubRole* role = (LSHubRole*)value;
+        if (from_volatile_dir == role->from_volatile_dir)
+        {
+            LSHubRoleUnref(role);
+            g_hash_table_iter_remove(&iter);    /* this frees the key due to the
+                                                 * key_destroy_func set in
+                                                 * g_hash_table_new_full */
+        }
     }
     return true;
 }
 
+gboolean PermissionMapRemoveSpecDirectory (gpointer key, gpointer value, gpointer user_data)
+{
+    LSHubPermission* service = value;
+    bool from_volatile_dir = *(bool*)user_data;
+    return from_volatile_dir == service->from_volatile_dir;
+}
+
 bool
-LSHubPermissionMapClear(LSError *lserror)
+LSHubPermissionMapClear(LSError *lserror, bool from_volatile_dir)
 {
     _ls_verbose("%s: clearing permission map\n", __func__);
-    g_hash_table_remove_all(LSHubGetPermissionMap());
+
+    g_hash_table_foreach_remove(LSHubGetPermissionMap(), &PermissionMapRemoveSpecDirectory, &from_volatile_dir);
 
     return true;
 }
 
+struct PermTreeTraverseData
+{
+    GSList* list_to_remove;
+    bool from_volatile_dir;
+};
+typedef struct PermTreeTraverseData PermTreeTraverseData;
+
+static gboolean PermTreeTraverse(gpointer key, gpointer value, gpointer data)
+{
+    PermTreeTraverseData* arg = (PermTreeTraverseData*)data;
+    LSHubPermission* perm = (LSHubPermission*)value;
+    if (arg->from_volatile_dir == perm->from_volatile_dir)
+    {
+        arg->list_to_remove = g_slist_prepend(arg->list_to_remove, key);
+    }
+
+    return false;
+}
+
+void
+LSHubWildcardPermissionTreeClear(bool from_volatile_dir)
+{
+    _ls_verbose("%s: clearing wildcard permission tree\n", __func__);
+
+    PermTreeTraverseData traverse_data;
+    traverse_data.from_volatile_dir = from_volatile_dir;
+    traverse_data.list_to_remove = NULL;
+
+    g_tree_foreach(permission_wildcard_map, PermTreeTraverse, &traverse_data);
+
+    for (; traverse_data.list_to_remove != NULL;
+         traverse_data.list_to_remove = g_slist_delete_link(traverse_data.list_to_remove,
+                                                            traverse_data.list_to_remove))
+    {
+        LSHubPermission* perm = (LSHubPermission*)traverse_data.list_to_remove->data;
+        g_tree_remove(permission_wildcard_map, perm);
+    }
+}
 
 bool
 ParseJSONFile(const char *path, struct json_object **json, LSError *lserror)
@@ -1163,7 +1216,7 @@ exit:
 }
 
 bool
-ParseRoleDirectory(const char *path, LSError *lserror)
+ParseRoleDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
 {
     GError *gerror = NULL;
     const char *filename = NULL;
@@ -1213,6 +1266,8 @@ ParseRoleDirectory(const char *path, LSError *lserror)
             /* Add role object to hash table */
             if (role)
             {
+                role->from_volatile_dir = is_volatile_dir;
+
                 /* Don't add the role (but do add permissions) for a triton
                  * service, since triton will push the role file when it wants to
                  * use it
@@ -1235,6 +1290,7 @@ ParseRoleDirectory(const char *path, LSError *lserror)
             for (; perm_list != NULL; perm_list = g_slist_delete_link(perm_list, perm_list)/*perm_list = g_slist_next(perm_list)*/)
             {
                 LSHubPermission *perm = perm_list->data;
+                perm->from_volatile_dir = is_volatile_dir;
 
                 if (!LSHubPermissionMapAddRef(perm, lserror))
                 {
@@ -1943,12 +1999,12 @@ LSHubIsClientAllowedToSendSignal(_LSTransportClient *client)
     return false;
 }
 
-static bool
-_PermissionsAndRolesInit(LSError *lserror)
+bool
+PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
 {
     if (role_map)
     {
-        if (!LSHubRoleMapClear(lserror))
+        if (!LSHubRoleMapClear(lserror, from_volatile_dir))
         {
             LSErrorPrint(lserror, stderr);
             LSErrorFree(lserror);
@@ -1980,7 +2036,7 @@ _PermissionsAndRolesInit(LSError *lserror)
 
     if (permission_map)
     {
-        if (!LSHubPermissionMapClear(lserror))
+        if (!LSHubPermissionMapClear(lserror, from_volatile_dir))
         {
             LSErrorPrint(lserror, stderr);
             LSErrorFree(lserror);
@@ -1998,16 +2054,19 @@ _PermissionsAndRolesInit(LSError *lserror)
     }
 
     if (permission_wildcard_map)
-        g_tree_destroy(permission_wildcard_map);
-
-    permission_wildcard_map = g_tree_new_full((GCompareDataFunc) _LSHubPatternSpecCompare, NULL,
-                                              (GDestroyNotify) _LSHubPatternSpecUnref,
-                                              (GDestroyNotify) LSHubPermissionUnref);
-
-    if (!permission_wildcard_map)
     {
-        _LSErrorSetOOM(lserror);
-        return false;
+        LSHubWildcardPermissionTreeClear(from_volatile_dir);
+    }
+    else
+    {
+        permission_wildcard_map = g_tree_new_full((GCompareDataFunc) _LSHubPatternSpecCompare, NULL,
+                                                  (GDestroyNotify) _LSHubPatternSpecUnref,
+                                                  (GDestroyNotify) LSHubPermissionUnref);
+        if (!permission_wildcard_map)
+        {
+            _LSErrorSetOOM(lserror);
+            return false;
+        }
     }
 
     return true;
@@ -2028,22 +2087,33 @@ ProcessRoleDirectories(const char **dirs, void *ctxt, LSError *lserror)
 
     const char **cur_dir = NULL;
 
+    bool is_volatile_dir = (GPOINTER_TO_INT(ctxt) == VOLATILE_DIRS);
+
     printf("%s called\n", __func__);
 
-    if (!_PermissionsAndRolesInit(lserror))
+    if (!PermissionsAndRolesInit(lserror, is_volatile_dir))
     {
         return false;
     }
 
-    for (cur_dir = dirs; *cur_dir != NULL; cur_dir++)
+    for (cur_dir = dirs; cur_dir != NULL && *cur_dir != NULL; cur_dir++)
     {
-        if (!ParseRoleDirectory(*cur_dir, lserror))
+        if (!ParseRoleDirectory(*cur_dir, lserror, is_volatile_dir))
         {
             LSErrorPrint(lserror, stderr);
             LSErrorFree(lserror);
         }
     }
     
+    if (is_volatile_dir)
+    {
+        if (roles_volatile_dirs != (gchar**)dirs)
+        {
+            g_strfreev(roles_volatile_dirs);
+            roles_volatile_dirs = g_strdupv((gchar**)dirs);
+        }
+    }
+
     fprintf(stderr, "Done parsing role directories\n");
 
     GHashTableIter iter;

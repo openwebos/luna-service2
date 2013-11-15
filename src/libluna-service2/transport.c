@@ -1294,7 +1294,7 @@ _LSTransportSetupListenerInet(_LSTransport *transport, int port, LSError *lserro
 error:
     _LSErrorSetFromErrno(lserror, errno);
 
-    if (fd > 0)
+    if (fd >= 0)
     {
         close(fd);
     }

@@ -4382,8 +4382,21 @@ int main(int argc, char *argv[])
     g_main_loop_run(mainloop);
     g_main_loop_unref(mainloop);
 
-    /* TODO: clean up other allocations */
+    /* Cleanup */
+    _LSTransportDisconnect(hub_transport, false);
+    _LSTransportDeinit(hub_transport);
     _SignalMapFree(signal_map);
+
+    if (pending) g_hash_table_destroy(pending);
+    if (available_services) g_hash_table_destroy(available_services);
+    if (wildcard_services) g_tree_destroy(wildcard_services);
+    if (all_services) g_hash_table_destroy(all_services);
+    if (dynamic_service_states) g_hash_table_destroy(dynamic_service_states);
+    if (connected_clients.by_fd) g_hash_table_destroy(connected_clients.by_fd);
+    if (connected_clients.by_unique_name) g_hash_table_destroy(connected_clients.by_unique_name);
+
+    RolesCleanup();
+    ConfigCleanup();
 
     if (boot_file_name) unlink(boot_file_name);
 

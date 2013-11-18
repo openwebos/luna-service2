@@ -30,6 +30,7 @@ bool ConfigParseFile(const char *path, LSError *lserror);
 bool ConfigSetupInotify(const char* conf_file, LSError *lserror);
 bool ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserror);
 void ConfigSetDefaults(void);
+void ConfigCleanup();
 
 extern int g_conf_watchdog_timeout_sec;
 extern LSHubWatchdogFailureMode g_conf_watchdog_failure_mode;

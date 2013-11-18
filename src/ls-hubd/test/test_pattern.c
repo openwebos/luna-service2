@@ -56,6 +56,9 @@ test_LSHubPatternSpecClash(void *fixture, gconstpointer user_data)
     _LSHubPatternSpec *b = _LSHubPatternSpecNew("ab*");
     g_assert_cmpint(_LSHubPatternSpecCompare(a, b, NULL), ==, 0);
     g_assert_cmpint(_LSHubPatternSpecCompare(b, a, NULL), ==, 0);
+
+    _LSHubPatternSpecFree(a);
+    _LSHubPatternSpecFree(b);
 }
 
 int

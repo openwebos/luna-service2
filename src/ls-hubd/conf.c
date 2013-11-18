@@ -1044,7 +1044,6 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
             }
         }
     }
-
     ret = true;
     
 error:
@@ -1099,15 +1098,14 @@ error:
     return false;
 }
 
-bool
-ConfigCleanup(GIOChannel *inotify_channel)
+void
+ConfigCleanup()
 {
     g_free(config_file_path);
     g_free(config_file_name);
 
     _ConfigFreeSettings();
-    
+
     /* inotify fd and read end of pipe fd are closed when the channel
      * is unref'd (in this case when watch is destroyed) */
-    return true;
 }

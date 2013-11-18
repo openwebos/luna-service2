@@ -291,7 +291,7 @@ LSHubGetPermissionMap(void)
 GTree*
 LSHubGetPermissionWildcardMap(void)
 {
-    return permission_wildcard_map;
+   return permission_wildcard_map;
 }
 
 GHashTable*
@@ -897,29 +897,20 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
     return true;
 }
 
+
+gboolean RoleMapRemoveSpecDirectory (gpointer key, gpointer value, gpointer user_data)
+{
+    LSHubRole const *role = value;
+    return GPOINTER_TO_INT(user_data) == role->from_volatile_dir;
+}
+
 bool
 LSHubRoleMapClear(LSError *lserror, bool from_volatile_dir)
 {
-    // TODO: use g_hash_table_remove_all()
-    gpointer key = NULL;
-    gpointer value = NULL;
-    GHashTableIter iter;
-
     _ls_verbose("%s: clearing role map\n", __func__);
 
-    g_hash_table_iter_init(&iter, LSHubGetRoleMap());
+    g_hash_table_foreach_remove(LSHubGetRoleMap(), &RoleMapRemoveSpecDirectory, GINT_TO_POINTER(from_volatile_dir));
 
-    while (g_hash_table_iter_next(&iter, &key, &value))
-    {
-        LSHubRole* role = (LSHubRole*)value;
-        if (from_volatile_dir == role->from_volatile_dir)
-        {
-            LSHubRoleUnref(role);
-            g_hash_table_iter_remove(&iter);    /* this frees the key due to the
-                                                 * key_destroy_func set in
-                                                 * g_hash_table_new_full */
-        }
-    }
     return true;
 }
 
@@ -1936,7 +1927,7 @@ _LSHubIsClientAllowedInbound(const _LSTransportClient *client, const char *dest_
     if (g_conf_security_enabled)
     {
         _LSHubPrintPermissionsMessage(client, sender_service_name, dest_service_name, true, true);
-    
+
         ret = false;
         goto Exit;
     }
@@ -2012,7 +2003,7 @@ PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
     }
     else
     {
-        role_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, /*TODO: unref */NULL);
+        role_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify) LSHubRoleUnref);
 
         if (!role_map)
         {
@@ -2072,6 +2063,16 @@ PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
     return true;
 }
 
+
+static void
+_PermissionsAndRolesDeinit()
+{
+    if (role_map) g_hash_table_destroy(role_map);
+    if (active_role_map) g_hash_table_destroy(active_role_map);
+    if (permission_map) g_hash_table_destroy(permission_map);
+    if (permission_wildcard_map) g_tree_destroy(permission_wildcard_map);
+}
+
 static gboolean
 print_wildcard_permissions(gpointer key, gpointer value, gpointer data)
 {
@@ -2127,7 +2128,7 @@ ProcessRoleDirectories(const char **dirs, void *ctxt, LSError *lserror)
         LSHubRole *role = value;
         LSHubRolePrint(role, stderr);
     }
-    
+
     g_hash_table_iter_init(&iter, LSHubGetPermissionMap());
 
     while (g_hash_table_iter_next(&iter, &key, &value))
@@ -2139,6 +2140,11 @@ ProcessRoleDirectories(const char **dirs, void *ctxt, LSError *lserror)
     g_tree_foreach(LSHubGetPermissionWildcardMap(), print_wildcard_permissions, NULL);
 
     return true;
+}
+
+void RolesCleanup()
+{
+    _PermissionsAndRolesDeinit();
 }
 
 /**< FIXME: workaround for non-conformant media service */

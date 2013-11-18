@@ -46,5 +46,6 @@ const char* IsMediaService(const char *service_name);
 LSHubRole* LSHubRoleMapLookup(const char *exe_path);
 bool PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir);
 LSHubPermission* LSHubPermissionMapLookup(const char *service_name);
+void RolesCleanup();
 
 #endif  /* _SECURITY_H */

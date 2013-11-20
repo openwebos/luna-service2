@@ -2353,11 +2353,10 @@ _FetchMessageQueueFree(_FetchMessageQueue *queue)
     {
         pthread_mutex_destroy(&queue->lock);
         _TokenListFree(queue->tokens);
-    }
-
 #ifdef MEMCHECK
-    memset(queue, 0xFF, sizeof(_FetchMessageQueue));
+        memset(queue, 0xFF, sizeof(_FetchMessageQueue));
 #endif
+    }
 
     g_free(queue);
 }

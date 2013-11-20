@@ -775,7 +775,7 @@ LSHubActiveRoleMapAddRef(pid_t pid, LSHubRole *role, LSError *lserror)
     else
     {
         /* ref and insert new role */
-        gint *key = g_malloc(sizeof(key));
+        gint *key = g_malloc(sizeof(*key));
         *key = pid;
         LSHubRoleRef(role);
         g_hash_table_insert(LSHubGetActiveRoleMap(), key, role);

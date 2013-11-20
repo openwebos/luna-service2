@@ -2068,7 +2068,7 @@ _LSTransportMessageIterNext(_LSTransportMessageIter *iter)
    
     int header_size = _LSTransportMessageGetArgHeaderSize(iter);
 
-    if (offset == -1)
+    if (header_size == -1)
     {
         return NULL;
     } 

@@ -1102,7 +1102,7 @@ _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *
 error:
     _LSErrorSetFromErrno(lserror, errno);
 
-    if (tmp_fd > 0)
+    if (tmp_fd >= 0)
     {
         close(tmp_fd);
     }

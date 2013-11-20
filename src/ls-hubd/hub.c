@@ -3333,7 +3333,8 @@ _LSHubSignalRegisterAllServicesItem(gpointer key, gpointer value, gpointer user_
     /* Use exe_path in client credentials to look up role file and allowed service names */
     const _LSTransportCred *cred = NULL;
     
-    if (client && client->client)
+    LS_ASSERT(client);
+    if (client->client)
         cred = _LSTransportClientGetCred(client->client);
 
     pid_t pid = 0;

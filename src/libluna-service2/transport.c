@@ -1487,7 +1487,7 @@ _LSTransportSplitInetUniqueName(const char *unique_name, struct in_addr *ip, uin
 
     delim = delim + 1;
 
-    if (delim == '\0')
+    if (*delim == '\0')
     {
         _LSErrorSet(lserror, -1, "Badly formatted address:port");
         goto error;

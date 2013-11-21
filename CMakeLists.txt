@@ -23,7 +23,7 @@ include(webOS/webOS)
 include(CTest)
 
 webos_modules_init(1 0 0 QUALIFIER RC4)
-webos_component(3 5 2)
+webos_component(3 5 3)
 
 include(FindPkgConfig)
 

@@ -31,7 +31,7 @@ start on stopping ls-hubd_private or stopping ls-hubd_public
 # and anded.
 
 script
-	if [ "$RESULT" != "ok" -a "$RUNLEVEL" != "0" -a "$RUNLEVEL" != "1" -a "$RUNLEVEL" != "6") ]; then
+	if [ "$RESULT" != "ok" -a "$RUNLEVEL" != "0" -a "$RUNLEVEL" != "1" -a "$RUNLEVEL" != "6" ]; then
 		initctl set-env --global LS_HUBD_CRASH=$JOB
 		/sbin/reboot
 	fi

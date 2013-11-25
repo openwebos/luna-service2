@@ -22,6 +22,9 @@ start on stopped bootmisc
 stop on started start_update
 emits ls-hubd_private-ready
 
+# OOM should never kill ls-hubs
+oom score never
+
 # Comment this line out to suppress logs on the console
 #console output
 

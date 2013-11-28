@@ -521,7 +521,7 @@ test_LSPushRolePalmService(TestData *fixture, gconstpointer user_data)
     }
     g_test_trap_assert_passed();
 
-    LSUnregisterPalmService(psh, &error);
+    g_assert(LSUnregisterPalmService(psh, &error));
 }
 
 static void

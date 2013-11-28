@@ -75,7 +75,7 @@ test_LSTransportSecurityPositive(void)
         int socketfd2 = socket(AF_LOCAL, SOCK_STREAM, 0);
         while (connect(socketfd2,
                          (struct sockaddr*) &socketaddress,
-                         sizeof(struct sockaddr_un)));
+                         sizeof(struct sockaddr_un)) != 0);
         LSError error;
         LSErrorInit(&error);
         _LSTransportGetCredentials(socketfd, mvar_transport_cred, &error);
@@ -91,8 +91,12 @@ test_LSTransportSecurityPositive(void)
                          getgid());
         g_assert(_LSTransportCredGetExePath(mvar_transport_cred));
         g_assert(_LSTransportCredGetCmdLine(mvar_transport_cred));
+
+        close(socketfd2);
     }
     g_test_trap_has_passed();
+
+    close(socketfd);
 }
 
 /* Mocks **********************************************************************/

@@ -2634,6 +2634,7 @@ _LSHubRemoveMessageTimeout(_LSTransportMessage *message)
     if (timeout_source)
     {
         g_source_destroy(timeout_source);
+        g_source_unref(timeout_source);
     }
 
     /* clear timeout id */

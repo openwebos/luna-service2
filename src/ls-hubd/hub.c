@@ -681,6 +681,26 @@ _DynamicServiceReap(GPid pid, gint status, _Service *service)
     _ServiceUnref(service);  /* ref from child_watch_add */
 }
 
+
+/**
+ * Reset the OOM settings on spawned procs, since ls-hubd's oom_score_adj is set to -1000
+ * and dynamic services are inheriting that setting, which we do not want.
+ */
+static void
+ResetOomSettings(pid_t pid)
+{
+    char fn[24];
+    int  oomf;
+
+    snprintf(fn, 23, "/proc/%d/oom_adj", pid);
+    oomf = open(fn, O_RDWR);
+    if (oomf >= 0)
+    {
+        write(oomf, "0", 1);
+        close(oomf);
+    }
+}
+
 /** 
  *******************************************************************************
  * @brief Launch a dynamic service.
@@ -784,6 +804,8 @@ _DynamicServiceLaunch(_Service *service, LSError *lserror)
         _LSErrorSet(lserror, -1, "Error attemtping to launch service: \"%s\"\n", gerror->message);
         goto error;
     }
+
+    ResetOomSettings(service->pid);
 
     /* set up child watch so we can reap the child */
     _ServiceRef(service);

@@ -240,7 +240,8 @@ test_LSDisconnectHandler(TestData *fixture, gconstpointer user_data)
 
     _LSTransportClient client =
     {
-        .service_name = "com.name.service"
+        .service_name = "com.name.service",
+        .initiator = 1
     };
     _LSTransportDisconnectType type = _LSTransportDisconnectTypeClean;
 

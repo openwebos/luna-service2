@@ -1253,7 +1253,12 @@ _LSDisconnectHandler(_LSTransportClient *client, _LSTransportDisconnectType type
     LSHandle *sh = (LSHandle *)context;
     _CallMap *map = sh->callmap;
 
-    if (NULL != client->service_name)
+    /* The peer has disconnected, so if there're calls waiting for replies,
+     * they should be terminated. Note, that the disconnect handler may
+     * be called for either connection initiator or the connection acceptor.
+     * The callmap contains the INITIATED calls.
+     */
+    if (NULL != client->service_name && client->initiator)
     {
     
         _CallMapLock(map);

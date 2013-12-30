@@ -560,6 +560,10 @@ bool LSCallFromApplicationOneReply(
 
 bool LSCallCancel(LSHandle *sh, LSMessageToken token, LSError *lserror);
 
+bool LSCallSetTimeout(
+       LSHandle *sh, LSMessageToken token,
+       int timeout_ms, LSError *lserror);
+
 /* @} END OF LunaServiceClient */
 
 /**

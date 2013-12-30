@@ -449,7 +449,7 @@ typedef struct _Call {
 #ifdef HAS_LTTNG
     char         *methodName;
 #endif
-    LSHandle     *sh;
+    LSHandle     *sh;          //< back pointer to the service handle (non-owning)
     LSFilterFunc  callback;
 
     void         *ctx;         //< user context
@@ -467,16 +467,19 @@ typedef struct _Call {
     char          *signal_category; //< registered signal category (required)
     char          *match_key;  //<key used in callmap->signalMap
     struct        timespec time;  //< time value for performance measurement
+    guint         timer_id;  //< timer id for the expiration (> 0 if set)
+    int           timeout_ms;  //< milliseconds to timeout before next message reply.
 } _Call;
 
 
 _Call *
-_CallNew(int type, const char *serviceName,
+_CallNew(LSHandle *sh, int type, const char *serviceName,
          LSFilterFunc callback, void *ctx,
          LSMessageToken token, const char *methodName)
 {
     _Call *call = g_new0(_Call, 1);
 
+    call->sh = sh;
     call->serviceName = g_strdup(serviceName);
     call->callback = callback;
     call->ctx = ctx;
@@ -494,6 +497,8 @@ _CallFree(_Call *call)
 {
     if (!call) return;
 
+    if (call->timer_id > 0)
+        g_source_remove(call->timer_id);
     g_free(call->serviceName);
     //g_free(call->rule);
     g_free(call->signal_method);
@@ -630,6 +635,13 @@ _CallRemove(LSHandle *sh, _CallMap *map, _Call *call)
     _CallMapUnlock(map);
 }
 
+static void
+_CallAddReference(_Call *call)
+{
+    LS_ASSERT(g_atomic_int_get (&call->ref) > 0);
+    g_atomic_int_inc(&call->ref);
+}
+
 static _Call*
 _CallAcquire(_CallMap *map, LSMessageToken token)
 {
@@ -639,10 +651,7 @@ _CallAcquire(_CallMap *map, LSMessageToken token)
 
     call = g_hash_table_lookup(map->tokenMap, (gpointer)token);
     if (call)
-    {
-        LS_ASSERT(g_atomic_int_get (&call->ref) > 0);
-        g_atomic_int_inc(&call->ref);
-    }
+        _CallAddReference(call);
 
     _CallMapUnlock(map);
 
@@ -921,6 +930,8 @@ _LSMessageTranslate(LSHandle *sh, LSMessage *message,
     _CallRelease(call);
 }
 
+static void ResetCallTimeout(_Call *call);
+
 /**
 * @brief Dispatch a message to each callback in tokens list.
 *
@@ -953,6 +964,8 @@ _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
         {
             continue;
         }
+
+        ResetCallTimeout(call);
 
         if (call->callback)
         {
@@ -1429,7 +1442,7 @@ _send_match(LSHandle        *sh,
         key = g_strdup_printf("%s", category);
     }
 
-    _Call *call = _CallNew(CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token, method);
+    _Call *call = _CallNew(sh, CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token, method);
 
     //call->rule = g_strdup(rule);
     call->signal_category = category;
@@ -1499,7 +1512,7 @@ _send_reg_server_status(LSHandle *sh,
             break;
         }
 
-        _Call *call = _CallNew(CALL_TYPE_SIGNAL_SERVER_STATUS,
+        _Call *call = _CallNew(sh, CALL_TYPE_SIGNAL_SERVER_STATUS,
             serviceName, callback, ctx, token, luri ? luri->methodName : NULL);
         if (!call)
         {
@@ -1545,7 +1558,7 @@ _send_method_call(LSHandle *sh,
 
     if (callback)
     {
-        _Call *call = _CallNew(CALL_TYPE_METHOD_CALL, luri->serviceName, callback, ctx, token, luri->methodName);
+        _Call *call = _CallNew(sh, CALL_TYPE_METHOD_CALL, luri->serviceName, callback, ctx, token, luri->methodName);
 
         if (ret_call)
         {
@@ -1932,6 +1945,82 @@ error:
     return false;
 }
 
+
+static gboolean
+OnCallTimedOut(_Call *call)
+{
+    LSError lserror;
+    LSErrorInit(&lserror);
+
+    if (!LSCallCancel(call->sh, call->token, &lserror))
+    {
+        LSErrorFree(&lserror);
+    }
+    call->timer_id = 0;
+    return FALSE;  /* One-shot timer */
+}
+
+
+static void
+ResetCallTimeout(_Call *call)
+{
+    if (call->timer_id > 0)
+        g_source_remove(call->timer_id);
+
+    if (call->timeout_ms > 0)
+    {
+        _CallAddReference(call);
+        call->timer_id = g_timeout_add_full(G_PRIORITY_DEFAULT, call->timeout_ms,
+                                            (GSourceFunc) OnCallTimedOut, call,
+                                            (GDestroyNotify) _CallRelease);
+    }
+}
+
+/**
+ * @brief Sets timeout for a method call. The call will be canceled if no reply
+ *        is received after the timeout_ms milliseconds.
+ *
+ * @param  sh
+ * @param  token
+ * @param  timeout_ms
+ * @param  lserror
+ *
+ * @retval
+ */
+bool
+LSCallSetTimeout(LSHandle *sh, LSMessageToken token, int timeout_ms, LSError *lserror)
+{
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+
+    if (DEBUG_TRACING)
+    {
+        g_debug("TX: %s token <<%ld>>", __FUNCTION__, token);
+    }
+
+    LSHANDLE_VALIDATE(sh);
+
+    _CallMap *callmap = sh->callmap;
+
+    _Call *call = _CallAcquire(callmap, token);
+    if (!call)
+    {
+        _LSErrorSetNoPrint(lserror, -1, "Could not find call %ld to set timeout.", token);
+        return false;
+    }
+
+    if (call->type != CALL_TYPE_METHOD_CALL)
+    {
+        _CallRelease(call);
+        _LSErrorSetNoPrint(lserror, -1, "Call %ld isn't a method call.", token);
+        return false;
+    }
+    call->timeout_ms = timeout_ms;
+
+    ResetCallTimeout(call);
+
+    _CallRelease(call);
+    return true;
+}
 
 
 /**

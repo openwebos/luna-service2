@@ -534,6 +534,60 @@ test_LSSignalSend(TestData *fixture, gconstpointer user_data)
     g_test_trap_assert_stderr("*Warning: you did not register signal palm://com.name.service/activated via LSRegisterCategory*");
 }
 
+
+static void
+IterateMainLoop(int ms)
+{
+    g_test_timer_start();
+    while (true)
+    {
+        g_main_context_iteration(NULL, FALSE);
+        if (g_test_timer_elapsed() * 1000 > ms)
+            break;
+        g_usleep(500);
+    }
+}
+
+static void
+test_LSCallSetTimeout(TestData *fixture, gconstpointer user_data)
+{
+    LSError error;
+    LSErrorInit(&error);
+
+    const char *uri = "palm://com.name.service/whatever";
+    const char *payload = "{}";
+    LSMessageToken token = LSMESSAGE_TOKEN_INVALID;
+    int timeout_ms = 100;
+    int delta_t_ms = 20;
+    _LSTransportMessage *msg = GINT_TO_POINTER(2);
+
+    // Send method call with timeout_ms
+    g_assert(LSCall(&fixture->sh, uri, payload, test_methodcall_callback, NULL,
+                    &token, &error));
+    g_assert(LSCallSetTimeout(&fixture->sh, token, timeout_ms, &error));
+
+    // Ensure the method isn't canceled after timeout_ms − 20 milliseconds
+    IterateMainLoop(timeout_ms - delta_t_ms);
+    g_assert_cmpint(fixture->transport_cancel_method_call_called, ==, 0);
+
+    // Send method reply
+    fixture->transport_message_type = _LSTransportMessageTypeReply;
+    fixture->transport_message_reply_token = token;
+    fixture->transport_message_payload = "{\"returnValue\":true}";
+    g_assert(_LSHandleReply(&fixture->sh, msg));
+
+    // Ensure the method isn't canceled after timeout_ms − 20 milliseconds
+    IterateMainLoop(timeout_ms - delta_t_ms);
+    g_assert_cmpint(fixture->transport_cancel_method_call_called, ==, 0);
+
+    // Wait another 40–50 milliseconds
+    IterateMainLoop(delta_t_ms * 2);
+
+    // Ensure the call was canceled by the timer
+    g_assert_cmpint(fixture->transport_cancel_method_call_called, ==, 1);
+    LSMessageUnref(fixture->methodcall_reply);
+}
+
 /* Mocks **********************************************************************/
 
 // base.c
@@ -799,6 +853,7 @@ main(int argc, char *argv[])
     LSTEST_ADD("/luna-service2/LSSignalCallAndCancel", test_LSSignalCallAndCancel);
     LSTEST_ADD("/luna-service2/LSSignalSendNoTypecheck", test_LSSignalSendNoTypecheck);
     LSTEST_ADD("/luna-service2/LSSignalSend", test_LSSignalSend);
+    LSTEST_ADD("/luna-service2/LSCallSetTimeout", test_LSCallSetTimeout);
 
     return g_test_run();
 }

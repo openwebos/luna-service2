@@ -1799,17 +1799,24 @@ _LSTransportRecvFd(int fd, int *fd_to_recv, bool *retry, LSError *lserror)
     fdmsg.msg_controllen = sizeof(cmsg_buf);
     fdmsg.msg_flags = 0;
 
-    if ((ret = recvmsg(fd, &fdmsg, 0)) != 1)
+    while ((ret = recvmsg(fd, &fdmsg, 0)) != 1)
     {
-        if ((ret == -1) && (errno == EAGAIN) && retry)
+        if (ret == -1)
         {
-            *retry = true;
+            if (errno == EAGAIN && retry)
+            {
+                *retry = true;
+                return false;
+            }
+            else if (errno == EINTR)
+            {
+                // Interrupted by a system signal. But we need that fd, so let's try again.
+                continue;
+            }
         }
-        else
-        {
-            _LSErrorSetFromErrno(lserror, errno);
-            g_critical("recvmsg failed: errno: %d", errno);
-        }
+        _LSErrorSetFromErrno(lserror, errno);
+        g_critical("recvmsg failed: errno: %d", errno);
+
         return false;
     }
 

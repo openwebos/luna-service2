@@ -87,8 +87,8 @@ void
 _LSMonitorGetTime(struct timespec *time)
 {
 #ifdef __APPLE__
-    static mach_timebase_info_data_t info = {0,0};  
-  
+    static mach_timebase_info_data_t info = {0,0};
+
     if (info.denom == 0) {
       mach_timebase_info(&info);
     }
@@ -167,12 +167,12 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
 
         if (public_bus)
         {
-            fprintf(stdout, "[PUB]\t");    
+            fprintf(stdout, "[PUB]\t");
         }
         else
         {
-            fprintf(stdout, "[PRV]\t");    
-        } 
+            fprintf(stdout, "[PRV]\t");
+        }
         LSTransportMessagePrint(message, stdout);
     }
 }
@@ -242,7 +242,7 @@ _FreeMonitorListInfo(GSList **list)
         _LSMonitorListInfo *info = (*list)->data;
         if (info) _FreeMonitorListInfoItem(info);
         *list = g_slist_delete_link(*list, *list);
-    } 
+    }
 }
 
 static bool
@@ -297,7 +297,7 @@ _SubscriptionResultsCallback(LSHandle *sh, LSMessage *reply, void *ctx)
 {
     static int received_replies = 0;
     _SubscriptionReplyData *reply_data = ctx;
- 
+
     LSMessageRef(reply);
     (*reply_data->reply_list) = g_slist_prepend((*reply_data->reply_list), reply);
 
@@ -311,7 +311,7 @@ _SubscriptionResultsCallback(LSHandle *sh, LSMessage *reply, void *ctx)
         g_slist_free(private_sub_replies);
 #endif
         g_slist_free(public_sub_replies);
-    
+
         g_free(reply_data);
 
         /* done */
@@ -347,7 +347,7 @@ _ListServiceSubscriptions(LSHandle *sh, LSFilterFunc callback, GSList *monitor_l
     for (; monitor_list != NULL; monitor_list = g_slist_next(monitor_list))
     {
         cur = monitor_list->data;
-        
+
         /* skip any non-services and the monitor itself */
         if (!_CanGetSubscriptionInfo(cur))
         {
@@ -401,7 +401,7 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
 
     static GSList *public_monitor_info = NULL;
     static GSList *private_monitor_info = NULL;
- 
+
     GSList **cur_list = NULL;
 
     _LSTransportMessageIter iter;
@@ -414,7 +414,7 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
     {
         cur_list = &private_monitor_info;
     }
-    
+
     _LSTransportMessageIterInit(message, &iter);
 
     while (_LSTransportMessageIterHasNext(&iter))
@@ -441,7 +441,7 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
         if (!iter_ret) break;
         info->pid = pid;
         _LSTransportMessageIterNext(&iter);
-    
+
         iter_ret = _LSTransportMessageGetString(&iter, &exe_path);
         if (!iter_ret) break;
         info->exe_path = g_strdup(exe_path);
@@ -456,7 +456,7 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
         {
             total_sub_services++;
         }
-       
+
         *cur_list = g_slist_prepend(*cur_list, info);
     }
 
@@ -519,13 +519,13 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
             _PrintMonitorListInfo(private_monitor_info);
             fprintf(stdout, "\n");
             _FreeMonitorListInfo(&private_monitor_info);
- 
+
             fprintf(stdout, "PUBLIC HUB CLIENTS:\n");
             fprintf(stdout, "%-10s\t%-30s\t%-35s\t%-20s\t%-20s\n", "PID", "SERVICE NAME", "EXE", "TYPE", "UNIQUE NAME");
             _PrintMonitorListInfo(public_monitor_info);
             fprintf(stdout, "\n");
             _FreeMonitorListInfo(&public_monitor_info);
-        
+
             g_main_loop_quit(mainloop);
         }
     }
@@ -556,7 +556,7 @@ _HandleCommandline(int argc, char *argv[])
         {"debug", 'd', 0, G_OPTION_ARG_NONE, &debug_output, "Print extra output for debugging monitor but with UNBOUNDED MEMORY GROWTH", NULL},
         { NULL }
     };
-    
+
     opt_context = g_option_context_new("- Luna Service monitor");
     g_option_context_add_main_entries(opt_context, opt_entries, NULL);
 
@@ -585,13 +585,13 @@ main(int argc, char *argv[])
 #ifndef PUBLIC_ONLY
     int private = HUB_TYPE_PRIVATE;
 #endif
-    
+
     if (LSIsRunning(PID_DIR, MONITOR_PID_NAME))
     {
         g_critical("An instance of the monitor is already running");
         exit(EXIT_FAILURE);
     }
-    
+
     mainloop = g_main_loop_new(NULL, FALSE);
 
     /* send message to hub to let clients know that they should start
@@ -637,14 +637,14 @@ main(int argc, char *argv[])
         goto error;
     }
 #endif
-    
+
     if (!_LSTransportInit(&transport_pub, FINAL_MONITOR_NAME, &handler_pub, &lserror))
     {
         goto error;
     }
-   
+
 #ifndef PUBLIC_ONLY
-    /* connect for "private" messages */ 
+    /* connect for "private" messages */
     if (!_LSTransportConnect(transport_priv, true, false, &lserror))
     {
         goto error;
@@ -656,11 +656,11 @@ main(int argc, char *argv[])
     {
         goto error;
     }
-   
+
 #ifndef PUBLIC_ONLY
-    _LSTransportGmainAttach(transport_priv, g_main_loop_get_context(mainloop)); 
+    _LSTransportGmainAttach(transport_priv, g_main_loop_get_context(mainloop));
 #endif
-    _LSTransportGmainAttach(transport_pub, g_main_loop_get_context(mainloop)); 
+    _LSTransportGmainAttach(transport_pub, g_main_loop_get_context(mainloop));
 
 #ifndef PUBLIC_ONLY
     if (_LSTransportGetTransportType(transport_priv) == _LSTransportTypeLocal)
@@ -677,7 +677,7 @@ main(int argc, char *argv[])
     if (_LSTransportGetTransportType(transport_pub) == _LSTransportTypeLocal)
     {
         transport_pub_local = true;
-        
+
         //g_idle_add(_LSMonitorIdleHandlerPublic, NULL);
         public_queue = _LSMonitorQueueNew(true);
         g_timeout_add(500, _LSMonitorIdleHandlerPublic, public_queue);
@@ -696,7 +696,7 @@ main(int argc, char *argv[])
         {
             goto error;
         }
-    } 
+    }
     else
     {
         /* send the message to the hub to tell clients to connect to us */
@@ -706,7 +706,7 @@ main(int argc, char *argv[])
             goto error;
         }
 #endif
-        
+
         if (!LSTransportSendMessageMonitorRequest(transport_pub, &lserror))
         {
             goto error;

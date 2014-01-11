@@ -99,7 +99,7 @@ const char* service_group_names[] = {
 };
 
 #define SERVICE_NAME_KEY    "Name"          /**< key for defining service name */
-#define SERVICE_EXEC_KEY    "Exec"          /**< key for executable path for 
+#define SERVICE_EXEC_KEY    "Exec"          /**< key for executable path for
                                                  service */
 #define SERVICE_TYPE_KEY    "Type"          /**< type of service (dynamic or static) */
 
@@ -109,9 +109,9 @@ const char* service_group_names[] = {
 typedef enum _DynamicServiceState {
     _DynamicServiceStateInvalid = -1,      /**< not a dynamic service */
     _DynamicServiceStateStopped,           /**< not running */
-    _DynamicServiceStateSpawned,           /**< spawned, but hasn't registered name 
+    _DynamicServiceStateSpawned,           /**< spawned, but hasn't registered name
                                                 with hub yet */
-    _DynamicServiceStateRunning,           /**< name registered with hub and 
+    _DynamicServiceStateRunning,           /**< name registered with hub and
                                                 service was launched manually */
     _DynamicServiceStateRunningDynamic,    /**< name registered with hub and
                                                 service was launched dynamically */
@@ -146,7 +146,7 @@ static GHashTable *pending = NULL;              /**< hash of service name to _Cl
 static GHashTable *available_services = NULL;   /**< hash of service name to _ClientId */
 
 static _ConnectedClients connected_clients;     /**< all connected clients
-                                                     TODO: may want to build this 
+                                                     TODO: may want to build this
                                                      into transport layer */
 
 static GSList *waiting_for_service = NULL;      /**< list of messages waiting for a
@@ -163,7 +163,7 @@ static GSList *waiting_for_connect = NULL;      /**< list of messages waiting fo
 /**
  * Keeps track of the state of running dynamic services
  *
- * HASH: service name to _Service ptr 
+ * HASH: service name to _Service ptr
  */
 static GHashTable *dynamic_service_states = NULL;
 
@@ -202,20 +202,20 @@ typedef struct _InetName {
 typedef struct _ClientId {
     int ref;                    /**< ref count */
     char *service_name;         /**< service name (or NULL if it doesn't have one */
-    _LSTransportClient *client; /**< underlying transport client, so we can 
+    _LSTransportClient *client; /**< underlying transport client, so we can
                                      initiate messages */
     _LocalName local;           /**< local name */
     _InetName inet;             /**< inet name */
-   bool is_monitor;             /**< true if this client is the monitor */ 
+   bool is_monitor;             /**< true if this client is the monitor */
 } _ClientId;
 
 typedef struct _SignalMap {
     GHashTable *category_map;   /**< category to _LSTransportClient list */
     GHashTable *method_map;     /**< category/method to _LSTransportClient list */
 
-    /* 
+    /*
      * TODO: fast way to go from _LSTransportClient to any categories and
-     * methods to that it has registered 
+     * methods to that it has registered
      *
      * this reverse lookup is so that we can quickly remove all items in the
      * above hash table for a client that goes down
@@ -229,7 +229,7 @@ static _SignalMap *signal_map = NULL;    /**< keeps track of signals */
 static _ClientId *monitor = NULL;	 /**< non-NULL when a monitor is connected */
 
 typedef struct _LSTransportClientList {
-    GList *list; 
+    GList *list;
 } _LSTransportClientList;
 
 typedef struct _LSTransportClientMap {
@@ -276,19 +276,19 @@ static void _LSHubRemoveConnectMessageTimeout(_LSTransportMessage *message);
 
 bool _DynamicServiceLaunch(_Service *service, LSError *lserror);
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new service data structure.
- * 
+ *
  * @param  service_names    IN  array of service names provided
- * @param  num_services     IN  number of services in @ref service_names 
+ * @param  num_services     IN  number of services in @ref service_names
  * @param  exec_path        IN  path to executable (including args)
  * @param  is_dynamic       IN  true for dynamic service, false for static
  * @param  service_file_dir IN	service file directory
  * @param  service_file_name IN name of service file (no directory)
- * 
+ *
  * @retval service on success
- * @retval NULL on failure 
+ * @retval NULL on failure
  *******************************************************************************
  */
 _Service*
@@ -296,7 +296,7 @@ _ServiceNew(const char *service_names[], int num_services, char *exec_path, bool
             char *service_file_dir, char *service_file_name)
 {
     int i = 0;
-    
+
     _Service *ret = g_new0(_Service, 1);
     if (ret)
     {
@@ -308,7 +308,7 @@ _ServiceNew(const char *service_names[], int num_services, char *exec_path, bool
         {
             goto error;
         }
-        
+
         for (i = 0; i < num_services; i++)
         {
             ret->service_names[i] = g_strdup(service_names[i]);
@@ -361,19 +361,19 @@ error:
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate new service data structure with ref count of 1.
- * 
+ *
  * @param  service_names    IN  array of service names provided
- * @param  num_services     IN  number of services in @ref service_names 
+ * @param  num_services     IN  number of services in @ref service_names
  * @param  exec_path        IN  path to executable (including args)
  * @param  is_dynamic       IN  true means dynamic service, false means static
  * @param  service_file_dir IN	service file directory
  * @param  service_file_name IN	name of service file (no directory)
- * 
+ *
  * @retval service on success
- * @retval NULL on failure 
+ * @retval NULL on failure
  *******************************************************************************
  */
 _Service*
@@ -389,11 +389,11 @@ _ServiceNewRef(const char *service_names[], int num_services, char *exec_path,
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Increment ref count for service.
- * 
- * @param  service  IN  service 
+ *
+ * @param  service  IN  service
  *******************************************************************************
  */
 void
@@ -405,10 +405,10 @@ _ServiceRef(_Service *service)
     g_atomic_int_inc(&service->ref);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free data structure allocated for service.
- * 
+ *
  * @param  service  IN  service
  *******************************************************************************
  */
@@ -442,10 +442,10 @@ _ServiceFree(_Service *service)
     g_free(service);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Decrement ref count for service.
- * 
+ *
  * @param  service  IN  service
  *******************************************************************************
  */
@@ -476,13 +476,13 @@ _ServicePrint(const _Service *service)
 }
 #endif
 
-/** 
+/**
  *******************************************************************************
  * @brief Add service to service map. Hash of service name to service ptr.
- * 
- * @param  service  IN  service to add 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  service  IN  service to add
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -532,12 +532,12 @@ _ServiceMapAdd(_Service *service, LSError *lserror)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Look up a service in the service map by name.
- * 
+ *
  * @param  service_name     IN  name of service (e.g., com.palm.foo)
- * 
+ *
  * @retval  service on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -559,14 +559,14 @@ ServiceMapLookup(const char *service_name)
     return service;
 }
 
-/** 
+/**
  *******************************************************************************
- * @brief Add dynamic service to dynamic service state map. Hash of service name to 
+ * @brief Add dynamic service to dynamic service state map. Hash of service name to
  * service ptr (dynamic).
- * 
- * @param  service  IN  service to add 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  service  IN  service to add
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -581,18 +581,18 @@ _DynamicServiceStateMapAdd(_Service *service, LSError *lserror)
 
     _ls_verbose("%s: adding service name: \"%s\" to dynamic map\n",
                 __func__, service->service_names[0]);
-    
+
     _ServiceRef(service);
     g_hash_table_replace(dynamic_service_states, service->service_names[0], service);
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove the dynamic service state from the dynamic service state map.
- * 
+ *
  * @param  service  IN service (dynamic)
- * 
+ *
  * @retval  true on success
  * @retval  false on failure (service not found in map)
  *******************************************************************************
@@ -611,12 +611,12 @@ _DynamicServiceStateMapRemove(_Service *service)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Look up a dynamic service in the dynamic service state map by name.
- * 
+ *
  * @param  service_name     IN  name of dynamic service (e.g., com.palm.foo)
- * 
+ *
  * @retval  service on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -628,13 +628,13 @@ _DynamicServiceStateMapLookup(const char *service_name)
     return g_hash_table_lookup(dynamic_service_states, service_name);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Reap a spawned child process that was dynamically launched.
- * 
- * @param  pid      IN  pid of process that exited 
- * @param  status   IN  status of process that exited 
- * @param  service  IN  dynamic service 
+ *
+ * @param  pid      IN  pid of process that exited
+ * @param  status   IN  status of process that exited
+ * @param  service  IN  dynamic service
  *******************************************************************************
  */
 void
@@ -651,7 +651,7 @@ _DynamicServiceReap(GPid pid, gint status, _Service *service)
     {
         service->state = _DynamicServiceStateStopped;
     }
-    
+
     g_spawn_close_pid(pid);
     service->pid = 0;
 
@@ -662,7 +662,7 @@ _DynamicServiceReap(GPid pid, gint status, _Service *service)
     {
         LSError lserror;
         LSErrorInit(&lserror);
-        
+
         service->respawn_on_exit = false;
 
         if (!_DynamicServiceLaunch(service, &lserror))
@@ -677,7 +677,7 @@ _DynamicServiceReap(GPid pid, gint status, _Service *service)
         /* Remove from state map since we're not running anymore */
         _DynamicServiceStateMapRemove(service);
     }
-    
+
     _ServiceUnref(service);  /* ref from child_watch_add */
 }
 
@@ -701,13 +701,13 @@ ResetOomSettings(pid_t pid)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Launch a dynamic service.
- * 
- * @param  service  IN  dynamic service to launch 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  service  IN  dynamic service to launch
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -747,7 +747,7 @@ _DynamicServiceLaunch(_Service *service, LSError *lserror)
         g_critical("Service is running, but _DynamicServiceLaunch was called");
         return false;
     }
-    
+
     service->state = _DynamicServiceStateSpawned;
 
     /* parse the exec string into arguments */
@@ -757,7 +757,7 @@ _DynamicServiceLaunch(_Service *service, LSError *lserror)
     if (!ret)
     {
         _LSErrorSet(lserror, -1, "Error parsing arguments, string: \"%s\", message: \"%s\"\n", service->exec_path, gerror->message);
-        goto error; 
+        goto error;
     }
 
     int i = 1;
@@ -770,7 +770,7 @@ _DynamicServiceLaunch(_Service *service, LSError *lserror)
         g_free(tmp_service_names_str);
         tmp_service_names_str = service_names_str;
     }
-    
+
     service_names_env = g_strdup_printf("LS_SERVICE_NAMES=%s", service_names_str);
     service_file_name_env = g_strdup_printf("LS_SERVICE_FILE_NAME=%s", service->service_file_name);
 
@@ -813,7 +813,7 @@ _DynamicServiceLaunch(_Service *service, LSError *lserror)
 
 error:
     if (gerror) g_error_free(gerror);
-    if (new_env) g_free(new_env); 
+    if (new_env) g_free(new_env);
     if (service_names_str) g_free(service_names_str);
     if (service_names_env) g_free(service_names_env);
     if (service_file_name_env) g_free(service_file_name_env);
@@ -821,16 +821,16 @@ error:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Find and launch a dynamic service given a service name.
- * 
+ *
  * @param  service_name     IN  name of service to launch
  * @param  client           IN  client requesting the dynamic service
  * @param  requester_app_id IN  app id that is requesting the launch (for
  *                              debugging bad requests from apps)
- * @param  lserror          OUT set on error 
- * 
+ * @param  lserror          OUT set on error
+ *
  * @retval  true if dynamic service was found and successfully launched
  * @retval  false on failure
  *******************************************************************************
@@ -863,26 +863,26 @@ _DynamicServiceFindandLaunch(const char *service_name, const _LSTransportClient 
 
         return _DynamicServiceLaunch(service_state, lserror);
     }
-  
+
     const _LSTransportCred *cred = _LSTransportClientGetCred(client);
     pid_t requester_pid = _LSTransportCredGetPid(cred);
     const char *requester_exe = _LSTransportCredGetExePath(cred);
- 
+
     _LSErrorSet(lserror, -1, "service: \"%s\" not found in dynamic service set (requester pid: "LS_PID_PRINTF_FORMAT", requester exe: \"%s\", requester app id: \"%s\"\n",
                 service_name,
                 LS_PID_PRINTF_CAST(requester_pid), requester_exe ? requester_exe : "(null)",
-                requester_app_id ? requester_app_id : "(null)"); 
+                requester_app_id ? requester_app_id : "(null)");
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the state of a dynamic service.
- * 
- * @param  service          IN  dynamic service 
- * @param  state            IN  state 
- * 
- * @retval true on success 
+ *
+ * @param  service          IN  dynamic service
+ * @param  state            IN  state
+ *
+ * @retval true on success
  * @retval false otherwise
  *******************************************************************************
  */
@@ -898,12 +898,12 @@ _DynamicServiceSetState(_Service *service, _DynamicServiceState state)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the state of a dynamic service.
- * 
- * @param  service  IN  dynamic service 
- * 
+ *
+ * @param  service  IN  dynamic service
+ *
  * @retval  state
  *******************************************************************************
  */
@@ -916,13 +916,13 @@ _DynamicServiceGetState(_Service *service)
     return service->state;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate and initialize a service map.
- * 
- * @param  service_map     IN  map 
- * @param  lserror                  OUT set on error 
- * 
+ *
+ * @param  service_map     IN  map
+ * @param  lserror                  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -934,7 +934,7 @@ _ServiceInitMap(GHashTable **service_map, LSError *lserror)
 
     /* destroy the old service map -- any items in use are
      * ref-counted and will still exist after this call */
-    if (*service_map) 
+    if (*service_map)
     {
         g_hash_table_destroy(*service_map);
     }
@@ -1018,12 +1018,12 @@ gboolean ServiceMapRemoveSpecDirectory(gpointer key, gpointer value, gpointer us
     return from_volatile_dir == service->from_volatile_dir;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Initialize the service map that contains all services.
- * 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1066,12 +1066,12 @@ ServiceInitMap(LSError *lserror, bool volatile_dirs)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Initialize the dynamic service map that contains service states.
- * 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1082,7 +1082,7 @@ DynamicServiceInitStateMap(LSError *lserror)
     return _ServiceInitMap(&dynamic_service_states, lserror);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Parse (and validate) a service file.
  *
@@ -1093,10 +1093,10 @@ DynamicServiceInitStateMap(LSError *lserror)
    Name=com.palm.foo
    Exec=/path/to/executable
    @endverbatim
- * 
- * @param  path     IN  path to service file 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  path     IN  path to service file
+ * @param  lserror  OUT set on error
+ *
  * @retval  service with ref count of 1 on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -1175,8 +1175,8 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
     {
         _LSErrorSet(lserror, -1, "Error finding key: \"%s\" in key file: \"%s\"\n", SERVICE_NAME_KEY, path);
         goto error;
-    } 
-    
+    }
+
     if (!g_key_file_has_key(key_file, service_group, SERVICE_EXEC_KEY, &gerror))
     {
         _LSErrorSet(lserror, -1, "Error finding key: \"%s\" in key file: \"%s\"\n", SERVICE_EXEC_KEY, path);
@@ -1195,7 +1195,7 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
 
     /* exec string */
     exec_str = g_key_file_get_value(key_file, service_group, SERVICE_EXEC_KEY, &gerror);
-    
+
     if (!exec_str)
     {
         _LSErrorSet(lserror, -1, "No \"%s\" key found in key file: \"%s\", message: \"%s\"\n", SERVICE_EXEC_KEY, path, gerror->message);
@@ -1227,9 +1227,9 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
             goto error;
         }
     }
-   
+
     /* we've got everything we need */
-    
+
     for (i = 0; i < provided_services_len; i++)
     {
         _ls_verbose("%s: service file: \"%s\", provided service: \"%s\"\n", __func__, path, provided_services[i]);
@@ -1253,7 +1253,7 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
         _LSErrorSet(lserror, -1, "OOM: Could not create new Service");
         goto error;
     }
-    
+
 error:
     /* free up memory */
     if (path) g_free(path);
@@ -1268,13 +1268,13 @@ error:
     return new_service;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Parse a service directory.
- * 
- * @param  path     IN  path to directory 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  path     IN  path to directory
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1334,7 +1334,7 @@ ParseServiceDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a signal to all registered clients that the config file scanning
  * is complete
@@ -1361,20 +1361,20 @@ LSHubSendConfScanCompleteSignal(void)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a signal to all registered clients that a service is up or
  * down.
  *
  * Don't use this directly. Instead use @ref _LSHubSendServiceDownSignal and
  * @ref _LSHubSendServiceUpSignal.
- * 
+ *
  * @param  service_name     IN   common name of service changing state (e.g.,
  * com.palm.foo)
- * @param  unique_name      IN   unique name of service changing state 
+ * @param  unique_name      IN   unique name of service changing state
  * @param  service_pid      IN   pid of executable that registered service (might be 0), only used if service is coming up
  * @param  all_names        IN   JSON fragment placed inside an array, listed all service names that might be used by executable, only used if service is coming up
- * @param  up               IN   true if service is coming up, false otherwise 
+ * @param  up               IN   true if service is coming up, false otherwise
  *******************************************************************************
  */
 static void
@@ -1426,13 +1426,13 @@ _LSHubSendServiceUpDownSignal(const char *service_name, const char *unique_name,
     g_free(payload);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a signal to all registered clients that a service is down.
- * 
+ *
  * @param  service_name     IN   common name of service going down (e.g.,
  * com.palm.foo)
- * @param  unique_name      IN   unique name of service going down 
+ * @param  unique_name      IN   unique name of service going down
  *******************************************************************************
  */
 static void
@@ -1441,13 +1441,13 @@ _LSHubSendServiceDownSignal(const char *service_name, const char *unique_name)
     _LSHubSendServiceUpDownSignal(service_name, unique_name, 0, NULL, false);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a signal to all registered clients that a service is up.
- * 
+ *
  * @param  service_name     IN   common name of service coming up (e.g.,
  * com.palm.foo)
- * @param  unique_name      IN   unique name of service coming up 
+ * @param  unique_name      IN   unique name of service coming up
  *******************************************************************************
  */
 static void
@@ -1456,12 +1456,12 @@ _LSHubSendServiceUpSignal(const char *service_name, const char *unique_name, pid
     _LSHubSendServiceUpDownSignal(service_name, unique_name, service_pid, all_names, true);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Handle a client that is disconnecting.
- * 
- * @param  client   IN  client that is going away 
- * @param  type     IN  type of disconnect (clean, dirty, etc.) 
+ *
+ * @param  client   IN  client that is going away
+ * @param  type     IN  type of disconnect (clean, dirty, etc.)
  *******************************************************************************
  */
 void
@@ -1475,7 +1475,7 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
 
     if (!id)
     {
-        /* 
+        /*
          * This can happen if the name was already taken when attempting to
          * register in _LSHubHandleRequestNameLocal
          */
@@ -1491,7 +1491,7 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
         bool is_dynamic = service && service->is_dynamic;
 
         _ls_verbose("%s: disconnecting: \"%s\"\n", __func__, id->service_name);
-        
+
         /* send out a server status message to registered clients to let them know
          * that the client is down */
         _LSHubSendServiceDownSignal(id->service_name, id->local.name);
@@ -1507,7 +1507,7 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
                        _LSTransportCredGetExePath(cred),
                        _LSTransportCredGetCmdLine(cred));
         }
-        
+
         g_hash_table_remove(pending, id->service_name);
         g_hash_table_remove(available_services, id->service_name);
 
@@ -1551,14 +1551,14 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
             _DynamicServiceStateMapRemove(dynamic);
         }
     }
-    
+
     /* NOV-93826: Send out status messages for non-services as well because
      * subscriptions use this to keep track of connected clients
      *
-     * In this case we set the service name to the unique name 
+     * In this case we set the service name to the unique name
      * for legacy compatiblity */
     _LSHubSendServiceDownSignal(id->local.name, id->local.name);
-    
+
     /* Update state if the monitor is disconnecting */
     if (id->is_monitor)
     {
@@ -1567,11 +1567,11 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
         _LSHubClientIdLocalUnref(monitor);
         monitor = NULL;
     }
-    
+
     /* remove the socket file; we do this in the hub so that we clean up
      * even if the client crashes */
     _LSHubCleanupSocketLocal(id->local.name);
-    
+
     /* remove from connected list */
     g_hash_table_remove(connected_clients.by_fd, GINT_TO_POINTER(client->channel.fd));
     g_hash_table_remove(connected_clients.by_unique_name, id->local.name);
@@ -1589,14 +1589,14 @@ _LSHubHandleDisconnect(_LSTransportClient *client, _LSTransportDisconnectType ty
     /* transport code will handle cleaning up the client and removing the watches */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate memory for a new client id.
- * 
- * @param  service_name     IN  name of service provided by client (or NULL) 
- * @param  unique_name      IN  unique name of client 
- * @param  client           IN  underlying transport client 
- * 
+ *
+ * @param  service_name     IN  name of service provided by client (or NULL)
+ * @param  unique_name      IN  unique name of client
+ * @param  client           IN  underlying transport client
+ *
  * @retval  client on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -1619,13 +1619,13 @@ _LSHubClientIdLocalNew(const char *service_name, const char *unique_name, _LSTra
     id->is_monitor = false;
 
     return id;
-} 
+}
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a client id.
- * 
- * @param  id   IN  client id to free 
+ *
+ * @param  id   IN  client id to free
  *******************************************************************************
  */
 static void
@@ -1633,7 +1633,7 @@ _LSHubClientIdLocalFree(_ClientId *id)
 {
     LS_ASSERT(id != NULL);
     LS_ASSERT(id->ref == 0);
-    
+
     if (id->service_name) g_free(id->service_name);
     if (id->local.name) g_free(id->local.name);
     _LSTransportClientUnref(id->client);
@@ -1645,14 +1645,14 @@ _LSHubClientIdLocalFree(_ClientId *id)
     g_free(id);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate memory for a new client id with ref count of 1.
- * 
- * @param  service_name     IN  name of service provided by client (or NULL) 
- * @param  unique_name      IN  unique name of client 
- * @param  client           IN  underlying transport client 
- * 
+ *
+ * @param  service_name     IN  name of service provided by client (or NULL)
+ * @param  unique_name      IN  unique name of client
+ * @param  client           IN  underlying transport client
+ *
  * @retval  client on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -1670,11 +1670,11 @@ _LSHubClientIdLocalNewRef(const char *service_name, const char *unique_name, _LS
     return id;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Increment ref count of client id.
- * 
- * @param  id   IN  client id 
+ *
+ * @param  id   IN  client id
  *******************************************************************************
  */
 static void
@@ -1684,15 +1684,15 @@ _LSHubClientIdLocalRef(_ClientId *id)
     LS_ASSERT(g_atomic_int_get(&id->ref) > 0);
 
     g_atomic_int_inc(&id->ref);
-    
+
     _ls_verbose("%s: %d (%p)\n", __func__, id->ref, id);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Decrement ref count of client id.
- * 
- * @param  id   IN  client id 
+ *
+ * @param  id   IN  client id
  *******************************************************************************
  */
 static void
@@ -1718,24 +1718,24 @@ _LSHubClientIdLocalUnrefVoid(void *id)
     _LSHubClientIdLocalUnref((_ClientId*) id);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Construct a message as the reply to a request name message that has a
  * payload containing an error code, a boolean and a string.
- * 
- * @param  message     IN  message to which this error is a reply 
- * @param  type        IN  type of error 
- * @param  err_code    IN  numeric error code 
+ *
+ * @param  message     IN  message to which this error is a reply
+ * @param  type        IN  type of error
+ * @param  err_code    IN  numeric error code
  * @param  ret_str     IN  error string
  * @param  privileged  IN true if the service is privileged
- * @param  lserror     OUT set on error 
- * 
+ * @param  lserror     OUT set on error
+ *
  * @retval  message on success
- * @retval  NULL on failure 
+ * @retval  NULL on failure
  *******************************************************************************
  */
 static _LSTransportMessage*
-_LSHubConstructRequestNameReply(_LSTransportMessage *message, 
+_LSHubConstructRequestNameReply(_LSTransportMessage *message,
                                 _LSTransportMessageType type, long err_code,
                                 const char *ret_str, bool privileged, LSError *lserror)
 {
@@ -1761,15 +1761,15 @@ error:
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a reply to a request name message.
- * 
- * @param  message      IN  request name message 
- * @param  err_code     IN  numeric error code (0 means success) 
- * @param  ret_str      IN  return string 
- * @param  lserror      OUT set on error 
- * 
+ *
+ * @param  message      IN  request name message
+ * @param  err_code     IN  numeric error code (0 means success)
+ * @param  ret_str      IN  return string
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1843,11 +1843,11 @@ _LSHubCleanupSocketLocal(const char *unique_name)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Handle a "RequestName" message for a local (unix domain socket)
  * connection or inet connection.
- * 
+ *
  * @param  message  IN  request name message
  *******************************************************************************
  */
@@ -1855,14 +1855,14 @@ static void
 _LSHubHandleRequestName(_LSTransportMessage *message)
 {
     /* TODO: we need to make sure that we can't accidentally create
-     * or open these from another process... is there a way to use 
+     * or open these from another process... is there a way to use
      * mkstemp() with a socket ? -- maybe use PID of requester */
     LSError lserror;
     LSErrorInit(&lserror);
 
     _LSTransportMessageIter iter;
     char *unique_name = NULL;
-    
+
     _LSTransportClient *client = _LSTransportMessageGetClient(message);
 
     if (!client)
@@ -1890,14 +1890,14 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         }
         return;
     }
-    
+
     /* get service name */
     const char *service_name = NULL;
     _LSTransportMessageIterNext(&iter);
-    _LSTransportMessageGetString(&iter, &service_name); 
+    _LSTransportMessageGetString(&iter, &service_name);
 
     _ls_verbose("%s: service_name: \"%s\"\n", __func__, service_name);
-    
+
     if (NULL == IsMediaService(service_name))
     {
         /* Check security permissions */
@@ -1959,7 +1959,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
         struct sockaddr_in addr;
         socklen_t addrlen = sizeof(addr);
-        
+
         if (getpeername(fd, (struct sockaddr*) &addr, &addrlen) != 0)
         {
             g_critical("getpeername failed");
@@ -1970,12 +1970,12 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
          * message after the service name */
         _LSTransportMessageIterNext(&iter);
         int32_t port;
-        
+
         if (!_LSTransportMessageGetInt32(&iter, &port))
         {
             goto error;
         }
-        
+
         char inet_buf[INET_ADDRSTRLEN];
         unique_name = g_strdup_printf("%s:%"PRId32, inet_ntop(AF_INET, &addr.sin_addr, inet_buf, sizeof(inet_buf)), port);
 
@@ -1985,9 +1985,9 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
             goto error;
         }
     }
-    
+
     _ls_verbose("%s: unique_name: \"%s\"\n", __func__, unique_name);
-    
+
 
     /* add client id to client lookup (refs client) */
     _ClientId *id = _LSHubClientIdLocalNewRef(service_name, unique_name, client);
@@ -1997,7 +1997,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         g_critical("OOM: unable to create client id");
         goto error;
     }
-    
+
     /* add unique name to pending hash if they are registering a service name */
     if (id->service_name)
     {
@@ -2008,11 +2008,11 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
     /* hash clientId with fd as key */
     _LSHubClientIdLocalRef(id);
     g_hash_table_replace(connected_clients.by_fd, GINT_TO_POINTER(client->channel.fd), id);
-    
+
     /* hash clientId with unique name as key */
     _LSHubClientIdLocalRef(id);
     g_hash_table_replace(connected_clients.by_unique_name, id->local.name, id);
-  
+
     _LSHubClientIdLocalUnref(id);
 
     /* send reply with name */
@@ -2046,7 +2046,7 @@ _LSHubHandleConnectReady(GIOChannel *channel, GIOCondition cond, _LSTransportMes
 
     bool connected = false;
     int fd = g_io_channel_unix_get_fd(channel);
-        
+
     _LSTransportMessageType type = _LSTransportMessageGetType(message);
     LS_ASSERT(type == _LSTransportMessageTypeQueryNameReply || type == _LSTransportMessageTypeMonitorConnected);
 
@@ -2067,8 +2067,8 @@ _LSHubHandleConnectReady(GIOChannel *channel, GIOCondition cond, _LSTransportMes
             LS_ASSERT(type == _LSTransportMessageTypeMonitorConnected);
             unique_name = _LSTransportMessageGetBody(message);
         }
-       
-        /* attempt to connect() the existing socket */ 
+
+        /* attempt to connect() the existing socket */
         _LSTransportConnectState new_state = _LSTransportConnectLocal(unique_name, false, &fd, &lserror);
         switch (new_state)
         {
@@ -2094,7 +2094,7 @@ _LSHubHandleConnectReady(GIOChannel *channel, GIOCondition cond, _LSTransportMes
     {
         int ret = 0;
         socklen_t ret_size = sizeof(ret);
-        
+
         /* check to see if we connect()'ed */
         int opt_ret = getsockopt(fd, SOL_SOCKET, SO_ERROR, &ret, &ret_size);
         if (opt_ret != 0)
@@ -2145,9 +2145,9 @@ _LSHubHandleConnectReady(GIOChannel *channel, GIOCondition cond, _LSTransportMes
         /* not connected, so don't send a valid fd */
         _LSTransportMessageSetConnectionFd(message, -1);
     }
-        
+
     _LSTransportClient *client = _LSTransportMessageGetClient(message);
-    
+
     if (!_LSTransportSendMessage(message, client, NULL, &lserror))
     {
         LSErrorPrint(&lserror, stderr);
@@ -2165,17 +2165,17 @@ _LSHubHandleConnectReady(GIOChannel *channel, GIOCondition cond, _LSTransportMes
     return FALSE;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a reply to a "QueryName" message.
- * 
- * @param  message       IN     query name message to which we are replying 
- * @param  err_code      IN     numeric error code (0 means success) 
- * @param  service_name  IN     requested service name 
- * @param  unique_name   IN     unique name of requested service 
+ *
+ * @param  message       IN     query name message to which we are replying
+ * @param  err_code      IN     numeric error code (0 means success)
+ * @param  service_name  IN     requested service name
+ * @param  unique_name   IN     unique name of requested service
  * @param  is_dynamic    IN     true if the service is dynamic
- * @param  lserror       OUT    set on error 
- * 
+ * @param  lserror       OUT    set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -2197,11 +2197,11 @@ _LSHubSendQueryNameReply(const _LSTransportMessage *message, long err_code,
     {
         LS_ASSERT(0);
     }
-    
+
     _LSTransportMessage *reply_message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
 
     if (!reply_message) goto error;
-    
+
     _LSTransportMessageSetType(reply_message, _LSTransportMessageTypeQueryNameReply);
 
     _LSTransportMessageIterInit(reply_message, &iter);
@@ -2250,7 +2250,7 @@ _LSHubSendQueryNameReply(const _LSTransportMessage *message, long err_code,
             LS_ASSERT(0);
         }
     }
-    
+
     _ls_verbose("%s: err_code: %ld, service_name: \"%s\", unique_name: \"%s\", %s, fd %d\n", __func__,
         err_code, service_name, unique_name, is_dynamic ? "dynamic" : "static", fd);
 
@@ -2270,21 +2270,21 @@ _LSHubSendQueryNameReply(const _LSTransportMessage *message, long err_code,
     return ret;
 
 error:
-    if (reply_message) _LSTransportMessageUnref(reply_message);    
+    if (reply_message) _LSTransportMessageUnref(reply_message);
     _LSErrorSetOOM(lserror);
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a query name reply to all clients waiting for this service.
  * The reply can be "success" or "failure".
- * 
- * @param  id           IN      id of service 
- * @param  success      IN      on true send success, otherwise send failure 
+ *
+ * @param  id           IN      id of service
+ * @param  success      IN      on true send success, otherwise send failure
  * @param  is_dynamic   IN      true if service is dynamic
- * @param  lserror      OUT     set on error 
- * 
+ * @param  lserror      OUT     set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -2303,7 +2303,7 @@ _LSHubSendServiceWaitListReply(_ClientId *id, bool success, bool is_dynamic, LSE
         ret_code = LS_TRANSPORT_QUERY_NAME_SERVICE_NOT_AVAILABLE;
     }
 
-    /* 
+    /*
      * Multiple clients may be waiting for this service, so we iterate over
      * all of those waiting and send replies
      */
@@ -2313,7 +2313,7 @@ _LSHubSendServiceWaitListReply(_ClientId *id, bool success, bool is_dynamic, LSE
     {
         _LSTransportMessage *query_message = (_LSTransportMessage*)iter->data;
         const char *requested_service = _LSTransportMessageTypeQueryNameGetQueryName(query_message);
-       
+
         if (strcmp(requested_service, id->service_name) == 0)
         {
             /* we found a client waiting for this service */
@@ -2364,10 +2364,10 @@ DumpHashTable(GHashTable *table)
     fflush(stdout);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a "NodeUp" message.
- * 
+ *
  * @param  message  IN      node up message to process
  *******************************************************************************
  */
@@ -2381,7 +2381,7 @@ _LSHubHandleNodeUp(_LSTransportMessage *message)
 
 #ifdef DEBUG
     printf("%s: pending hash table:\n", __func__);
-    DumpHashTable(pending); 
+    DumpHashTable(pending);
     printf("%s: available_services hash table:\n", __func__);
     DumpHashTable(available_services);
 #endif
@@ -2392,13 +2392,13 @@ _LSHubHandleNodeUp(_LSTransportMessage *message)
     const char *exe_path = NULL;
 
     gchar * allowed_names = NULL;
-    
+
     /* Use exe_path in client credentials to look up role file and allowed service names */
     const _LSTransportCred *cred = _LSTransportClientGetCred(client);
 
     pid_t pid = _LSTransportCredGetPid(cred);
 
-    /* 
+    /*
      * FIXME: this won't work if we want to mux multiple services in the same
      * process through the same connection
      */
@@ -2467,10 +2467,10 @@ _LSHubHandleNodeUp(_LSTransportMessage *message)
 
     if (exe_path)
         allowed_names = LSHubRoleAllowedNamesForExe(exe_path);
-   
-    /* Let registered clients know that this service is up */ 
+
+    /* Let registered clients know that this service is up */
     _LSHubSendServiceUpSignal(id->service_name, id->local.name, pid, allowed_names);
-    
+
     g_free(allowed_names);
 
     if (g_conf_log_service_status)
@@ -2485,19 +2485,19 @@ _LSHubHandleNodeUp(_LSTransportMessage *message)
 
 #ifdef DEBUG
     printf("%s: pending hash table:\n", __func__);
-    DumpHashTable(pending); 
+    DumpHashTable(pending);
     printf("%s: available_services hash table:\n", __func__);
-    DumpHashTable(available_services); 
+    DumpHashTable(available_services);
 
     printf("service is up: \"%s\"\n", id->service_name);
 #endif
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the specified message to be sent when it can successfully
  * connect() to its destination (or timeout).
- * 
+ *
  * @param  message  IN  message that failed to connect() due to EINPROGRESS
  *                      (would block)
  * @param  client   IN  destination client for message
@@ -2519,16 +2519,16 @@ _LSHubAddPendingConnect(_LSTransportMessage *message, _LSTransportClient *client
     g_io_channel_set_close_on_unref(channel, FALSE);
     _LSTransportMessageRef(message);
     g_io_add_watch(channel, G_IO_OUT, (GIOFunc) _LSHubHandleConnectReady, message);
-            
+
     _LSHubAddConnectMessageTimeout(message);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a failure response to a query name message that timed out.
- * 
- * @param  message  IN  query name message that timed out 
- * 
+ *
+ * @param  message  IN  query name message that timed out
+ *
  * @retval FALSE always so the timer does not fire again
  *******************************************************************************
  */
@@ -2557,20 +2557,20 @@ _LSHubHandleQueryNameTimeout(_LSTransportMessage *message)
     }
 
 exit:
-    /* refcount associated with the list */ 
+    /* refcount associated with the list */
     _LSTransportMessageUnref(message);
-    
+
     _LSHubRemoveMessageTimeout(message);
 
     return FALSE;   /* don't fire the timer again */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a failure response for a query name connect() that has timed out
- * 
+ *
  * @param  message  IN  the reply to the original query name message
- * 
+ *
  * @retval FALSE always so the timer does not fire again
  *******************************************************************************
  */
@@ -2610,28 +2610,28 @@ _LSHubHandleConnectTimeout(_LSTransportMessage *message)
     LS_ASSERT(removed);
 
     _LSHubRemoveConnectMessageTimeout(message);
-    
-    /* refcount associated with the list */ 
+
+    /* refcount associated with the list */
     _LSTransportMessageUnref(message);
-    
+
 
     return FALSE;   /* don't fire the timer again */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a timeout to message.
- * 
+ *
  * @param  message      IN  message
  * @param  timeout_ms   IN  timeout in milliseconds
- * @param  callback     IN  callback to call after timeout 
+ * @param  callback     IN  callback to call after timeout
  *******************************************************************************
  */
 static void
 _LSHubAddMessageTimeout(_LSTransportMessage *message, int timeout_ms, GSourceFunc callback)
 {
     _LSTransportMessageRef(message);
-    
+
     GTimerSource *source = g_timer_source_new (timeout_ms, MESSAGE_TIMEOUT_GRANULARITY_MS);
 
     g_source_set_callback ((GSource*)source, callback, message, NULL);
@@ -2640,11 +2640,11 @@ _LSHubAddMessageTimeout(_LSTransportMessage *message, int timeout_ms, GSourceFun
     _LSTransportMessageSetTimeoutId(message, timeout_id);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a timeout from a message.
- * 
- * @param  message  IN  query name message 
+ *
+ * @param  message  IN  query name message
  *******************************************************************************
  */
 static void
@@ -2665,11 +2665,11 @@ _LSHubRemoveMessageTimeout(_LSTransportMessage *message)
     _LSTransportMessageUnref(message);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a timeout for a message that is waiting for connect() to
  * complete.
- * 
+ *
  * @param  message  IN  message
  *******************************************************************************
  */
@@ -2681,10 +2681,10 @@ _LSHubAddConnectMessageTimeout(_LSTransportMessage *message)
     _LSHubAddMessageTimeout(message, g_conf_connect_timeout_ms, (GSourceFunc)_LSHubHandleConnectTimeout);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove timeout for message that is waiting for connect() to complete
- * 
+ *
  * @param  message  IN  message
  *******************************************************************************
  */
@@ -2692,14 +2692,14 @@ static void
 _LSHubRemoveConnectMessageTimeout(_LSTransportMessage *message)
 {
     _LSHubRemoveMessageTimeout(message);
-    waiting_for_connect = g_slist_remove(waiting_for_connect, message); 
+    waiting_for_connect = g_slist_remove(waiting_for_connect, message);
     _LSTransportMessageUnref(message);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a timeout to a "QueryName" message.
- * 
+ *
  * @param  message  IN  message
  *******************************************************************************
  */
@@ -2711,11 +2711,11 @@ _LSHubAddQueryNameMessageTimeout(_LSTransportMessage *message)
     _LSHubAddMessageTimeout(message, g_conf_query_name_timeout_ms, (GSourceFunc)_LSHubHandleQueryNameTimeout);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a "QueryName" message.
- * 
- * @param  message  IN  query name message 
+ *
+ * @param  message  IN  query name message
  *******************************************************************************
  */
 static void
@@ -2738,7 +2738,7 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
     /* If the message originated from a mojo app, we will get a non-NULL appId
      * from this call. */
     const char *app_id = _LSTransportMessageTypeQueryNameGetAppId(message);
-    
+
     /* Check to see if the service exists */
     _Service *service = ServiceMapLookup(service_name);
     if (!service && !IsMediaService(service_name))
@@ -2764,7 +2764,7 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
         }
         return;
     }
-    
+
     bool service_is_dynamic = service ? service->is_dynamic : false;
 
     /* We know the service exists, so now we check to see if we have
@@ -2811,7 +2811,7 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
             /* !service->is_dynamic */
         }
 
-        /* 
+        /*
          * It's either pending, we just dynamically launched the process that
          * will provide the service, or it's a static service that currently
          * isn't up.
@@ -2854,11 +2854,11 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new _LSTransportClientMap, which has a key of
  * _LSTransportClient* and value of a ref count (stored in ptr).
- * 
+ *
  * @retval map on success
  * @retal  NULL on failure
  *******************************************************************************
@@ -2880,11 +2880,11 @@ _LSTransportClientMapNew(void)
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a LSTransportClientMap.
- * 
- * @param  map  IN  map to free 
+ *
+ * @param  map  IN  map to free
  *******************************************************************************
  */
 static void
@@ -2899,16 +2899,16 @@ _LSTransportClientMapFree(_LSTransportClientMap *map)
     g_free(map);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a client to the map with ref count of 1 if it's not in the map.
  * Otherwise, if it is already in the map, increment the ref count.
- * 
- * @param  map      IN  map 
- * @param  client   IN  client 
+ *
+ * @param  map      IN  map
+ * @param  client   IN  client
  *******************************************************************************
  */
-static void 
+static void
 _LSTransportClientMapAddRefClient(_LSTransportClientMap *map, _LSTransportClient *client)
 {
     gpointer value = g_hash_table_lookup(map->map, client);
@@ -2928,14 +2928,14 @@ _LSTransportClientMapAddRefClient(_LSTransportClientMap *map, _LSTransportClient
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Decrement the client ref count in the map. Remove the client from
  * the map if the ref count goes to 0.
- * 
- * @param  map      IN  map 
- * @param  client   IN  client 
- * 
+ *
+ * @param  map      IN  map
+ * @param  client   IN  client
+ *
  * @retval  true if client was found in map
  * @retval  false if client was not found in map
  *******************************************************************************
@@ -2963,14 +2963,14 @@ _LSTransportClientMapUnrefClient(_LSTransportClientMap *map, _LSTransportClient 
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a client from the map irrespective of the ref count in the
  * map.
- * 
- * @param  map      IN  map 
- * @param  client   IN  client 
- * 
+ *
+ * @param  map      IN  map
+ * @param  client   IN  client
+ *
  * @retval  true if client was found in map
  * @retval  false if client was not found in map
  *******************************************************************************
@@ -2989,12 +2989,12 @@ _LSTransportClientMapRemove(_LSTransportClientMap *map, _LSTransportClient *clie
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Check to see if client map is empty.
- * 
- * @param  map  IN  map 
- * 
+ *
+ * @param  map  IN  map
+ *
  * @retval  true if map is empty
  * @retval  false otherwise
  *******************************************************************************
@@ -3003,7 +3003,7 @@ static bool
 _LSTransportClientMapIsEmpty(_LSTransportClientMap *map)
 {
     LS_ASSERT(map != NULL);
-    
+
     if (g_hash_table_size(map->map) == 0)
     {
         return true;
@@ -3011,13 +3011,13 @@ _LSTransportClientMapIsEmpty(_LSTransportClientMap *map)
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Call the specified function for each item in the map.
- * 
- * @param  map      IN  map 
+ *
+ * @param  map      IN  map
  * @param  func     IN  callback
- * @param  message  IN  message to pass as data to callback 
+ * @param  message  IN  message to pass as data to callback
  *******************************************************************************
  */
 static void
@@ -3026,13 +3026,13 @@ _LSTransportClientMapForEach(_LSTransportClientMap *map, GHFunc func, _LSTranspo
     g_hash_table_foreach(map->map, func, message);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a signal message to a client.
- * 
- * @param  client   IN  client to which signal should be sent 
- * @param  dummy    IN  unused 
- * @param  message  IN  message to forward as the signal 
+ *
+ * @param  client   IN  client to which signal should be sent
+ * @param  dummy    IN  unused
+ * @param  message  IN  message to forward as the signal
  *******************************************************************************
  */
 static void
@@ -3069,7 +3069,7 @@ _LSHubSendSignal(_LSTransportClient *client, void *dummy, _LSTransportMessage *m
             g_critical("%s: sent \"service %s\" signal to client: %p (unique_name: \"%s\", service_name: \"%s\") with token: %d, category: \"%s\", method: \"%s\", payload: \"%s\"", __func__, type == _LSTransportMessageTypeServiceUpSignal  ? "up" : "down", client, client->unique_name, client->service_name, (int)token, _LSTransportMessageGetCategory(message), _LSTransportMessageGetMethod(message), _LSTransportMessageGetPayload(message));
         }
 #endif
-    
+
         _LSTransportMessageUnref(msg_copy);
     }
     else
@@ -3078,12 +3078,12 @@ _LSHubSendSignal(_LSTransportClient *client, void *dummy, _LSTransportMessage *m
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new signal map, which has a hash of category strings to
  * @ref _LSTransportClientMap and hash of method strings to @ref
  * _LSTransportClientMap.
- * 
+ *
  * @retval map on success
  * @retval NULL on failure
  *******************************************************************************
@@ -3101,11 +3101,11 @@ _SignalMapNew(void)
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a signal map.
- * 
- * @param  signal_map   IN  map to free 
+ *
+ * @param  signal_map   IN  map to free
  *******************************************************************************
  */
 static void
@@ -3121,15 +3121,15 @@ _SignalMapFree(_SignalMap *signal_map)
     g_free(signal_map);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a @ref LSTransportClient from the @ref _LSTransportClientMap
  * regardless of the ref count in the @ref _LSTransportClientMap.
- * 
+ *
  * @param  key          IN  unused
- * @param  value        IN  @ref _LSTransportClientMap 
- * @param  user_data    IN  @ref _LSTransportClient 
- * 
+ * @param  value        IN  @ref _LSTransportClientMap
+ * @param  user_data    IN  @ref _LSTransportClient
+ *
  * @retval  TRUE if the @ref _LSTransportClientMap is empty and should be
  * free'd
  * @retval  FALSE otherwise
@@ -3151,20 +3151,20 @@ _LSTransportClientMapRemoveCallback(gpointer key, gpointer value, gpointer user_
     return FALSE;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove all references to the client in the signal map (all the
  * signals that it registered for).
- * 
- * @param  client   client 
- * 
+ *
+ * @param  client   client
+ *
  * @retval true always
  *******************************************************************************
  */
 static bool
 _LSHubRemoveClientSignals(_LSTransportClient *client)
 {
-    /* 
+    /*
      * FIXME: this is quite inefficient: O(num_registered_signals * num_clients)
      */
     g_hash_table_foreach_remove(signal_map->category_map, _LSTransportClientMapRemoveCallback, client);
@@ -3172,14 +3172,14 @@ _LSHubRemoveClientSignals(_LSTransportClient *client)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a client's registration for the given signal.
- * 
- * @param  map      IN  signal's "method_map" or "category_map" 
- * @param  path     IN  signal to unregister for 
- * @param  client   In  client 
- * 
+ *
+ * @param  map      IN  signal's "method_map" or "category_map"
+ * @param  path     IN  signal to unregister for
+ * @param  client   In  client
+ *
  * @retval  true if signal registration was removed
  * @retval  false otherwise
  *******************************************************************************
@@ -3205,15 +3205,15 @@ _LSHubRemoveSignal(GHashTable *map, const char *path, _LSTransportClient *client
             /* client_map is free'd by destroy func when remove is called */
         }
     }
-    
+
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a signal unregistration message.
- * 
- * @param  message  IN  signal unregister message 
+ *
+ * @param  message  IN  signal unregister message
  *******************************************************************************
  */
 static void
@@ -3243,7 +3243,7 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
                 const _LSTransportCred *cred = _LSTransportClientGetCred(client);
                 g_critical("Unregistering server status of [\"%s\"] by client: %p "
                            "(service_name: \"%s\", unique_name: \"%s\", pid: "LS_PID_PRINTF_FORMAT
-                           ", exe: \"%s\")", 
+                           ", exe: \"%s\")",
                            method, client, client->service_name, client->unique_name,
                            LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
                            _LSTransportCredGetExePath(cred));
@@ -3271,13 +3271,13 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
     else
     {
         //g_critical("%s: removing from category: category: \"%s\", method: \"%s\", client: %p\n", __func__, category, method, client);
-        
+
         /* remove from category hash */
         if (!_LSHubRemoveSignal(signal_map->category_map, category, client))
         {
             const _LSTransportCred *cred = _LSTransportClientGetCred(client);
             g_critical("Unable to remove signal: \"%s\" (requester pid: "LS_PID_PRINTF_FORMAT", "
-                       "requester exe: \"%s\", " 
+                       "requester exe: \"%s\", "
                        "requester cmdline: \"%s\")",
                        category,
                        LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
@@ -3289,14 +3289,14 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
     /* TODO: remove from reverse lookup */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a client's registration for a given signal.
- * 
- * @param  map      IN  signal's "method_map" or "category_map" 
+ *
+ * @param  map      IN  signal's "method_map" or "category_map"
  * @param  path     IN  signal to register for
- * @param  client   In  client 
- * 
+ * @param  client   In  client
+ *
  * @retval  true if signal registration was added
  * @retval  false otherwise
  *******************************************************************************
@@ -3328,18 +3328,18 @@ _LSHubAddSignal(GHashTable *map, const char *path, _LSTransportClient *client)
             return false;
         }
     }
-    
-    _LSTransportClientMapAddRefClient(client_map, client); 
+
+    _LSTransportClientMapAddRefClient(client_map, client);
 
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Utility routine used by _LSHubSignalRegisterAllServices, for iteration.
- * 
+ *
  * @param  key    IN  service name
- * @param  value  IN  _ClientId pointer 
+ * @param  value  IN  _ClientId pointer
  * @param  user_data IN  GString * where results will be accumulated
  *******************************************************************************
  */
@@ -3348,20 +3348,20 @@ _LSHubSignalRegisterAllServicesItem(gpointer key, gpointer value, gpointer user_
 {
     GString * str = (GString*)user_data;
     _ClientId * client = (_ClientId*)value;
-    
+
     const char *exe_path = NULL;
 
     gchar * allowed_names = NULL;
-    
+
     /* Use exe_path in client credentials to look up role file and allowed service names */
     const _LSTransportCred *cred = NULL;
-    
+
     LS_ASSERT(client);
     if (client->client)
         cred = _LSTransportClientGetCred(client->client);
 
     pid_t pid = 0;
-    
+
     if (cred)
         pid = _LSTransportCredGetPid(cred);
 
@@ -3376,14 +3376,14 @@ _LSHubSignalRegisterAllServicesItem(gpointer key, gpointer value, gpointer user_
       pid,
       allowed_names ? allowed_names : "");
 }
-    
 
-/** 
+
+/**
  *******************************************************************************
  * @brief Generate payload for service subscription response listing all available services and their pids.
- * 
+ *
  * @param  table  IN  available_services table
- * @retval            allocated gchar* 
+ * @retval            allocated gchar*
  *******************************************************************************
  */
 static gchar *
@@ -3393,21 +3393,21 @@ _LSHubSignalRegisterAllServices(GHashTable *table)
     GString * str = g_string_new("{\"returnValue\":true,\"services\":[");
 
     g_hash_table_foreach(table, _LSHubSignalRegisterAllServicesItem, str);
-    
+
     // trim off last comma
     g_string_truncate(str, str->len-1);
-    
+
     g_string_append_printf(str, "]}");
-    
+
     return g_string_free(str, FALSE);
 }
-                
 
-/** 
+
+/**
  *******************************************************************************
  * @brief Process a signal register message.
- * 
- * @param  message  IN  signal register message 
+ *
+ * @param  message  IN  signal register message
  *******************************************************************************
  */
 static void
@@ -3424,13 +3424,13 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
     //g_critical("%s: category: \"%s\", method: \"%s\", client: %p\n", __func__, category, method, client);
 
     LS_ASSERT(category != NULL);
-    
+
     /* add to our category/method hash if registering category/method */
     if (strlen(method) > 0)
     {
         /* method is optional for registration */
         char *full_path = g_strdup_printf("%s/%s", category, method);
-        
+
         if (full_path)
         {
 #if 0
@@ -3479,18 +3479,18 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
     /* FIXME: we need to create a new "signal reply" function, so that we can
      * differentiate between method call replies and signal registration replies
      * for the shutdown logic */
-     
+
     /* ACK the signal registration -- eventually we'll probably want to avoid
-     * doing the extra translation in _LSMessageTranslateFromCall and send 
+     * doing the extra translation in _LSMessageTranslateFromCall and send
      * all of the relevant info here including the category and path */
-     
+
     if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0 &&
         strlen(method) == 0)
     {
         /* ACK signal registration for methodless serviceStatus with current
          * status of all services */
         gchar * payload = _LSHubSignalRegisterAllServices(available_services);
-        
+
         if (!_LSTransportSendReply(message, payload, &lserror))
         {
             g_critical("error sending signal registration reply");
@@ -3499,8 +3499,8 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
         }
         g_free(payload);
         return;
-    }         
-     
+    }
+
     if (!_LSTransportSendReply(message, "{\"returnValue\":true}", &lserror))
     {
         g_critical("error sending signal registration reply");
@@ -3511,11 +3511,11 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
     /* TODO: add reverse lookup */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a signal message (i.e., forward to all interested clients).
- * 
- * @param  message  IN  signal message 
+ *
+ * @param  message  IN  signal message
  * @param  generated_by_hub  IN  true if signal was generated internally by hub
  *******************************************************************************
  */
@@ -3561,13 +3561,13 @@ _LSHubHandleSignal(_LSTransportMessage *message, bool generated_by_hub)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message to client telling it to connect to the monitor.
- * 
+ *
  * @param  ignored_fd   IN  don't use this
- * @param  id           IN  client id 
- * @param  unique_name  IN  monitor's unique name 
+ * @param  id           IN  client id
+ * @param  unique_name  IN  monitor's unique name
  *******************************************************************************
  */
 static void
@@ -3595,7 +3595,7 @@ _LSHubSendMonitorMessage(int ignored_fd, _ClientId *id, const char *unique_name)
 
     /* get the unique name for the client and add send it as part of the message */
     _LSTransportMessage *monitor_message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
-    
+
     if (!monitor_message) goto error;
 
     if (monitor_is_connected)
@@ -3644,7 +3644,7 @@ _LSHubSendMonitorMessage(int ignored_fd, _ClientId *id, const char *unique_name)
         /* go ahead and set the fd, even if it's -1 */
         _LSTransportMessageSetConnectionFd(monitor_message, fd);
     }
-    
+
     if (send && !_LSTransportSendMessage(monitor_message, id->client, NULL, &lserror))
     {
         LSErrorPrint(&lserror, stderr);
@@ -3655,12 +3655,12 @@ error:
     if (monitor_message) _LSTransportMessageUnref(monitor_message);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a monitor request message by sending out messages to each
  * client telling them to connect.
- * 
- * @param  message  IN  monitor request message 
+ *
+ * @param  message  IN  monitor request message
  *******************************************************************************
  */
 static void
@@ -3668,7 +3668,7 @@ _LSHubHandleMonitorRequest(_LSTransportMessage *message)
 {
     /* get the unique name for the monitor */
     _LSTransportClient *monitor_client = _LSTransportMessageGetClient(message);;
-   
+
     if (!monitor_client)
     {
         g_critical("Unable to get monitor client");
@@ -3698,12 +3698,12 @@ _LSHubHandleMonitorRequest(_LSTransportMessage *message)
         g_warning("Unable to find monitor in connected client map");
         return;
     }
-    
+
     /* mark this client as the monitor */
     id->is_monitor = true;
     _LSHubClientIdLocalRef(id);
     monitor = id;
-    
+
     if (monitor_client->unique_name)
     {
         char *unique_name = monitor_client->unique_name;
@@ -3716,21 +3716,21 @@ _LSHubHandleMonitorRequest(_LSTransportMessage *message)
     else
     {
         g_critical("We were expecting the monitor to have the monitor's unique_name, monitor_client: %p", monitor_client);
-    } 
+    }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send the status of the monitor (used when a client first comes up).
- * 
- * @param  message  IN  message with client info  
+ *
+ * @param  message  IN  message with client info
  *******************************************************************************
  */
 static void
 _LSHubSendMonitorStatus(_LSTransportMessage *message)
 {
     _LSTransportClient *client = message->client;
-   
+
     _ClientId *id = g_hash_table_lookup(connected_clients.by_fd, GINT_TO_POINTER(client->channel.fd));
 
     if (!id)
@@ -3755,12 +3755,12 @@ _LSHubSendMonitorStatus(_LSTransportMessage *message)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a "QueryServiceStatus" message and send a reply with the
  * state of the service.
- * 
- * @param  message  IN  query service status message 
+ *
+ * @param  message  IN  query service status message
  *******************************************************************************
  */
 static void
@@ -3824,18 +3824,18 @@ _LSHubHandleQueryServiceStatus(const _LSTransportMessage *message)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Replies with a message of all connected clients.
- * 
- * @param  message  IN  list clients message 
+ *
+ * @param  message  IN  list clients message
  *******************************************************************************
  */
 static void
 _LSHubHandleListClients(const _LSTransportMessage *message)
 {
     LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeListClients);
-    
+
     char *unique_name = NULL;
     _ClientId *id = NULL;
     gpointer key = NULL;
@@ -3865,7 +3865,7 @@ _LSHubHandleListClients(const _LSTransportMessage *message)
     {
         const _LSTransportCred *cred = NULL;
         _Service *service = NULL;
-        
+
         unique_name = key;
         id = value;
 
@@ -3889,9 +3889,9 @@ _LSHubHandleListClients(const _LSTransportMessage *message)
         else
         {
             if (!_LSTransportMessageAppendString(&iter, "unknown/client only")) goto error;
-        } 
+        }
     }
-    
+
     if (!_LSTransportMessageAppendInvalid(&iter)) goto error;
 
     if (!_LSTransportSendMessage(reply, reply_client, NULL, &lserror))
@@ -3989,13 +3989,13 @@ error:
     if (reply) _LSTransportMessageUnref(reply);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process incoming messages from underlying transport.
- * 
- * @param  message  IN  incoming message 
- * @param  context  IN  unused  
- * 
+ *
+ * @param  message  IN  incoming message
+ * @param  context  IN  unused
+ *
  * @retval LSMessageHandlerResultHandled
  *******************************************************************************
  */
@@ -4027,7 +4027,7 @@ _LSHubHandleMessage(_LSTransportMessage* message, void *context)
     case _LSTransportMessageTypeSignalRegister:
         _LSHubHandleSignalRegister(message);
         break;
-    
+
     case _LSTransportMessageTypeSignalUnregister:
         _LSHubHandleSignalUnregister(message);
         break;
@@ -4058,13 +4058,13 @@ _LSHubHandleMessage(_LSTransportMessage* message, void *context)
     return LSMessageHandlerResultHandled;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Checks to see if the hub is already running. It saves the PID
  * in a file and locks it. It may call exit() if it encounters an error.
- * 
+ *
  * @param  public   public or private bus (one of each allowed to run)
- * 
+ *
  * @retval  true, if the hub is running
  * @retval  false, if the hub isn't running
  *******************************************************************************
@@ -4082,12 +4082,12 @@ _HubIsRunning(bool public)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Callback to handle SIGINT and SIGTERM. Quits the mainloop so we can
  * do cleanup before exiting.
- * 
- * @param  signal 
+ *
+ * @param  signal
  *******************************************************************************
  */
 static void
@@ -4096,11 +4096,11 @@ _HandleShutdown(int signal)
     g_main_loop_quit(mainloop);
 }
 
-/** 
+/**
  *******************************************************************************
 * @brief Use the options from the conf file unless we have overriden then
 * on the command line.
- * 
+ *
  * @param  cmdline_local_socket_path  IN   ptr to socket path from command line
  *******************************************************************************
  */
@@ -4130,7 +4130,7 @@ _ProcessConfFileOptions(char **cmdline_local_socket_path, char **cmdline_pid_dir
     {
         pid_dir = &g_conf_pid_dir;
     }
-    
+
     if (g_mkdir_with_parents(*pid_dir, 0755) == -1)
     {
         g_critical("Unable to create directory: \"%s\" (%d: \"%s\")",
@@ -4201,7 +4201,7 @@ int main(int argc, char *argv[])
             g_critical("Unable to become a daemon: %s", g_strerror(errno));
         }
     }
-    
+
     if (use_syslog)
     {
         SetLoggingSyslog();
@@ -4238,10 +4238,10 @@ int main(int argc, char *argv[])
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
     }
-    
+
     /* Command-line options override the settings from the conf file */
     _ProcessConfFileOptions(&cmdline_local_socket_path, &cmdline_pid_dir);
-    
+
     /* Don't allow multiple instances to run */
     if (_HubIsRunning(public))
     {
@@ -4265,7 +4265,7 @@ int main(int argc, char *argv[])
     }
 
     available_services = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
-    
+
     if (!available_services)
     {
         g_critical("Unable to create hash table");
@@ -4277,7 +4277,7 @@ int main(int argc, char *argv[])
     {
         g_critical("Unable to create hash table");
     }
-    
+
     connected_clients.by_unique_name = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
 
     if (!connected_clients.by_unique_name)
@@ -4331,7 +4331,7 @@ int main(int argc, char *argv[])
     else
     {
         const char *hub_local_addr = NULL;
-        
+
         if (public)
         {
             hub_local_addr = HUB_LOCAL_ADDRESS_PUBLIC;
@@ -4370,7 +4370,7 @@ int main(int argc, char *argv[])
         }
     }
 #endif
-    
+
     if (boot_file_name)
     {
         char *tmp = g_strdup(boot_file_name);
@@ -4383,10 +4383,10 @@ int main(int argc, char *argv[])
         else
         {
             FILE *boot_file = fopen(boot_file_name, "w");
-            
+
             if (!boot_file)
             {
-                g_critical("Unable to open boot file: \"%s\" (%d: \"%s\")", boot_file_name, errno, g_strerror(errno));    
+                g_critical("Unable to open boot file: \"%s\" (%d: \"%s\")", boot_file_name, errno, g_strerror(errno));
             }
             else
             {

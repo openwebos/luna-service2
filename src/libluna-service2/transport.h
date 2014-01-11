@@ -84,10 +84,10 @@ _padding_bytes(unsigned int align_bytes, unsigned int size_bytes)
 
 /* can override these with environment variable */
 #define HUB_DEFAULT_INET_ADDRESS        192.168.2.101
-#define DEFAULT_INET_PORT_PUBLIC        4411    
+#define DEFAULT_INET_PORT_PUBLIC        4411
 #define DEFAULT_INET_PORT_PRIVATE       4412
 
-/** 
+/**
  * Address and port to connect to device emulator from the desktop
  * The emulator is set to bridge port 55NN to 44NN
  */

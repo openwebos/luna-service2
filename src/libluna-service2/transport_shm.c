@@ -56,7 +56,7 @@ struct _LSTransportShm
 static pthread_mutex_t shm_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static _LSTransportShmData *shm_map_addr_pub = NULL;   /**< singleton mapping of
-                                                         the shared memory 
+                                                         the shared memory
                                                          region for the process */
 
 static _LSTransportShmData *shm_map_addr_prv = NULL;   /**< singleton mapping of
@@ -71,7 +71,7 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
     _LSTransportShmData *map = NULL;
     int fd = -1;
     int ret = 0;
-    
+
     if (public_bus)
     {
         shm_name = SHM_NAME_PUB;
@@ -85,7 +85,7 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
 
     if (public_bus)
     {
-        map = shm_map_addr_pub; 
+        map = shm_map_addr_pub;
     }
     else
     {
@@ -106,14 +106,14 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
         if (errno == EEXIST)
         {
             shm_needs_init = false;
-            
+
             fd = shm_open(shm_name, O_RDWR, SHM_MODE);
 
             if (fd == -1)
             {
                 _LSErrorSetFromErrno(lserror, errno);
                 goto error;
-            } 
+            }
         }
         else
         {
@@ -145,7 +145,7 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
         _LSErrorSetFromErrno(lserror, errno);
         goto error;
     }
-    
+
     /* lock the page so it's not swapped out -- passing the MAP_LOCKED
      * flag to mmap works on Linux, but not Mac */
     ret = mlock(map, sizeof(_LSTransportShmData));
@@ -213,7 +213,7 @@ _LSTransportShmInit(_LSTransportShm** shm, bool public_bus, LSError* lserror)
     }
 
     *shm = ret_shm;
-    
+
     return true;
 
 error:

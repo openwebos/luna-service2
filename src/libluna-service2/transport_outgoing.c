@@ -34,10 +34,10 @@
  * @{
  */
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new outgoing queue.
- * 
+ *
  * @retval  queue on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -55,10 +55,10 @@ _LSTransportOutgoingNew(void)
     return outgoing;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free an outgoing queue.
- * 
+ *
  * @param  outgoing     IN  outgoing queue
  *******************************************************************************
  */
@@ -75,13 +75,13 @@ _LSTransportOutgoingFree(_LSTransportOutgoing *outgoing)
         _LSTransportMessageUnref(message);
     }
     g_queue_free(outgoing->queue);
-   
+
     _LSTransportSerialFree(outgoing->serial);
 
 #ifdef MEMCHECK
     memset(outgoing, 0xFF, sizeof(_LSTransportOutgoing));
 #endif
-    
+
     g_slice_free(_LSTransportOutgoing, outgoing);
 }
 

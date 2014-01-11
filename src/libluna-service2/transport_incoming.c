@@ -33,10 +33,10 @@
  * @{
  */
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new incoming queue.
- * 
+ *
  * @retval  incoming queue on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -58,11 +58,11 @@ _LSTransportIncoming* _LSTransportIncomingNew(void)
     return incoming;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free an incoming queue.
- * 
- * @param  incoming IN incoming 
+ *
+ * @param  incoming IN incoming
  *******************************************************************************
  */
 void _LSTransportIncomingFree(_LSTransportIncoming *incoming)

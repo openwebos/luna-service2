@@ -28,7 +28,7 @@ typedef enum
 {
     LSMessageHandlerResultHandled,          /**< message was handled */
     LSMessageHandlerResultNotHandled,       /**< message was not handled; error will be sent as reply */
-    LSMessageHandlerResultUnknownMethod,    /**< method was not found; error will be sent as reply */ 
+    LSMessageHandlerResultUnknownMethod,    /**< method was not found; error will be sent as reply */
 } LSMessageHandlerResult;
 
 typedef LSMessageHandlerResult (*LSTransportMessageHandler)(_LSTransportMessage *message, void *context);

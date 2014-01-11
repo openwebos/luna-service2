@@ -93,11 +93,11 @@ _UriFree(_Uri *luri)
       ('0' <= (c) && (c) <= '9') || \
       ('_' == (c)) )
 
-/** 
+/**
 * @brief Validate the service name.
-* 
-* @param  service_name 
-* 
+*
+* @param  service_name
+*
 * @retval
 */
 static bool
@@ -154,15 +154,15 @@ _validate_service_name(const char *service_name)
     return true;
 }
 
-/** 
+/**
 * @brief
 *
 * The path has already been validated with the
 * correct characters.  We just need to validate the
 * slash positions.
-* 
-* @param  path 
-* 
+*
+* @param  path
+*
 * @retval
 */
 static bool
@@ -213,14 +213,14 @@ _validate_path(const char *path)
     return true;
 }
 
-/** 
+/**
 * @brief Validate method of URI.
 *
 * This assumes that the member has already been validated with the correct
 * characters.
-* 
-* @param  method 
-* 
+*
+* @param  method
+*
 * @retval
 */
 static bool
@@ -255,11 +255,11 @@ _validate_method(const char *method)
     return true;
 }
 
-/** 
+/**
 * @brief Parse a uri and return a _Uri object containing the individual parts.
-* 
-* @param  uri 
-* 
+*
+* @param  uri
+*
 * @retval
 */
 _Uri *
@@ -325,7 +325,7 @@ _UriParse(const char *uri, LSError *lserror)
     if (!_validate_service_name(luri->serviceName))
     {
         _LSErrorSet(lserror, -EINVAL,
-                    "%s: Not a valid service name in uri %s (service name: %s)", 
+                    "%s: Not a valid service name in uri %s (service name: %s)",
                     __FUNCTION__, uri, luri->serviceName);
         goto error;
     }
@@ -337,7 +337,7 @@ _UriParse(const char *uri, LSError *lserror)
                     __FUNCTION__, uri, luri->objectPath);
         goto error;
     }
-    
+
     if (!_validate_method(luri->methodName))
     {
         _LSErrorSet(lserror, -EINVAL,
@@ -407,7 +407,7 @@ _TokenListRemove(_TokenList *tokens, LSMessageToken t)
 static void
 _TokenListRemoveAll(_TokenList *tokens)
 {
-   tokens->len = 0; 
+   tokens->len = 0;
 }
 
 typedef struct _ServerStatus
@@ -532,7 +532,7 @@ _CallFree(_Call *call)
     g_free(call);
 }
 
-static bool 
+static bool
 _service_watch_enable(LSHandle *sh, _Call *call, LSError *lserror)
 {
     bool retVal = true;
@@ -555,11 +555,11 @@ _service_watch_disable(LSHandle *sh, _Call *call)
     return false;
 }
 
-/** 
+/**
 * @brief Insert a call into the callmap.
-* 
-* @param  map 
-* @param  call 
+*
+* @param  map
+* @param  call
 */
 static bool
 _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
@@ -613,7 +613,7 @@ _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
 
     /* It's an error if the key is already in the map */
     LS_ASSERT(g_hash_table_lookup(map->tokenMap, (gpointer)call->token) == NULL);
-    
+
     g_hash_table_replace(map->tokenMap, (gpointer)call->token, call);
 
 error:
@@ -653,7 +653,7 @@ _CallRemove(LSHandle *sh, _CallMap *map, _Call *call)
 
         g_hash_table_remove(map->tokenMap, (gpointer)call->token);
     }
-    
+
     /* <eeh> TODO: what does the else case mean (i.e., orig_call != call) */
 
     _CallMapUnlock(map);
@@ -669,7 +669,7 @@ _CallAcquire(_CallMap *map, LSMessageToken token)
     call = g_hash_table_lookup(map->tokenMap, (gpointer)token);
     if (call)
     {
-        LS_ASSERT(g_atomic_int_get (&call->ref) > 0); 
+        LS_ASSERT(g_atomic_int_get (&call->ref) > 0);
         g_atomic_int_inc(&call->ref);
     }
 
@@ -681,7 +681,7 @@ _CallAcquire(_CallMap *map, LSMessageToken token)
 static void
 _CallRelease(_Call *call)
 {
-    LS_ASSERT(g_atomic_int_get (&call->ref) > 0); 
+    LS_ASSERT(g_atomic_int_get (&call->ref) > 0);
 
     if (g_atomic_int_dec_and_test(&call->ref))
     {
@@ -689,13 +689,13 @@ _CallRelease(_Call *call)
     }
 }
 
-/** 
+/**
 * @brief Initialize callmap.
-* 
-* @param  sh 
-* @param  *ret_map 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  *ret_map
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -735,11 +735,11 @@ error:
     return false;
 }
 
-/** 
+/**
 * @brief Deinitialize call map.
-* 
-* @param  sh 
-* @param  map 
+*
+* @param  sh
+* @param  map
 */
 void
 _CallMapDeinit(LSHandle *sh, _CallMap *map)
@@ -768,7 +768,7 @@ _LSMessageSetFromError(_LSTransportMessage *transport_msg, _Call *call, LSMessag
 
     reply->category = LUNABUS_ERROR_CATEGORY;
 
-    /* TODO: equivalent for DBUS_ERROR_SERVICE_UNKNOWN */   
+    /* TODO: equivalent for DBUS_ERROR_SERVICE_UNKNOWN */
     switch (_LSTransportMessageGetType(transport_msg))
     {
     /* generic error */
@@ -783,7 +783,7 @@ _LSMessageSetFromError(_LSTransportMessage *transport_msg, _Call *call, LSMessag
     }
 
     case _LSTransportMessageTypeErrorUnknownMethod:
-    { 
+    {
         reply->method = LUNABUS_ERROR_UNKNOWN_METHOD;
         //error_text = g_strdup_printf("Method \"%s\" doesn't exist", _LSTransportMessageGetError(msg));
         error_text = _LSTransportMessageGetError(transport_msg);
@@ -886,7 +886,7 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
                 }
                 break;
             case CALL_TYPE_SIGNAL_SERVER_STATUS:
-        
+
                 //g_critical("%s, Received \"service %s\" signal: service_name: %s, token: %d", __func__, server_info->connected ? "up" : "down", call->serviceName, (int)call->token);
 
                 reply->category = LUNABUS_SIGNAL_CATEGORY;
@@ -908,7 +908,7 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
     case _LSTransportMessageTypeQueryServiceStatusReply:
     {
         LS_ASSERT(call->type == CALL_TYPE_SIGNAL_SERVER_STATUS);
-        
+
         /* FIXME -- need getter for this or make GetBody skip over the
          * reply serial */
         /* skip over reply serial to get available value */
@@ -934,7 +934,7 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
                 call->serviceName);
             reply->payload = reply->payloadAllocated;
         }
-        
+
         break;
     }
 
@@ -967,19 +967,19 @@ _LSMessageTranslate(LSHandle *sh, LSMessage *message,
     _CallRelease(call);
 }
 
-/** 
+/**
 * @brief Dispatch a message to each callback in tokens list.
 *
 * Messages can have multiple callbacks in the case of signals and
 * one callback for a message response.
 *
-* @param  sh 
-* @param  tokens 
-* @param  msg 
-* 
+* @param  sh
+* @param  tokens
+* @param  msg
+*
 * @retval
 */
-static bool  
+static bool
 _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
               _ServerInfo *server_info)
 {
@@ -1086,14 +1086,14 @@ _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureT
 
         /* We will only be calling this on messages that are method calls */
         LS_ASSERT(call->type == CALL_TYPE_METHOD_CALL);
-    
+
         reply->responseToken = call->token;
 
         /* construct the error message -- the allocated payload is freed
          * when the message ref count goes to 0 */
         switch (failure_type)
         {
-        
+
         case _LSTransportMessageFailureTypeNotProcessed:
             reply->category = LUNABUS_ERROR_CATEGORY;
             reply->method = LUNABUS_ERROR_SERVICE_DOWN;
@@ -1124,12 +1124,12 @@ _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureT
                  "\"errorText\":\"%s is not running.\"}",
                 call->serviceName, call->serviceName);
             reply->payload = reply->payloadAllocated;
-            
+
             /* probably not necessary, since this is just a flag to mark
              * that we should remove this call from the callmap and we
              * always do that here */
             reply->serviceDownMessage = true;
-            
+
             break;
 
         case _LSTransportMessageFailureTypePermissionDenied:
@@ -1210,30 +1210,30 @@ void _send_not_running(LSHandle *sh, _TokenList *tokens)
                     _CallRelease(call);
                     break;
                 }
-    
+
                 reply->responseToken = call->token;
-    
+
                 reply->category = LUNABUS_ERROR_CATEGORY;
                 reply->method = LUNABUS_ERROR_SERVICE_DOWN;
-    
+
                 reply->payloadAllocated = g_strdup_printf(
                     "{\"serviceName\":\"%s\","
                      "\"returnValue\":false,"
                      "\"errorCode\":-1,"
                      "\"errorText\":\"%s is not running.\"}",
                     call->serviceName, call->serviceName);
-    
+
                 reply->payload = reply->payloadAllocated;
-    
+
                 // fprintf(stderr, "%s: doing callback\n", __func__);
-    
+
                 bool ret = call->callback(sh, reply, call->ctx);
-    
+
                 if (!ret)
                 {
                     fprintf(stderr, "%s: callback failed\n", __func__);
                 }
-    
+
                 LSMessageUnref(reply);
             }
 
@@ -1260,15 +1260,15 @@ _LSDisconnectHandler(_LSTransportClient *client, _LSTransportDisconnectType type
      */
     if (NULL != client->service_name && client->initiator)
     {
-    
+
         _CallMapLock(map);
-    
+
         _TokenList *tokens = g_hash_table_lookup(map->serviceMap, client->service_name);
-    
+
         // copy the list of tokens so we can unlock ASAP
         _TokenList *tokens_copy = _TokenListNew();
         _TokenListAddList(tokens_copy, tokens);
-    
+
         _CallMapUnlock(map);
 
         _send_not_running(sh, tokens_copy);
@@ -1303,12 +1303,12 @@ _parse_service_status_signal(_LSTransportMessage *msg, _ServerInfo *server_info)
     }
 }
 
-/** 
+/**
 * @brief Find all tokens that handle this signal message.
-* 
-* @param  map 
-* @param  msg 
-* @param  tokens 
+*
+* @param  map
+* @param  msg
+* @param  tokens
 */
 static void
 _get_signal_tokens(_CallMap *map, _LSTransportMessage *msg, _TokenList *tokens,
@@ -1384,13 +1384,13 @@ _MessageFindTokens(_CallMap *callmap, _LSTransportMessage *msg,
     }
 }
 
-/** 
+/**
 * @brief Incoming messages are filtered and dispatched to callbacks.
 *
-* @param  conn 
-* @param  msg 
-* @param  ctx 
-* 
+* @param  conn
+* @param  msg
+* @param  ctx
+*
 * @retval
 */
 bool
@@ -1401,19 +1401,19 @@ _LSHandleReply(LSHandle *sh, _LSTransportMessage *transport_msg)
 
     /* FIXME -- Need to call sh->disconnect_handler(sh, sh->disconnect_handler_data); if the service is disconnected */
 
-    bool ret = true; 
+    bool ret = true;
     _CallMap   *callmap = sh->callmap;
     _TokenList *tokens = _TokenListNew();
 
     /* Find tokens that handle this message. */
 
     _ServerInfo server_info;
-    memset(&server_info, 0, sizeof(server_info)); 
+    memset(&server_info, 0, sizeof(server_info));
 
     /* Parse the message and find all tokens. */
     _MessageFindTokens(callmap, transport_msg, &server_info, tokens);
 
-    /* logging */ 
+    /* logging */
     LSDebugLogIncoming("", transport_msg);
 
     /* Dispatch message to callbacks referenced by tokens. */
@@ -1424,7 +1424,7 @@ _LSHandleReply(LSHandle *sh, _LSTransportMessage *transport_msg)
 
     _TokenListFree(tokens);
 
-    /* serviceName may have been allocated in _MessageFindTokens's call to 
+    /* serviceName may have been allocated in _MessageFindTokens's call to
      * _parse_name_owner_changed */
     if (server_info.serviceName) g_free(server_info.serviceName);
 
@@ -1435,7 +1435,7 @@ static const char *
 _json_get_string(struct json_object *object, const char *label)
 {
     struct json_object *label_obj = NULL;
-    
+
     if (!json_object_object_get_ex(object, label, &label_obj))
     {
         return NULL;
@@ -1444,7 +1444,7 @@ _json_get_string(struct json_object *object, const char *label)
     return json_object_get_string(label_obj);
 }
 
-/* 
+/*
  * TODO: rename this function. It kind of made sense in the dbus-based world,
  * but doesn't really anymore.
  */
@@ -1471,7 +1471,7 @@ _send_match(LSHandle        *sh,
 
     const char *category = _json_get_string(object, "category");
     const char *method = _json_get_string(object, "method");
-    
+
     retVal = LSTransportRegisterSignal(sh->transport, category, method, &token, lserror);
     if (!retVal) goto error;
 
@@ -1630,7 +1630,7 @@ _cancel_method_call(LSHandle *sh, _Call *call, LSError *lserror)
     {
         g_debug("TX: %s \"%s\" token <<%ld>>", __FUNCTION__, call->serviceName, call->token);
     }
-    
+
     // palm://com.hhahha.haha/com/palm/luna/private/cancel {"token":17}
 
     return LSTransportCancelMethodCall(sh->transport, call->serviceName, call->token, lserror);
@@ -1680,7 +1680,7 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
             return false;
         }
     }
-    
+
     if (unlikely(strcmp(payload, "") == 0))
     {
         _LSErrorSet(lserror, -EINVAL, "Empty payload is not valid JSON. Use {}");
@@ -1715,16 +1715,16 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
  * @{
  */
 
-/** 
+/**
 * @brief Sends payload to service at the specified uri.
-* 
-* @param  sh 
+*
+* @param  sh
 * @param  uri      - e.g. "palm://com.domain.reverse/method_name"
 * @param  payload  - some string, usually following json object semantics.
 * @param  callback  - function callback to be called when responses arrive.
 * @param  ctx        - user data to be passed to callback
 * @param  ret_token  - token which identifies responses to this call
-* @param  lserror 
+* @param  lserror
 *
 * Special signals usage:
 *
@@ -1744,7 +1744,7 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
 * LSCall(sh, "palm://com.palm.bus/signal/addmatch",
 *            "{\"category\": \"/com/palm/bluetooth/gap\"}",
 *            callback, ctx, lserror);
-* 
+*
 * @retval true on success.
 */
 bool
@@ -1756,19 +1756,19 @@ LSCall(LSHandle *sh, const char *uri, const char *payload,
                 callback, ctx, ret_token, false, lserror);
 }
 
-/** 
+/**
 * @brief Sends a message to service like LSCall() except it only
 *        expects one response and does not need to be cancelled
 *        via LSCallCancel().
-* 
-* @param  sh 
-* @param  uri 
-* @param  payload 
-* @param  callback 
-* @param  ctx 
-* @param  ret_token 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  uri
+* @param  payload
+* @param  callback
+* @param  ctx
+* @param  ret_token
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1781,20 +1781,20 @@ LSCallOneReply(LSHandle *sh, const char *uri, const char *payload,
 }
 
 
-/** 
+/**
 * @brief Special LSCall() that sends an applicationID.
 *
 * See LSCall().
-* 
-* @param  sh 
-* @param  uri 
-* @param  payload 
-* @param  applicationID 
-* @param  callback 
-* @param  ctx 
-* @param  ret_token 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  uri
+* @param  payload
+* @param  applicationID
+* @param  callback
+* @param  ctx
+* @param  ret_token
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1807,21 +1807,21 @@ LSCallFromApplication(LSHandle *sh, const char *uri, const char *payload,
                 callback, ctx, ret_token, false, lserror);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Special LSCallOneReply() that sends an applicationID.
  *
  * See LSCallOneReply().
- * 
- * @param  sh 
- * @param  uri 
- * @param  payload 
- * @param  applicationID 
- * @param  callback 
- * @param  ctx 
- * @param  ret_token 
- * @param  lserror 
- * 
+ *
+ * @param  sh
+ * @param  uri
+ * @param  payload
+ * @param  applicationID
+ * @param  callback
+ * @param  ctx
+ * @param  ret_token
+ * @param  lserror
+ *
  * @retval
  *******************************************************************************
  */
@@ -1953,7 +1953,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
         else
             *ret_token = LSMESSAGE_TOKEN_INVALID;
     }
-    
+
     if (callback)
     {
         if (!call)
@@ -2000,14 +2000,14 @@ error:
 
 
 
-/** 
+/**
 * @brief Sends a cancel message to service to end call session and also
 *        unregisters any callback associated with call.
-* 
-* @param  sh 
+*
+* @param  sh
 * @param  token
-* @param  lserror 
-* 
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -2076,7 +2076,7 @@ _ServerStatusHelper(LSHandle *sh, LSMessage *message, void *ctx)
 
         if (!json_object_object_get_ex(object, "serviceName", &serviceObj)) goto error;
         if (!json_object_object_get_ex(object, "connected", &connectedObj)) goto error;
-       
+
         serviceName = json_object_get_string(serviceObj);
         connected = json_object_get_boolean(connectedObj);
 
@@ -2219,32 +2219,32 @@ bool LSCancelServerStatus(LSHandle *sh, void *cookie, LSError *lserror)
  * @{
  */
 
-/** 
+/**
 * @brief Attach a callback to be called when signal is received.
-* 
-* @param  sh 
-* @param  serviceName 
-* @param  category 
+*
+* @param  sh
+* @param  serviceName
+* @param  category
 * @param  method
-* @param  filterFunc 
-* @param  ctx 
-* @param  lserror 
+* @param  filterFunc
+* @param  ctx
+* @param  lserror
 *
 * @deprecated Use LSCall() with uri "palm://com.palm.bus/signal/addmatch",
 *             and payload "{\"category\": \"/category/name\",\"method\":\"methodName\"}",
-* 
+*
 * @retval
 */
 bool
 LSSignalCall(LSHandle *sh,
-         const char *category, const char *method, 
+         const char *category, const char *method,
          LSFilterFunc filterFunc, void *ctx,
          LSMessageToken *responseToken,
          LSError *lserror)
 {
     bool retVal;
     char *payload;
-    
+
     LSHANDLE_VALIDATE(sh);
 
     if (category && method)
@@ -2276,16 +2276,16 @@ LSSignalCall(LSHandle *sh,
     return retVal;
 }
 
-/** 
+/**
 * @brief Remove callback & match for specific signal.
-* 
-* @param  sh 
-* @param  serviceName 
-* @param  category 
-* @param  methodName 
+*
+* @param  sh
+* @param  serviceName
+* @param  category
+* @param  methodName
 *
 * @deprecated Use LSCallCancel() instead.
-* 
+*
 * @retval
 */
 bool
@@ -2294,17 +2294,17 @@ LSSignalCallCancel(LSHandle *sh, LSMessageToken token, LSError *lserror)
     return LSCallCancel(sh, token, lserror);
 }
 
-/** 
+/**
 * @brief Variant of LSSignalSend() that does not attempt to check if the
 *        signal is registered via LSRegisterCategory() this should only
 *        be used if you don't use LSRegisterCategory()
 *        (i.e. JNI implementation)
-* 
-* @param  sh 
-* @param  uri 
-* @param  payload 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  uri
+* @param  payload
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -2314,14 +2314,14 @@ LSSignalSendNoTypecheck(LSHandle *sh, const char *uri, const char *payload,
     return _LSSignalSendCommon(sh, uri, payload, false, lserror);
 }
 
-/** 
+/**
 * @brief Send a signal.
-* 
-* @param  sh 
-* @param  uri 
-* @param  payload 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  uri
+* @param  payload
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -2396,11 +2396,11 @@ _FetchMessageQueueUnlock(_FetchMessageQueue *queue)
     LS_ASSERT(pthread_mutex_unlock(&queue->lock) == 0);
 }
 
-/** 
+/**
 * @brief Get the size of the fetch message queue.
-* 
-* @param  sh 
-* 
+*
+* @param  sh
+*
 * @retval
 */
 int
@@ -2418,18 +2418,18 @@ _FetchMessageQueueSize(LSHandle *sh)
     return size;
 }
 
-/** 
+/**
 * @brief Fetch a message.
 *
 * Checks the fetch message queue for last dispatched message.
 *
 * If last message has been handled, then query dbus for next message
 * to process.
-* 
-* @param  sh 
-* @param  ret_message 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  ret_message
+* @param  lserror
+*
 * @retval
 */
 bool

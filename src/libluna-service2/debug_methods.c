@@ -65,7 +65,7 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
     }
 
     json_object_put(ret_obj);
-    
+
     return true;
 
 }
@@ -103,10 +103,10 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
 
     ret_obj = json_object_new_object();
     if (JSON_ERROR(ret_obj)) goto error;
-       
+
     true_obj = json_object_new_boolean(true);
     if (JSON_ERROR(true_obj)) goto error;
- 
+
     mallinfo_obj = json_object_new_object();
     if (JSON_ERROR(mallinfo_obj)) goto error;
 
@@ -128,7 +128,7 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
     } else {
         memset(&mi, '\0', sizeof(mi));
     }
-    
+
     allocator_name_obj = json_object_new_string("ptmalloc");
     if (JSON_ERROR(allocator_name_obj)) goto error;
 
@@ -149,7 +149,7 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
 
     slot_i_obj = json_object_new_int(mi.fordblks);
     if (JSON_ERROR(slot_i_obj)) goto error;
-    
+
     slot_j_obj = json_object_new_int(mi.keepcost);
     if (JSON_ERROR(slot_j_obj)) goto error;
 
@@ -161,7 +161,7 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
     json_object_object_add(mallinfo_obj, "malloc_bytes", slot_h_obj);
     json_object_object_add(mallinfo_obj, "slack_bytes", slot_i_obj);
     json_object_object_add(mallinfo_obj, "trimmable_slack_bytes", slot_j_obj);
-        
+
     json_object_object_add(ret_obj, "returnValue", true_obj);
     json_object_object_add(ret_obj, "mallinfo", mallinfo_obj);
 
@@ -174,15 +174,15 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
     }
 
     json_object_put(ret_obj);
-    
+
     return true;
 
 error:
-    
+
     if (!JSON_ERROR(ret_obj)) json_object_put(ret_obj);
     if (!JSON_ERROR(true_obj)) json_object_put(true_obj);
     if (!JSON_ERROR(mallinfo_obj)) json_object_put(mallinfo_obj);
-    
+
     if (!JSON_ERROR(allocator_name_obj)) json_object_put(allocator_name_obj);
     if (!JSON_ERROR(slot_a_obj)) json_object_put(slot_a_obj);
     if (!JSON_ERROR(slot_d_obj)) json_object_put(slot_d_obj);
@@ -191,7 +191,7 @@ error:
     if (!JSON_ERROR(slot_h_obj)) json_object_put(slot_h_obj);
     if (!JSON_ERROR(slot_i_obj)) json_object_put(slot_i_obj);
     if (!JSON_ERROR(slot_j_obj)) json_object_put(slot_j_obj);
-    
+
     return true;
 }
 
@@ -207,10 +207,10 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
 
     ret_obj = json_object_new_object();
     if (JSON_ERROR(ret_obj)) goto error;
-       
+
     true_obj = json_object_new_boolean(true);
     if (JSON_ERROR(true_obj)) goto error;
- 
+
 
     /* returnValue: true,
      * malloc_trim: int
@@ -224,7 +224,7 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
         if (malloc_trim_p == NULL)
             malloc_trim_p = (malloc_trim_t)-1;
     }
-    
+
     int result;
     if (malloc_trim_p != (malloc_trim_t)-1) {
         result = malloc_trim_p(0);
@@ -234,7 +234,7 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
 
     malloc_trim_obj = json_object_new_int(result);
     if (JSON_ERROR(malloc_trim_obj)) goto error;
-        
+
     json_object_object_add(ret_obj, "returnValue", true_obj);
     json_object_object_add(ret_obj, "malloc_trim", malloc_trim_obj);
 
@@ -247,15 +247,15 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
     }
 
     json_object_put(ret_obj);
-    
+
     return true;
 
 error:
-    
+
     if (!JSON_ERROR(ret_obj)) json_object_put(ret_obj);
     if (!JSON_ERROR(true_obj)) json_object_put(true_obj);
     if (!JSON_ERROR(malloc_trim_obj)) json_object_put(malloc_trim_obj);
-    
+
     return true;
 }
 #endif  /* MALLOC_DEBUG */

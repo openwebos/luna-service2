@@ -163,13 +163,13 @@ struct LSTransportMessage {
     guint timeout_id;                   /**< timeout source id (currently only used by hub) */
     unsigned long alloc_body_size;      /**< size of allocated memory for the body of
                                              the message (not including header). This
-                                             can be larger than the actual len of the 
+                                             can be larger than the actual len of the
                                              message to allow for adding arguments to
                                              to messages */
     int connection_fd;                  /**< fd passed from the hub that is already
                                              connected to the far side. This is only
                                              set for certain messages (-1 otherwise) */
-    const char *app_id;                 /**< cached app id -- points inside the raw message */    
+    const char *app_id;                 /**< cached app id -- points inside the raw message */
     _LSTransportMessageRaw *raw;        /**< raw bytes sent over the wire */
     int retries;                        /**< remaining send retries */
     _LSTransportConnectState connect_state;   /**< state of connect() -- e.g., if we fail to connect()

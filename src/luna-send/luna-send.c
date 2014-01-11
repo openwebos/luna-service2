@@ -152,7 +152,7 @@ struct json_object * apply_query(struct json_object * obj, char * query)
     } else
       return NULL; // not sure how we got here
   }
-  
+
   if (obj) {
     // increment refcount of result, so it can be added to the new object
     return json_object_get(obj);
@@ -161,7 +161,7 @@ struct json_object * apply_query(struct json_object * obj, char * query)
   }
 }
 
-static bool 
+static bool
 serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
 {
     LSError lserror;
@@ -175,11 +175,11 @@ serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
     payload = LSMessageGetPayload(reply);
 
     //g_message("%s Handling: %ld, %s", __FUNCTION__, token, payload);
-    
+
     if (line_number) {
       printf("%2d: ", current_line_number++);
     }
-    
+
     if (query_list != NULL) {
       // Use set of queries to transform original object into reduced form that
       // only contains queried selections -- then pass that through normal formatting.
@@ -198,7 +198,7 @@ serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
         json_object_put(new_object);
       }
     }
-    
+
     if (format_response) {
       struct json_object *object = json_tokener_parse(payload);
       if ( !object || is_error(object) ) {
@@ -212,10 +212,10 @@ serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
     } else {
       printf("%s\n", payload);
     }
-    
+
     if (free_payload)
       free((void*)payload);
-    
+
     fflush(stdout);
 
     if (--count == 0)
@@ -233,7 +233,7 @@ serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
     return true;
 }
 
-static bool 
+static bool
 timingServiceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
 {
     LSError lserror;
@@ -241,15 +241,15 @@ timingServiceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
     LSMessageToken token;
 
     const char *payload;
-    
+
     clock_gettime(CLOCK_MONOTONIC, &stopTime);
 
     token = LSMessageGetResponseToken(reply);
     payload = LSMessageGetPayload(reply);
-    
+
     double duration = ((double)stopTime.tv_sec + (((double)stopTime.tv_nsec)/1000000000.0)) -
                      ((double)startTime.tv_sec + (((double)startTime.tv_nsec)/1000000000.0));
-    
+
     roundtripTime += duration;
     roundtripCount++;
     rcvdBytes += strlen(payload);
@@ -264,7 +264,7 @@ timingServiceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
         LSMessageToken sessionToken;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime);
-        
+
         /* Basic sending */
         bool retVal = LSCallFromApplication(sh, url, message, appId,
                      timingServiceResponse, ctx, &sessionToken, &lserror);
@@ -414,7 +414,7 @@ main(int argc, char **argv)
 
     g_log_set_default_handler(g_log_filter, NULL);
 
-    GMainLoop *mainLoop = g_main_loop_new(NULL, FALSE); 
+    GMainLoop *mainLoop = g_main_loop_new(NULL, FALSE);
 
     if (mainLoop == NULL)
     {
@@ -432,7 +432,7 @@ main(int argc, char **argv)
     if (!serviceInit) goto exit;
 
     bool gmainAttach = LSGmainAttach(sh, mainLoop, &lserror);
-    if (!gmainAttach) goto exit;    
+    if (!gmainAttach) goto exit;
 
     url = g_strdup(argv[optionCount + 1]);
     message = g_strdup(argv[optionCount + 2]);
@@ -446,17 +446,17 @@ main(int argc, char **argv)
       clock_gettime(CLOCK_MONOTONIC, &startTime);
       retVal = LSCallFromApplication(sh, url, message, appId,
             timingServiceResponse, mainLoop, &sessionToken, &lserror);
-      
+
       if (!retVal) goto exit;
 
       g_main_loop_run(mainLoop);
-      
+
       printf("Total time %.02f ms, %d iterations, %.02f ms per iteration\n",
         roundtripTime * 1000.0, roundtripCount, (roundtripTime / roundtripCount) * 1000.0);
-      
+
       printf("%d bytes sent, %d bytes received\n",
         sentBytes, rcvdBytes);
-    
+
     } else {
 
       if (signal)
@@ -469,17 +469,17 @@ main(int argc, char **argv)
           retVal = LSCallFromApplication(sh, url, message, appId,
                 serviceResponse, mainLoop, &sessionToken, &lserror);
       }
-      
+
       if (!retVal) goto exit;
 
-      if (interactive && !signal) 
+      if (interactive && !signal)
       {
           g_io_add_watch(g_io_channel_unix_new(0), G_IO_ERR|G_IO_HUP, input_closed, mainLoop);
           g_main_loop_run(mainLoop);
       }
       else if (!signal)
       {
-          /* 
+          /*
            * NOV-93580: In the non-interactive case, we can't guarantee that
            * an LSCall() will necessarily get the QueryNameReply before
            * shutting down if it does not wait for (or have) a reply from the

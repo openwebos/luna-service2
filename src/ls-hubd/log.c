@@ -42,7 +42,7 @@ _GlibToSyslogLevel(int glib_level)
     case G_LOG_LEVEL_DEBUG:
         return LOG_DEBUG;
     }
-    
+
     return LOG_NOTICE;
 }
 
@@ -51,17 +51,17 @@ _GlibToPmlogLevel(int glib_level)
 {
     switch (glib_level & G_LOG_LEVEL_MASK)
     {
-    case G_LOG_LEVEL_ERROR: 
+    case G_LOG_LEVEL_ERROR:
         return kPmLogLevel_Alert;
-    case G_LOG_LEVEL_CRITICAL: 
+    case G_LOG_LEVEL_CRITICAL:
         return kPmLogLevel_Critical;
-    case G_LOG_LEVEL_WARNING: 
+    case G_LOG_LEVEL_WARNING:
         return kPmLogLevel_Warning;
-    case G_LOG_LEVEL_MESSAGE: 
+    case G_LOG_LEVEL_MESSAGE:
         return kPmLogLevel_Notice;
-    case G_LOG_LEVEL_INFO: 
+    case G_LOG_LEVEL_INFO:
         return kPmLogLevel_Info;
-    case G_LOG_LEVEL_DEBUG: 
+    case G_LOG_LEVEL_DEBUG:
         return kPmLogLevel_Debug;
     }
 

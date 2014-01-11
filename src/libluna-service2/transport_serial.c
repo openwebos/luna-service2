@@ -36,13 +36,13 @@
  * @{
  */
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new serial map entry.
- * 
- * @param  serial       IN  serial 
- * @param  list_item    IN  pointer to item in list 
- * 
+ *
+ * @param  serial       IN  serial
+ * @param  list_item    IN  pointer to item in list
+ *
  * @retval  entry on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -59,11 +59,11 @@ _LSTransportSerialMapEntryNew(LSMessageToken serial, GList *list_item)
     return entry;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a serial map entry.
- * 
- * @param  entry    IN  entry 
+ *
+ * @param  entry    IN  entry
  *******************************************************************************
  */
 void
@@ -78,12 +78,12 @@ _LSTransportSerialMapEntryFree(_LSTransportSerialMapEntry *entry)
     g_slice_free(_LSTransportSerialMapEntry, entry);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new serial list item.
- * 
- * @param  serial   IN  serial (token) 
- * 
+ *
+ * @param  serial   IN  serial (token)
+ *
  * @retval  item on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -102,11 +102,11 @@ _LSTransportSerialListItemNew(LSMessageToken serial, _LSTransportMessage *messag
     return item;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a serial list item.
- * 
- * @param  list_item    IN serial list item to free 
+ *
+ * @param  list_item    IN serial list item to free
  *******************************************************************************
  */
 void
@@ -123,10 +123,10 @@ _LSTransportSerialListItemFree(_LSTransportSerialListItem *list_item)
     g_slice_free(_LSTransportSerialListItem, list_item);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new transport serial.
- * 
+ *
  * @retval  transport serial on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -141,18 +141,18 @@ _LSTransportSerialNew(void)
         pthread_mutex_init(&serial_info->lock, NULL);
         serial_info->queue = g_queue_new();
 
-        /* TODO: make custom 64-bit int hash function since we may need to 
+        /* TODO: make custom 64-bit int hash function since we may need to
          * increase the size of LSMessageToken */
         serial_info->map = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, (GDestroyNotify)_LSTransportSerialMapEntryFree);
     }
-    return serial_info; 
+    return serial_info;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free transport serial info
- * 
- * @param  serial_info  IN  serial info 
+ *
+ * @param  serial_info  IN  serial info
  *******************************************************************************
  */
 void
@@ -161,7 +161,7 @@ _LSTransportSerialFree(_LSTransportSerial *serial_info)
     LS_ASSERT(serial_info != NULL);
 
     SERIAL_INFO_LOCK(&serial_info->lock);
-   
+
     while (!g_queue_is_empty(serial_info->queue))
     {
          _LSTransportSerialListItem *item = g_queue_pop_head(serial_info->queue);
@@ -170,7 +170,7 @@ _LSTransportSerialFree(_LSTransportSerial *serial_info)
 
     g_queue_free(serial_info->queue);
     g_hash_table_destroy(serial_info->map); /* key and value destroy functions clean this up */
-    
+
     SERIAL_INFO_UNLOCK(&serial_info->lock);
 
 #ifdef MEMCHECK
@@ -180,16 +180,16 @@ _LSTransportSerialFree(_LSTransportSerial *serial_info)
     g_slice_free(_LSTransportSerial, serial_info);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Save a serial (token) in the queue and map.
- * 
+ *
  * @attention locks the serial lock
  *
- * @param  serial_info  IN  serial info 
- * @param  serial       IN  message serial (token) to save 
- * @param  lserror      OUT set on error 
- * 
+ * @param  serial_info  IN  serial info
+ * @param  serial       IN  message serial (token) to save
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -223,7 +223,7 @@ _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *mes
     LS_ASSERT(NULL == g_hash_table_lookup(serial_info->map, &map_entry->serial));
 
     g_hash_table_insert(serial_info->map, &map_entry->serial, map_entry);
-    
+
     SERIAL_INFO_UNLOCK(&serial_info->lock);
 
     return true;
@@ -236,14 +236,14 @@ error:
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a serial (token) from the queue and map.
  *
  * @attention locks the serial info lock
  *
- * @param  serial_info  IN  serial info 
- * @param  serial       IN  serial (token) to remove 
+ * @param  serial_info  IN  serial info
+ * @param  serial       IN  serial (token) to remove
  *******************************************************************************
  */
 void
@@ -264,13 +264,13 @@ _LSTransportSerialRemove(_LSTransportSerial *serial_info, LSMessageToken serial)
     SERIAL_INFO_UNLOCK(&serial_info->lock);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Pops a message from the serial queue and removes it from the serial map.
  *
  * @attention locks the serial info lock
  *
- * @param  serial_info  IN  serial info 
+ * @param  serial_info  IN  serial info
  *
  * @retval message on success
  * @retval NULL on empty serial queue

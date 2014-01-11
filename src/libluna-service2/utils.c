@@ -32,12 +32,12 @@
  * @{
  */
 
-/** 
+/**
  *******************************************************************************
  * @brief Set a lock on the specified file
- * 
+ *
  * @param  fd   file descriptor
- * 
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -45,7 +45,7 @@
 bool
 LSLockFile(int fd)
 {
-    struct flock fileLock = 
+    struct flock fileLock =
     {
         .l_type = F_WRLCK,
         .l_whence = SEEK_SET,
@@ -66,13 +66,13 @@ LSLockFile(int fd)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Check to see if an instance of this executable is running.
- * 
+ *
  * @param  pid_dir          IN   directory where the pid file should reside
  * @param  pid_file_name    IN   name of the pid (lock) file
- * 
+ *
  * @retval true if the executable is running (matching pid file found)
  * @retval false if the executable is not running
  *******************************************************************************
@@ -106,7 +106,7 @@ LSIsRunning(const char *pid_dir, const char *pid_file_name)
     {
         close(fd);
         g_free(lock_file);
-        return true; 
+        return true;
     }
 
     snprintf(buf, sizeof(buf), "%ld\n", (long)getpid());
@@ -119,16 +119,16 @@ LSIsRunning(const char *pid_dir, const char *pid_file_name)
         /* continue, but display a warning */
         g_critical("Did not write complete buffer to lock file: \"%s\"", strerror(errno));
     }
-    
+
     if (ftruncate(fd, len) == -1)
     {
         /* continue, but display a warning */
         g_critical("Error while truncating lock file: \"%s\"", strerror(errno));
     }
-    
+
     g_free(lock_file);
 
-    return false; 
+    return false;
 }
 
 /* @} END OF LunaServiceUtils */

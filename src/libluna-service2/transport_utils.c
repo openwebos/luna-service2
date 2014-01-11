@@ -39,7 +39,7 @@ _ls_verbose(const char *format, ...)
         va_end(vargs);
 
         fflush(stderr);
-    } 
+    }
 }
 #endif
 
@@ -71,13 +71,13 @@ DumpHashTable(GHashTable *table)
     printf("\n");
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set a callback for the specified signal.
- * 
+ *
  * @param  signal           IN  signal number (e.g., SIGINT)
- * @param  handler          IN  callback 
- * 
+ * @param  handler          IN  callback
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -113,23 +113,23 @@ _LSTransportSetupSignalHandler(int signal, void (*handler)(int))
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the fd to blocking or non-blocking mode and return previous
  * state.
- * 
+ *
  * @param  fd                       IN  fd
  * @param  block                    IN  true means set to blocking, false
  *                                      non-blocking
  * @param  prev_state_blocking      OUT previous state of fd (true means
- *                                      blocking) 
+ *                                      blocking)
  *******************************************************************************
  */
 void
 _LSTransportFdSetBlockingState(int fd, bool block, bool *prev_state_blocking)
 {
     LS_ASSERT(fd >= 0);
-    
+
     bool old_block_state;
     int ret;
 
@@ -170,11 +170,11 @@ _LSTransportFdSetBlockingState(int fd, bool block, bool *prev_state_blocking)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the fd to blocking mode.
- * 
- * @param  fd                   IN  fd 
+ *
+ * @param  fd                   IN  fd
  * @param  prev_state_blocking  OUT previous state of the fd (true means
  *                                  blocking)
  *******************************************************************************
@@ -186,11 +186,11 @@ _LSTransportFdSetBlock(int fd, bool *prev_state_blocking)
     _LSTransportFdSetBlockingState(fd, true, prev_state_blocking);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the fd to non-blocking mode.
- * 
- * @param  fd                   IN  fd 
+ *
+ * @param  fd                   IN  fd
  * @param  prev_state_blocking  OUT previous state of the fd (true means
  *                                  blocking)
  *******************************************************************************

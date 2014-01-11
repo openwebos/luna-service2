@@ -74,11 +74,11 @@ _WatchdogGenerateRdxReport(void)
 }
 #endif
 
-/** 
+/**
  *******************************************************************************
  * @brief SIGALRM handler to check whether the mainloop is still ticking.
- * 
- * @param  signal   IN  signal received 
+ *
+ * @param  signal   IN  signal received
  *******************************************************************************
  */
 static void
@@ -104,7 +104,7 @@ _WatchdogSignalTimeout(int signal)
             break;
         case LSHubWatchdogFailureModeRdx:
 #if !(defined TARGET_DESKTOP)
-            /* Generate rdx report. This isn't really safe because it's 
+            /* Generate rdx report. This isn't really safe because it's
              * most certainly calling non async-signal-safe functions (see
              * man 7 signal). The only way to get around that would be to make
              * this a separate thread. */
@@ -126,12 +126,12 @@ _WatchdogSignalTimeout(int signal)
     last_count_seen = cur_count;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Called from the mainloop after the timeout.
- * 
- * @param  data 
- * 
+ *
+ * @param  data
+ *
  * @retval
  *******************************************************************************
  */
@@ -142,13 +142,13 @@ _WatchdogMainloopTimeout(gpointer data)
     return TRUE;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set a watchdog timer on the mainloop. The timeout is sepcified by the
  * configuration file.
- * 
- * @param  lserror 
- * 
+ *
+ * @param  lserror
+ *
  * @retval
  *******************************************************************************
  */
@@ -196,12 +196,12 @@ SetupWatchdog(LSError *lserror)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Convert a failure mode string to a numeric type.
- * 
+ *
  * @param  mode_str     IN  failure mode string ("rdx", "noop", "crash", etc)
- * 
+ *
  * @retval  failure mode type
  *******************************************************************************
  */

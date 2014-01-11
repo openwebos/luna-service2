@@ -152,7 +152,7 @@ LSDebugLogIncoming(const char *where, _LSTransportMessage *message)
 
         if (DEBUG_VERBOSE)
         {
-            const char *payload = _LSTransportMessageGetPayload(message); 
+            const char *payload = _LSTransportMessageGetPayload(message);
             if (!payload) payload = "(null)";
 
             g_debug("RX: %s token <<%ld>> sender: %s sender_unique: %s payload: %s",
@@ -216,7 +216,7 @@ static struct GlobalState state =
     .lock     = PTHREAD_MUTEX_INITIALIZER,
 };
 
-/** 
+/**
 * @brief Global lock used exclusively for initialization.
 */
 static void
@@ -225,7 +225,7 @@ _global_lock()
     pthread_mutex_lock(&state.lock);
 }
 
-/** 
+/**
 * @brief Global unlock used exclusively for initialization.
 */
 static void
@@ -234,9 +234,9 @@ _global_unlock()
     pthread_mutex_unlock(&state.lock);
 }
 
-/** 
+/**
 * @brief Called once to initialize the Luna Service world.
-* 
+*
 * @retval
 */
 static void
@@ -289,18 +289,18 @@ _LSErrorSetFunc(LSError *lserror,
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Use when the error_message is not a printf-style string
  * (error_message could contain printf() escape sequences)
- * 
- * @param  lserror 
- * @param  file 
- * @param  line 
- * @param  function 
- * @param  error_code 
- * @param  error_message 
- * 
+ *
+ * @param  lserror
+ * @param  file
+ * @param  line
+ * @param  function
+ * @param  error_code
+ * @param  error_message
+ *
  * @retval
  *******************************************************************************
  */
@@ -338,13 +338,13 @@ _LSErrorSetFromErrnoFunc(LSError *lserror,
 }
 
 #if 0
-/** 
+/**
 * @brief Called on unregister of category.
 *
 * @warn This is NOT implemented!
-* 
-* @param  connection 
-* @param  user_data 
+*
+* @param  connection
+* @param  user_data
 */
 static void
 _LSCategoryUnregister(LSHandle *sh, void *user_data)
@@ -359,7 +359,7 @@ _LSHandleMethodCall(LSHandle *sh, _LSTransportMessage *transport_msg)
     LSMessageHandlerResult retVal = LSMessageHandlerResultHandled;
 
     LSMessage *message = _LSMessageNewRef(transport_msg, sh);
-    
+
     /* look up the name in tableHandlers */
     GHashTable *categories = sh->tableHandlers;
 
@@ -429,7 +429,7 @@ _LSMessageHandler(_LSTransportMessage *message, void *context)
     {
     case _LSTransportMessageTypeMethodCall:
     case _LSTransportMessageTypeCancelMethodCall:
-        /* NOTE: the "cancel method call" is handled by the 
+        /* NOTE: the "cancel method call" is handled by the
          * _privateMethods -- _LSPrivateCancel, which is registered for
          * all services by default */
         retVal = _LSHandleMethodCall(context, message);
@@ -446,7 +446,7 @@ _LSMessageHandler(_LSTransportMessage *message, void *context)
          * send an error reply message to a reply */
         _LSHandleReply(context, message);
         break;
-    
+
     default:
         g_debug("Uh-oh -- received message we don't understand: %d", _LSTransportMessageGetType(message));
         break;
@@ -480,11 +480,11 @@ _LSCategoryTableFree(LSCategoryTable *table)
  * @{
  */
 
-/** 
+/**
 * @brief Initializes a LSError.
-* 
-* @param  lserror 
-* 
+*
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -499,11 +499,11 @@ LSErrorInit(LSError *lserror)
     return true;
 }
 
-/** 
+/**
 * @brief Find the status of a LSError
-* 
-* @param  lserror 
-* 
+*
+* @param  lserror
+*
 * @retval true if the LSError contains an error code/message.
 */
 bool
@@ -514,11 +514,11 @@ LSErrorIsSet(LSError *lserror)
     return (lserror && lserror->error_code != 0);
 }
 
-/** 
+/**
 * @brief Convenience function to print a LSError
-* 
-* @param  lserror 
-* @param  out 
+*
+* @param  lserror
+* @param  out
 */
 void
 LSErrorPrint(LSError *lserror, FILE *out)
@@ -537,12 +537,12 @@ LSErrorPrint(LSError *lserror, FILE *out)
     }
 }
 
-/** 
+/**
 * @brief Frees the internal structures of LSError if an error has been handled.
 *        Must be called on an error if set.
-* 
-* @param  lserror 
-* 
+*
+* @param  lserror
+*
 * @retval
 */
 void
@@ -620,13 +620,13 @@ static LSMethod _privateMethods[] = {
 };
 
 
-/** 
+/**
 * @brief Set a function to be called if we are disconnected from the bus.
-* 
-* @param  sh 
-* @param  disconnect_handler 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  disconnect_handler
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -690,7 +690,7 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
     LSTransportHandlers _LSTransportHandler =
     {
         .msg_handler = _LSMessageHandler,
-        .msg_context = sh, 
+        .msg_context = sh,
         .disconnect_handler = _LSDisconnectHandler,
         .disconnect_context = sh,
         .message_failure_handler = _LSHandleMessageFailure,
@@ -701,7 +701,7 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
     {
         goto error;
     }
-    
+
     /* Connect to the hub and listen for incoming calls */
     if (!_LSTransportConnect(sh->transport, true, public_bus, lserror))
     {
@@ -710,7 +710,7 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
             g_critical("Failed to connect. Is the hub running?");
         }
         goto error;
-    } 
+    }
 
     if (!_CallMapInit(sh, &sh->callmap, lserror))
     {
@@ -759,14 +759,14 @@ error:
     return false;
 }
 
-/** 
+/**
 * @brief Connect to bus by type.
-* 
-* @param  name 
-* @param  *sh 
-* @param  public_bus 
-* @param  lserror 
-* 
+*
+* @param  name
+* @param  *sh
+* @param  public_bus
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -793,11 +793,11 @@ LSHandleGetName(LSHandle *sh)
 * LSRegisterCategory(), and send replies via LSMessageReply() or
 * LSSubscriptionPost().  A traditional client may register with a NULL name if
 * it never expects to be sent messages.
-* 
-* @param  name 
-* @param  *serviceHandle 
-* @param  lserror 
-* 
+*
+* @param  name
+* @param  *serviceHandle
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -832,14 +832,14 @@ error:
 }
 
 
-/** 
+/**
 * @brief Register a service that may expose public methods on the public bus,
 *        and internal methods on the private bus.
-* 
-* @param  name 
+*
+* @param  name
 * @param  *ret_public_service
-* @param  lserror 
-* 
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -853,7 +853,7 @@ LSRegisterPalmService(const char *name,
     bool retVal;
 
     LSPalmService *psh = g_new0(LSPalmService,1);
-    
+
     retVal = _LSRegisterCommon(name, &psh->public_sh, true, LSHANDLE_GET_RETURN_ADDR(), lserror);
     if (!retVal) goto error;
 
@@ -869,12 +869,12 @@ error:
     return retVal;
 }
 
-/** 
+/**
 * @brief Obtain the private service handle from a public
 *        service.
-* 
-* @param  psh 
-* 
+*
+* @param  psh
+*
 * @retval
 */
 LSHandle *
@@ -884,12 +884,12 @@ LSPalmServiceGetPrivateConnection(LSPalmService *psh)
     return psh->private_sh;
 }
 
-/** 
+/**
 * @brief Obtain the public service handle from a public
 *        service.
-* 
-* @param  psh 
-* 
+*
+* @param  psh
+*
 * @retval
 */
 LSHandle *
@@ -899,7 +899,7 @@ LSPalmServiceGetPublicConnection(LSPalmService *psh)
     return psh->public_sh;
 }
 
-static char* 
+static char*
 _category_to_object_path_alloc(const char *category)
 {
     char *category_path;
@@ -920,17 +920,17 @@ _category_to_object_path_alloc(const char *category)
     return category_path;
 }
 
-/** 
+/**
 * @brief Append methods to the category.
 *        Creates a category if needed.
-* 
-* @param  sh 
-* @param  category 
-* @param  methods 
-* @param  signals 
-* @param  category_user_data 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  category
+* @param  methods
+* @param  signals
+* @param  category_user_data
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -968,7 +968,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
     }
     else
     {
-        /* 
+        /*
          * We've already registered the category, so free the unneeded
          * category_path. This will happen when we call
          * LSRegisterCategoryAppend multiple times with the same category
@@ -1004,17 +1004,17 @@ fail:
     return false;
 }
 
-/** 
+/**
 * @brief Register public methods and private methods.
-* 
-* @param  psh 
-* @param  category 
-* @param  methods_public 
-* @param  methods_private 
-* @param  signals 
-* @param  category_user_data 
-* @param  lserror 
-* 
+*
+* @param  psh
+* @param  category
+* @param  methods_public
+* @param  methods_private
+* @param  signals
+* @param  category_user_data
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1049,15 +1049,15 @@ error:
     return retVal;
 }
 
-/** 
+/**
 * @brief Set the userdata that is delivered to each callback registered
 *        to the category.
-* 
-* @param  sh 
-* @param  category 
-* @param  user_data 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  category
+* @param  user_data
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1109,15 +1109,15 @@ _category_exists(LSHandle *sh, const char *category)
     return exists;
 }
 
-/** 
+/**
 * @brief Register tables of callbacks associated with the message category.
-* 
+*
 * @param  category    - May be NULL for default '/' category.
 * @param  methods     - table of methods.
 * @param  signals     - table of signals.
 * @param  properties  - table of properties.
-* @param  lserror 
-* 
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1189,12 +1189,12 @@ _LSUnregisterCommon(LSHandle *sh, bool flush_and_send_shutdown, void *call_ret_a
 }
 
 
-/** 
+/**
 * @brief Unregister a service.
-* 
-* @param  service 
-* @param  lserror 
-* 
+*
+* @param  service
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1203,14 +1203,14 @@ LSUnregister(LSHandle *sh, LSError *lserror)
     return _LSUnregisterCommon(sh, true, LSHANDLE_GET_RETURN_ADDR(), lserror );
 }
 
-/** 
+/**
  * @brief Push a role file for this process. Once the role file has been
  * pushed with this function, the process will be restricted to the
  * constraints of the provided role file.
- * 
+ *
  * @param  sh           IN  handle (already connected with LSRegister())
  * @param  role_path    IN  full path to role file
- * @param  lserror      OUT set on error 
+ * @param  lserror      OUT set on error
  *
  * @retval true on success
  * @retval false on failure
@@ -1225,13 +1225,13 @@ LSPushRole(LSHandle *sh, const char *role_path, LSError *lserror)
     return LSTransportPushRole(sh->transport, role_path, lserror);
 }
 
-/** 
+/**
  * @brief Same as LSPushRole(), but for a LSPalmService connection.
- * 
- * @param  psh          IN  handle 
- * @param  role_path    IN  full path to role file 
- * @param  lserror      OUT set on error 
- * 
+ *
+ * @param  psh          IN  handle
+ * @param  role_path    IN  full path to role file
+ * @param  lserror      OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  */

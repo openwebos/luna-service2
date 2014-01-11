@@ -39,15 +39,15 @@ void _LSTransportRemoveAcceptWatch(_LSTransportChannel *channel);
  * @{
  */
 
-/** 
+/**
  *******************************************************************************
  * @brief Initialize a channel.
- * 
- * @param  transport    IN  transport 
- * @param  channel      IN  channel to initialize 
- * @param  fd           IN  fd 
- * @param  priority     IN  priority 
- * 
+ *
+ * @param  transport    IN  transport
+ * @param  channel      IN  channel to initialize
+ * @param  fd           IN  fd
+ * @param  priority     IN  priority
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -64,22 +64,22 @@ _LSTransportChannelInit(_LSTransport *transport, _LSTransportChannel *channel, i
     channel->send_watch = NULL;
     channel->recv_watch = NULL;
     channel->accept_watch = NULL;
-    
+
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Deinitialize a channel.
- * 
- * @param  channel  IN channel 
+ *
+ * @param  channel  IN channel
  *******************************************************************************
  */
 void
 _LSTransportChannelDeinit(_LSTransportChannel *channel)
 {
     LS_ASSERT(channel != NULL);
-   
+
     if (channel->send_watch)
     {
         _LSTransportRemoveSendWatch(channel);
@@ -94,22 +94,22 @@ _LSTransportChannelDeinit(_LSTransportChannel *channel)
     {
         _LSTransportRemoveAcceptWatch(channel);
     }
-    
+
     if (channel->channel)
     {
         g_io_channel_unref(channel->channel);
         channel->channel = NULL;
     }
-    
+
     channel->transport = NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the underlying file descriptor for a channel (not ref counted).
- * 
- * @param  channel  IN  channel 
- * 
+ *
+ * @param  channel  IN  channel
+ *
  * @retval  fd
  *******************************************************************************
  */
@@ -119,11 +119,11 @@ _LSTransportChannelGetFd(const _LSTransportChannel *channel)
     return channel->fd;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Close a channel.
- * 
- * @param  channel  IN  channel 
+ *
+ * @param  channel  IN  channel
  * @param  flush    IN  flush the channel before closing
  *******************************************************************************
  */
@@ -150,12 +150,12 @@ _LSTransportChannelClose(_LSTransportChannel *channel, bool flush)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the priority on a channel.
- * 
- * @param  channel  IN  channel 
- * @param  priority IN  priority 
+ *
+ * @param  channel  IN  channel
+ * @param  priority IN  priority
  *******************************************************************************
  */
 void
@@ -190,12 +190,12 @@ _LSTransportChannelHasSendWatch(const _LSTransportChannel *channel)
     return (channel->send_watch != NULL);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the given channel to blocking read/write mode. If
- * prev_state_blocking is not NULL, the previous state will be saved in that 
+ * prev_state_blocking is not NULL, the previous state will be saved in that
  * variable.
- * 
+ *
  * @param  channel                  IN  channel
  * @param  prev_state_blocking      OUT true if channel was set to block
  *                                      before calling this function,
@@ -210,12 +210,12 @@ _LSTransportChannelSetBlock(_LSTransportChannel *channel, bool *prev_state_block
     _LSTransportFdSetBlock(fd, prev_state_blocking);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the given channel to non-blocking read/write mode. If
- * prev_state_blocking is not NULL, the previous state will be saved in that 
+ * prev_state_blocking is not NULL, the previous state will be saved in that
  * variable.
- * 
+ *
  * @param  channel                  IN  channel
  * @param  prev_state_blocking      OUT true if channel was set to block
  *                                      before calling this function,
@@ -230,14 +230,14 @@ _LSTransportChannelSetNonblock(_LSTransportChannel *channel, bool *prev_state_bl
     _LSTransportFdSetNonBlock(fd, prev_state_blocking);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Restore the saved blocking state to a channel (from
  * _LSTransportChannelSetBlock or _LSTransportChannelSetNonblock).
- * 
- * @param  channel              IN  channel 
+ *
+ * @param  channel              IN  channel
  * @param  prev_state_blocking  IN  true sets channel to blocking, otherwise
- *                                  channel is set to non-blocking 
+ *                                  channel is set to non-blocking
  *******************************************************************************
  */
 void

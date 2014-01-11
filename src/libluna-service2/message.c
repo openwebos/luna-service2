@@ -34,10 +34,10 @@
  * @{
  */
 
-/** 
+/**
 * @brief Allocate LSMessage from _LSTransportMessage with a refcount of 1.
-* 
-* @param  transport_msg 
+*
+* @param  transport_msg
 *
 * @retval
 */
@@ -80,16 +80,16 @@ _LSMessageFree(LSMessage *message)
 
 /**
  * @addtogroup LunaServiceMessage
- * 
+ *
  * @{
  */
 
-/** 
+/**
 * @brief Return a handle to the connection-to-bus
 *        through which message was sent.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 LSHandle *
@@ -99,13 +99,13 @@ LSMessageGetConnection(LSMessage *message)
     return message->sh;
 }
 
-/** 
+/**
 * @brief Returns if message is received from public connection
 *        to the bus.
-* 
-* @param  psh 
-* @param  message 
-* 
+*
+* @param  psh
+* @param  message
+*
 * @retval
 */
 bool
@@ -114,34 +114,34 @@ LSMessageIsPublic(LSPalmService *psh, LSMessage *message)
     return (message->sh == psh->public_sh);
 }
 
-/** 
+/**
 * @brief Increment ref count on message object.  You MUST call this if you wish to store
 *        LSMessage yourself.  A LSMessageRef() MUST be paired with a LSMessageUnref()
 *        lest you leak memory.
-* 
-* @param  message 
+*
+* @param  message
 */
 void
 LSMessageRef(LSMessage *message)
 {
     LS_ASSERT(message != NULL);
-    LS_ASSERT(g_atomic_int_get (&message->ref) > 0); 
+    LS_ASSERT(g_atomic_int_get (&message->ref) > 0);
 
     //g_debug("%s(%p)", __FUNCTION__, message);
 
     g_atomic_int_inc(&message->ref);
 }
 
-/** 
+/**
 * @brief Decrement ref count on message object.  Object is freed if ref goes to zero.
-* 
-* @param  message 
+*
+* @param  message
 */
 void
 LSMessageUnref(LSMessage *message)
 {
     LS_ASSERT(message != NULL);
-    LS_ASSERT(g_atomic_int_get (&message->ref) > 0); 
+    LS_ASSERT(g_atomic_int_get (&message->ref) > 0);
 
     //g_debug("%s(%p)", __FUNCTION__, message);
 
@@ -151,12 +151,12 @@ LSMessageUnref(LSMessage *message)
     }
 }
 
-/** 
+/**
 * @brief Convenience function to pretty print a message.
-* 
-* @param  lmsg 
-* @param  out 
-* 
+*
+* @param  lmsg
+* @param  out
+*
 * @retval
 */
 bool
@@ -172,11 +172,11 @@ LSMessagePrint(LSMessage *message, FILE *out)
     return true;
 }
 
-/** 
+/**
  * @brief Returns true if the message is an error message from the hub.
- * 
- * @param  message 
- * 
+ *
+ * @param  message
+ *
  * @retval true, if message is error message from hub
  * @retval false, otherwise
  */
@@ -184,19 +184,19 @@ bool
 LSMessageIsHubErrorMessage(LSMessage *message)
 {
     if (!message) return false;
-    
+
     const char *category = LSMessageGetCategory(message);
 
     if (!category) return false;
-    
+
     return (strcmp(category, LUNABUS_ERROR_CATEGORY) == 0);
 }
 
-/** 
+/**
 * @brief Get the method name of the message.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 const char *
@@ -211,21 +211,21 @@ LSMessageGetMethod(LSMessage *message)
     return message->method;
 }
 
-/** 
+/**
 * @brief Obtain the application's ID.
 *
-* This only applies to JS Applications' LSCallFromApplication(). 
-* 
-* @param  message 
-* 
+* This only applies to JS Applications' LSCallFromApplication().
+*
+* @param  message
+*
 * @retval
 */
 const char *
 LSMessageGetApplicationID(LSMessage *message)
 {
     const char *ret = _LSTransportMessageGetAppId(message->transport_msg);
-    
-    /* match previous semantics */    
+
+    /* match previous semantics */
     if (ret != NULL && *ret == '\0')
     {
         return NULL;
@@ -236,11 +236,11 @@ LSMessageGetApplicationID(LSMessage *message)
     }
 }
 
-/** 
+/**
 * @brief Obtain a unique token identifying the sender.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 const char *
@@ -253,12 +253,12 @@ LSMessageGetSender(LSMessage *message)
     return sender;
 }
 
-/** 
+/**
 * @brief Get the name of the service that sent the message. (NULL if the
 * sender didn't register a service name)
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval   service_name if service sending the message has a name
 * @retval   NULL otherwise
 */
@@ -272,12 +272,12 @@ LSMessageGetSenderServiceName(LSMessage *message)
     return service_name;
 }
 
-/** 
+/**
 * @brief Get the unique serial of this message.  Do not confuse with
 * LSMessageGetResponseToken().
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 LSMessageToken
@@ -289,15 +289,15 @@ LSMessageGetToken(LSMessage *message)
     return serial;
 }
 
-/** 
+/**
 * @brief Get the response token associated with this message this will match
 * with the LSMessageGetToken() of the original call.
 *
 * For signals, the response token is supplanted with the original token
 * returned from LSSignalCall().
-* 
+*
 * @param  reply
-* 
+*
 * @retval
 */
 LSMessageToken
@@ -313,11 +313,11 @@ LSMessageGetResponseToken(LSMessage *reply)
     return reply->responseToken;
 }
 
-/** 
+/**
 * @brief Get the category of this message.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 const char *
@@ -333,11 +333,11 @@ LSMessageGetCategory(LSMessage *message)
     return message->category;
 }
 
-/** 
+/**
 * @brief Get the payload of this message.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 const char *
@@ -355,15 +355,15 @@ LSMessageGetPayload(LSMessage *message)
     return message->payload;
 }
 
-/** 
+/**
 * @brief Get the payload of the message as a JSON object.
 *
 * @deprecated Do NOT use this function anymore. It now returns NULL always.
 * Use LSMessageGetPayload() and use pbnjson (https://wiki.palm.com/display/CoreOS/pbnjson)
 * to parse the JSON.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval NULL always
 */
 LS_DEPRECATED void*
@@ -374,12 +374,12 @@ LSMessageGetPayloadJSON(LSMessage  *message)
     return NULL;
 }
 
-/** 
+/**
  * @brief Checks if the message has subscription field with
  * subscribe=true
- * 
+ *
  * @param message
- * 
+ *
  * @retval true if has subscribe=true, false otherwise
  */
 bool
@@ -392,12 +392,12 @@ LSMessageIsSubscription(LSMessage *message)
     struct json_object *object = json_tokener_parse(payload);
     if (JSON_ERROR(object))
         goto exit;
-   
+
     if (!json_object_object_get_ex(object, "subscribe", &sub_object) || JSON_ERROR(sub_object))
         goto exit;
 
     _LSErrorIfFail(json_object_get_type(sub_object) == json_type_boolean, NULL);
-    
+
     ret = json_object_get_boolean(sub_object);
 
 exit:
@@ -406,14 +406,14 @@ exit:
     return ret;
 }
 
-/** 
+/**
 * @brief Send a reply to message using the same bus that
 *        message came from.
-* 
-* @param  lsmsg 
-* @param  reply_payload 
-* @param  lserror 
-* 
+*
+* @param  lsmsg
+* @param  reply_payload
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -424,17 +424,17 @@ LSMessageRespond(LSMessage *message, const char *reply_payload,
         message, reply_payload, lserror);
 }
 
-/** 
+/**
 * @brief Send a reply to a message using the bus identified by LSHandle.
 *
 *        To use the same bus upon which the message arrived, it is
 *        recommended to use LSMessageRespond().
-* 
-* @param  sh 
-* @param  lsmsg 
-* @param  replyPayload 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  lsmsg
+* @param  replyPayload
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -502,16 +502,16 @@ LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
 }
 
 
-/** 
+/**
 * @brief Send a reply.
-* 
-* @param  sh 
-* @param  message 
+*
+* @param  sh
+* @param  message
 * @param  replyPayload
-* @param  error 
+* @param  error
 *
 * @deprecated Use LSMessageReply() instead.
-* 
+*
 * @retval
 */
 LS_DEPRECATED bool
@@ -522,11 +522,11 @@ LSMessageReturn(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
     return false;
 }
 
-/** 
-* @brief Returns a string that uniquely represents this message. 
-* 
-* @param  message 
-* 
+/**
+* @brief Returns a string that uniquely represents this message.
+*
+* @param  message
+*
 * @retval
 */
 const char *
@@ -546,11 +546,11 @@ LSMessageGetUniqueToken(LSMessage *message)
     return message->uniqueTokenAllocated;
 }
 
-/** 
+/**
 * @brief Returns the kind of the message (i.e. category + method).
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 const char *

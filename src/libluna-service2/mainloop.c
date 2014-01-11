@@ -39,8 +39,8 @@ struct LSFetchQueue {
 };
 
 struct LSCustomMessageQueue {
-    pthread_mutex_t lock; 
-    GQueue *queue;   
+    pthread_mutex_t lock;
+    GQueue *queue;
 };
 
 void LSCustomMessageQueuePush(LSCustomMessageQueue *q, _LSTransportMessage *message);
@@ -76,7 +76,7 @@ bool LSGmainContextAttach(LSHandle *sh, GMainContext *mainContext, LSError *lser
     return true;
 }
 
-/** 
+/**
 * @brief Attach a service to a glib mainloop.
 *
 * @param  sh
@@ -115,7 +115,7 @@ LSGmainAttachPalmService(LSPalmService *psh, GMainLoop *mainLoop, LSError *lserr
     return LSGmainContextAttachPalmService(psh, context, lserror);
 }
 
-/** 
+/**
  * @brief Detach a service from a glib mainloop. You should NEVER use this
  * function unless you are fork()'ing without exec()'ing and know what you are
  * doing. This will perform nearly all the same cleanup as LSUnregister(), with
@@ -123,10 +123,10 @@ LSGmainAttachPalmService(LSPalmService *psh, GMainLoop *mainLoop, LSError *lserr
  * buffers. It is intended to be used only when fork()'ing so that your child
  * process can continue without interfering with the parent's file descriptors,
  * since open file descriptors are duplicated during a fork().
- * 
- * @param  sh 
- * @param  lserror 
- * 
+ *
+ * @param  sh
+ * @param  lserror
+ *
  * @retval
  */
 bool
@@ -140,13 +140,13 @@ LSGmainDetach(LSHandle *sh, LSError *lserror)
     return _LSUnregisterCommon(sh, false, LSHANDLE_GET_RETURN_ADDR(), lserror);
 }
 
-/** 
+/**
  * @brief See LSGmainDetach(). This is the equivalent for a "PalmService"
  * handle.
- * 
- * @param  psh          IN      PalmService handle 
- * @param  lserror      OUT     set on error 
- * 
+ *
+ * @param  psh          IN      PalmService handle
+ * @param  lserror      OUT     set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  */
@@ -163,17 +163,17 @@ LSGmainDetachPalmService(LSPalmService *psh, LSError *lserror)
     return retVal;
 }
 
-/** 
+/**
 * @brief Sets the priority level on the associated GSources for
-*        the service connection. 
+*        the service connection.
 *
 *        This should be called after LSGmainAttach().
 *
 *        See glib documentation for GSource priority levels.
-* 
-* @param  sh 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -229,13 +229,13 @@ _LSCustomMessageHandler(_LSTransportMessage *message, void *context)
  * @{
  */
 
-/** 
+/**
 * @brief Wake up the user's custom mainloop.  Only works if you've
 *        implented a custom mainloop via LSCustomGetFds()
-* 
-* @param  sh 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -289,7 +289,7 @@ LSCustomMessageQueueIsEmpty(LSCustomMessageQueue *q)
     pthread_mutex_lock(&q->lock);
     ret = g_queue_is_empty(q->queue);
     pthread_mutex_unlock(&q->lock);
-    
+
     return ret;
 }
 
@@ -300,10 +300,10 @@ LSCustomMessageQueuePop(LSCustomMessageQueue *q)
     pthread_mutex_lock(&q->lock);
 
     _LSTransportMessage *ret = g_queue_pop_head(q->queue);
-    
+
     /* unlock queue */
     pthread_mutex_unlock(&q->lock);
-    
+
     if (ret) _LSTransportMessageUnref(ret);
 
     return ret;
@@ -313,26 +313,26 @@ void
 LSCustomMessageQueuePush(LSCustomMessageQueue *q, _LSTransportMessage *message)
 {
     _LSTransportMessageRef(message);
-    
+
     /* lock queue */
     pthread_mutex_lock(&q->lock);
 
     g_queue_push_tail(q->queue, message);
-    
+
     /* unlock queue */
     pthread_mutex_unlock(&q->lock);
 
 }
 
-/** 
+/**
 * @brief Block till incoming message is ready.  This should only be
 *        called by custom mainloops.
-* 
-* @param  sh 
+*
+* @param  sh
 * @param  *message  allocated store of next message from queue, NULL if queue is empty.
 *                   You MUST call LSMessageUnref() to free this message.
-* @param  lserror 
-* 
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -352,13 +352,13 @@ LSCustomWaitForMessage(LSHandle *sh, LSMessage **message,
         return false;
     if (*message)
         return true;
-    
+
     /* install custom message callback if not done already */
     if (G_UNLIKELY(sh->transport->msg_handler != _LSCustomMessageHandler))
     {
         sh->transport->msg_handler = _LSCustomMessageHandler;
         sh->transport->msg_context = sh;
-        
+
         sh->transport->mainloop_context = g_main_context_new();
 
         if (!sh->transport->mainloop_context)
@@ -370,7 +370,7 @@ LSCustomWaitForMessage(LSHandle *sh, LSMessage **message,
         _LSTransportAddInitialWatches(sh->transport, sh->transport->mainloop_context);
     }
 
-    /* 
+    /*
      * Run an interation of the context: g_main_context_iteration, which
      * will call our special custom message callback and add to the queue of
      * messages
@@ -444,7 +444,7 @@ LSFetchQueueAddConnection(LSFetchQueue *fq, LSHandle *sh)
     if (fq && sh)
     {
         fq->sh_list = g_slist_prepend(fq->sh_list, sh);
-        
+
         /* use custom message handler and attach context */
         if ((sh->transport->msg_handler != _LSCustomMessageHandler))
         {
@@ -455,7 +455,7 @@ LSFetchQueueAddConnection(LSFetchQueue *fq, LSHandle *sh)
     }
 }
 
-/* 
+/*
  * This returns NULL or a ref'd message which you must unref when finished
  * with
  */
@@ -476,7 +476,7 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
     for (iter = fq->sh_list; iter != NULL; iter = iter->next)
     {
         LSHandle *sh = (LSHandle*)iter->data;
-        
+
         if (_FetchMessageQueueSize(sh) > 0 || !LSCustomMessageQueueIsEmpty(sh->custom_message_queue))
         {
             do_iteration = false;
@@ -484,7 +484,7 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
         }
     }
 
-    /* 
+    /*
      * Run an interation of the context: g_main_context_iteration, which
      * will call our special custom message callback and add to the queue of
      * messages
@@ -508,7 +508,7 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
     {
         fq->dispatch_iter = fq->sh_list;
     }
-    
+
     GSList *first = fq->dispatch_iter;
     LSMessage *message = NULL;
 
@@ -539,7 +539,7 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
             //g_debug("Reached the first %p stopping...", first->data);
             fq->dispatch_iter = NULL;
         }
-    
+
         /* Found a message! return it to user */
         if (message != NULL) break;
     }
@@ -549,19 +549,19 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
     return true;
 }
 
-/** 
+/**
 * @brief Pop a message from the incoming queue, non blocking.  This should
 *        only be called by custom mainloops.  Do NOT call this if you intend
 *        to use callback tables registered by LSRegisterCategory().
 *
 *        To dispatch to callback tables use LSCustomDispatchMessage()
 *        instead.
-* 
-* @param  sh 
+*
+* @param  sh
 * @param  *ret_message  allocated store of next message from queue, NULL if queue is empty.
 *                   You MUST call LSMessageUnref() to free this message.
-* @param  lserror 
-* 
+* @param  lserror
+*
 * @retval
 */
 bool

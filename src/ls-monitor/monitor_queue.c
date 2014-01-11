@@ -43,7 +43,7 @@ _LSMonitorQueueNew(bool public_bus)
         queue->public = public_bus;
         queue->queue = g_queue_new();
     }
-    return queue; 
+    return queue;
 }
 
 void
@@ -141,7 +141,7 @@ _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, 
         else
         {
            break;
-        } 
+        }
     }
 
     /* sort the print list by serial number */

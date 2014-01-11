@@ -60,7 +60,7 @@ retVal = LSCall(serviceHandle, "luna://com.palm.contacts/category/listContacts",
         "{ \"json payload\" }", listContactsHandler, user_data, &token, &lserror);
 if (!retVal) goto error;
 
-LSGmainAttach(serviceHandle, gmainLoop, &lserror); 
+LSGmainAttach(serviceHandle, gmainLoop, &lserror);
 g_main_loop_run(gmainLoop);
 @endcode
 
@@ -106,7 +106,7 @@ if (!retVal) goto error;
 retVal = LSRegisterCategory(serviceHandle, "/category",  ipcMethods, NULL, NULL, &lserror);
 if (!retVal) goto error;
 
-retVal = LSGmainAttach(serviceHandle, gmainLoop, &lserror); 
+retVal = LSGmainAttach(serviceHandle, gmainLoop, &lserror);
 if (!retVal) goto error;
 
 g_main_loop_run(gmainLoop);
@@ -172,7 +172,7 @@ do
     if (!retVal) return -1;
 
     int ret = select(nfd, &rdfds, &wrfds, &exfds, NULL);
-    if (ret < 0) 
+    if (ret < 0)
     {
         perror("select");
         break;
@@ -186,7 +186,7 @@ do
     }
 
     // Transmit byte and Dispatch incomming at most 1 message
-    retVal = LSCustomDispatchMessage(sh, NULL, lserror); 
+    retVal = LSCustomDispatchMessage(sh, NULL, lserror);
     if (!retVal)
     {
         break;
@@ -258,9 +258,9 @@ typedef unsigned long LSMessageToken;
  */
 #define LSMESSAGE_TOKEN_INVALID 0
 
-/** 
+/**
 * @brief Error object which contains information about first
-*        error since it was initialized via LSErrorInit. 
+*        error since it was initialized via LSErrorInit.
 */
 struct LSError {
     int   error_code;  /**< public error code */
@@ -276,17 +276,17 @@ struct LSError {
 
 typedef struct LSError  LSError;
 
-/** 
+/**
 * @brief Handle to service.
 */
 typedef struct LSHandle LSHandle;
 
-/** 
+/**
 * @brief Handle to public service.
 */
 typedef struct LSPalmService LSPalmService;
 
-/** 
+/**
 * @brief Message object.
 */
 typedef struct LSMessage        LSMessage;
@@ -295,13 +295,13 @@ typedef struct LSMessage        LSMessage;
  * Table registration of callbacks.
  */
 
-/** 
+/**
 * @brief Type for method callbacks.
-* 
-* @param  *LSMethodFunction 
-* @param  sh 
-* @param  msg 
-* 
+*
+* @param  *LSMethodFunction
+* @param  sh
+* @param  msg
+*
 * @retval true if message successfully processed.
 * @retval false if some error occurred and you would like the callback to
 *               be called again later.
@@ -309,29 +309,29 @@ typedef struct LSMessage        LSMessage;
 typedef bool (*LSMethodFunction) (LSHandle *sh, LSMessage *msg, void *category_context);
 
 
-/** 
+/**
 * @brief Type for property get callback.
-* 
-* @param  *LSPropertyGetFunction 
-* @param  sh 
-* @param  msg 
-* 
+*
+* @param  *LSPropertyGetFunction
+* @param  sh
+* @param  msg
+*
 * @retval Same as LSMethodFunction()
 */
 typedef bool (*LSPropertyGetFunction) (LSHandle *sh, LSMessage *msg, void *category_context);
 
-/** 
+/**
 * @brief Type for property set callback.
-* 
-* @param  *LSPropertySetFunction 
-* @param  sh 
-* @param  msg 
-* 
+*
+* @param  *LSPropertySetFunction
+* @param  sh
+* @param  msg
+*
 * @retval Same as LSMethodFunction()
 */
 typedef bool (*LSPropertySetFunction) (LSHandle *sh, LSMessage *msg, void *category_context);
 
-/** 
+/**
 * @brief Method flags
 */
 typedef enum {
@@ -513,26 +513,26 @@ bool LSGmainSetPriorityPalmService(LSPalmService *psh, int priority, LSError *ls
  */
 
 
-/** 
+/**
 * @brief Function callback to be called when serviceName connects/disconnects.
-* 
+*
 * @param  sh             service handle
 * @param  serviceName    name of service that was brought up/down.
 * @param  connected      service was brought up if true.
-* 
+*
 * @retval
 */
 typedef bool (*LSServerStatusFunc) (LSHandle *sh, const char *serviceName,
                                   bool connected,
                                   void *ctx);
 
-/** 
+/**
 * @brief Callback function called on incomming message.
-* 
+*
 * @param  sh             service handle
 * @param  reply          reply message
-* @param  void *         context 
-* 
+* @param  void *         context
+*
 * @retval true if message is handled.
 */
 typedef bool (*LSFilterFunc) (LSHandle *sh, LSMessage *reply, void *ctx);
@@ -611,7 +611,7 @@ bool LSSignalSendNoTypecheck(LSHandle *sh,
             const char *uri, const char *payload, LSError *lserror);
 
 bool LSSignalCall(LSHandle *sh,
-         const char *category, const char *methodName, 
+         const char *category, const char *methodName,
          LSFilterFunc filterFunc, void *ctx,
          LSMessageToken *ret_token,
          LSError *lserror);

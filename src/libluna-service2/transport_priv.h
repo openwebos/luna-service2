@@ -69,17 +69,17 @@ struct LSTransport {
 
     LSTransportDisconnectHandler disconnect_handler;        /**< callback to handle when a client disconnects */
     void* disconnect_context;
-    
+
     /* internal message handler */
     LSTransportMessageHandler msg_handler;          /**< callback to handle incoming messages */
     void *msg_context;                              /**< private context passed to message handling callback */
 
     _LSTransportClient      *hub;           /*<< client info for hub; should always be valid after connecting */
     _LSTransportClient      *monitor;       /*<< client info for monitor; NULL when there is no monitor */
-  
+
     _LSTransportGlobalToken *global_token;  /*<< global token that provides unique identity for messages sent by this transport */
 
-    pthread_mutex_t         lock;               /*<< lock for clients, all_connections, pending */ 
+    pthread_mutex_t         lock;               /*<< lock for clients, all_connections, pending */
     GHashTable              *clients;           /*<< hash of _LSTransportClients by *service* name */
     GHashTable              *all_connections;   /*<< hash of fd to _LSTransportClient */
     GHashTable              *pending;           /*<< hash of _LSTransportOutgoing by service name */

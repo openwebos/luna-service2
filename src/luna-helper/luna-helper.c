@@ -22,7 +22,7 @@
 #include <cjson/json.h>
 #include <luna-service2/lunaservice.h>
 
-#define JSON_ERROR(x) (!x || is_error(x)) 
+#define JSON_ERROR(x) (!x || is_error(x))
 
 static int sLogLevel = G_LOG_LEVEL_MESSAGE;
 
@@ -41,7 +41,7 @@ _timeout (gpointer data)
     return FALSE;
 }
 
-static bool 
+static bool
 _response(LSHandle *sh, LSMessage *reply, void *ctx)
 {
     //LSMessageToken token;
@@ -143,7 +143,7 @@ main(int argc, char **argv)
     LSErrorInit(&lserror);
 
     LSHandle *sh = NULL;
-    
+
     GMainLoop *mainLoop = NULL;
 
     const char * uri = argv[optionCount + 1];
@@ -151,10 +151,10 @@ main(int argc, char **argv)
 
     struct json_object * serviceJson = NULL;
     char* service = NULL;
-    
+
     struct json_object * msgJson = json_tokener_parse(msg);
     g_return_val_if_fail(!JSON_ERROR(msgJson), -1);
-    
+
     if (!json_object_object_get_ex(msgJson, "serviceName", &serviceJson))
     {
         g_warning("No \"serviceName\" in JSON message");
@@ -163,7 +163,7 @@ main(int argc, char **argv)
 
     if (json_object_get_type(serviceJson) != json_type_string)
     {
-        g_warning("serviceName is not a string"); 
+        g_warning("serviceName is not a string");
         goto error;
     }
 
@@ -171,7 +171,7 @@ main(int argc, char **argv)
 
     g_log_set_default_handler(g_log_filter, NULL);
 
-    mainLoop = g_main_loop_new(NULL, FALSE); 
+    mainLoop = g_main_loop_new(NULL, FALSE);
     if (NULL == mainLoop) goto error;
 
     g_return_val_if_fail(mainLoop != NULL, -1);

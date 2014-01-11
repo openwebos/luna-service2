@@ -44,8 +44,8 @@ extern bool _ls_enable_utf8_validation;
 
 void LSDebugLogIncoming(const char *where, _LSTransportMessage *message);
 
-/** 
-* @brief 
+/**
+* @brief
 */
 struct LSCategoryTable {
 
@@ -119,7 +119,7 @@ inline void _lshandle_validate(LSHandle *sh);
 
 #endif
 
-/** 
+/**
 * @brief An Object representing a Luna Service.
 * You may create a new Luna Service via LSRegister()
 */
@@ -149,7 +149,7 @@ struct LSHandle {
 #endif
 };
 
-/** 
+/**
 * @brief A palm service contains a connection to both private/public
 *        buses and may expose API on either bus.
 */

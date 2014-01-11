@@ -58,7 +58,7 @@ void debug_print(const char *format, ...)
 {
     if (!debug_print_file)
     {
-        debug_print_file = fopen("/home/root/service.out", "w"); 
+        debug_print_file = fopen("/home/root/service.out", "w");
     }
 
     va_list args;
@@ -107,15 +107,15 @@ static bool s_is_hub = false;   /**< true if the process using this library is
                                   way so it should not be used for anything
                                   that would cause bad side effects if spoofed */
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the next token for the given transport. This will wrap around
  * when exceeding the size of @ref LSMessageToken.
  *
  * @attention Locks the global token lock.
- * 
- * @param  transport    IN  transport 
- * 
+ *
+ * @param  transport    IN  transport
+ *
  * @retval token
  *******************************************************************************
  */
@@ -123,7 +123,7 @@ LSMessageToken
 _LSTransportGetNextToken(_LSTransport *transport)
 {
     LSMessageToken ret;
-    
+
     GLOBAL_TOKEN_LOCK(&transport->global_token->lock);
     ret = ++transport->global_token->value;
 
@@ -146,18 +146,18 @@ _LSHandleDisconnect(_LSTransport *client, _LSTransportDisconnectType type, LSMes
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief  Calls the message failure handler callback for outstanding method
  * calls (i.e., method calls that haven't received a reply).
  *
  * @attention locks the serial info lock.
- * 
- * @param  serial_info   IN  serial info 
+ *
+ * @param  serial_info   IN  serial info
  * @param  last_serial   IN  last serial for which we received a reply
- * @param  type          IN  disconnect reason 
- * @param  message_failure_handler  IN  failure callback 
- * @param  message_failure_context  IN  failure callback context 
+ * @param  type          IN  disconnect reason
+ * @param  message_failure_handler  IN  failure callback
+ * @param  message_failure_context  IN  failure callback context
  *******************************************************************************
  */
 void
@@ -173,7 +173,7 @@ _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken
         _ls_verbose("no outstanding method calls to cancel\n");
         return;
     }
-    
+
     GQueue *failure_queue = g_queue_new();
     if (!failure_queue)
     {
@@ -233,18 +233,18 @@ _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken
         }
 
         iter = g_list_next(iter);
-        
+
         /* remove item from list */
         _LSTransportSerialListItemFree(tmp->data);
         g_queue_delete_link(serial_info->queue, tmp);
-        
+
         /* remove from hash table */
         _LSTransportSerialMapEntry *entry = g_hash_table_lookup(serial_info->map, &serial);
         g_hash_table_remove(serial_info->map, &entry->serial);
     }
 
     SERIAL_INFO_UNLOCK(&serial_info->lock);
-  
+
     if (failure_queue)
     {
         while (!g_queue_is_empty(failure_queue))
@@ -257,17 +257,17 @@ _LSTransportSerialHandleShutdown(_LSTransportSerial *serial_info, LSMessageToken
             message_failure_handler(fail_item->serial, fail_item->failure_type, message_failure_context);
 
             g_slice_free(_LSTransportMessageFailureItem, fail_item);
-        } 
+        }
 
         g_queue_free(failure_queue);
     }
 }
 
-/** 
+/**
  *******************************************************************************
- * @brief Perform any remaining clean up on a disconnecting client. 
- * 
- * @param  client   IN  client that has disconnected 
+ * @brief Perform any remaining clean up on a disconnecting client.
+ *
+ * @param  client   IN  client that has disconnected
  *******************************************************************************
  */
 void
@@ -285,14 +285,14 @@ _LSTransportDisconnectCleanup(_LSTransportClient *client)
      * (also rest of client info destruction happens then) */
 }
 
-/** 
+/**
  *******************************************************************************
- * @brief Get the shutdown token (last serial processed on the far side) from 
+ * @brief Get the shutdown token (last serial processed on the far side) from
  * the shutdown message.
- * 
+ *
  * @param  message  IN  shutdown message
- * @param  token    OUT shutdown token 
- * 
+ * @param  token    OUT shutdown token
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -315,18 +315,18 @@ _LSTransportGetShutdownToken(_LSTransportMessage *message, LSMessageToken *token
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Call the failure handler for any remaining items in the outgoing
  * queue and process failure for any method calls that haven't received a
  * reply.
  *
  * @attention locks outgoing lock
- * 
+ *
  * @param  transport    IN  transport
- * @param  outgoing     IN  outgoing queue 
- * @param  last_serial  IN  last serial processed 
- * @param  type         IN  disconnect reason 
+ * @param  outgoing     IN  outgoing queue
+ * @param  last_serial  IN  last serial processed
+ * @param  type         IN  disconnect reason
  *******************************************************************************
  */
 void
@@ -337,7 +337,7 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
 
     /* TODO: make sure that the client going down is removed from the clients
      * list before we call this function, so we don't attempt to send any
-     * more messages to it while trying to tear it down 
+     * more messages to it while trying to tear it down
      *
      * may also need to have some sort of flag to indicate that we can't
      * send any messages */
@@ -349,13 +349,13 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
     /* go through and cancel all messages above the token in this message by looking
        up the serial number and getting the globally unique token */
 
-    /* custom message failure handler */ 
+    /* custom message failure handler */
     if (transport->message_failure_handler)
-    { 
+    {
         _ls_verbose("last serial: %d\n", (int)last_serial);
-    
-        OUTGOING_LOCK(&outgoing->lock); 
-        
+
+        OUTGOING_LOCK(&outgoing->lock);
+
         /* for each item in outbound queue */
         while (!g_queue_is_empty(outgoing->queue))
         {
@@ -365,7 +365,7 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
             // We can be reentered from the callback. So don't hold the lock during the callback
             OUTGOING_UNLOCK(&outgoing->lock);
             transport->message_failure_handler(_LSTransportMessageGetToken(failed_message), _LSTransportMessageFailureTypeNotProcessed, transport->message_failure_context);
-            OUTGOING_LOCK(&outgoing->lock); 
+            OUTGOING_LOCK(&outgoing->lock);
 
             /* remove the serial from the set if it is a method call; other control
              * messages won't be put on the list */
@@ -376,23 +376,23 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
 
             _LSTransportMessageUnref(failed_message);
         }
-   
+
         OUTGOING_UNLOCK(&outgoing->lock);
-        
+
         _LSTransportSerialHandleShutdown(outgoing->serial, last_serial, type, transport->message_failure_handler, transport->message_failure_context);
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Perform shutdown handling for a client.
  *
  * @attention locks transport lock
- * 
- * @param  client       IN  client that is shutting down 
- * @param  last_serial  IN  last serial processed 
+ *
+ * @param  client       IN  client that is shutting down
+ * @param  last_serial  IN  last serial processed
  * @param  type         IN  disconnect reason
- * $param  no_fail      IN  if true don't call failure callback for pending messages 
+ * $param  no_fail      IN  if true don't call failure callback for pending messages
  *******************************************************************************
  */
 void
@@ -413,7 +413,7 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
      * the failure callbacks so that any calls in the callback to the same client
      * will kick off a new QueryName. */
     _ls_verbose("removing client from hash tables\n");
-    
+
     TRANSPORT_LOCK(&transport->lock);
 
     /* First, attempt to remove from client hash; it may not be in here
@@ -434,13 +434,13 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
     {
         /* NOTE: this lookup needs to be protected by the transport lock */
         pending = g_hash_table_lookup(transport->pending, client->service_name);
-        
+
         if (pending)
         {
             g_hash_table_remove(transport->pending, client->service_name);
         }
     }
-    
+
     // There shouldn't be messages in the both the pending and outgoing queues
     if (client->outgoing->queue)
     {
@@ -451,7 +451,7 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
 
     if (!no_fail)
     {
-        /* 
+        /*
          * If we have any pending messages to this service, then we need to
          * process the failure callback for those
          */
@@ -477,13 +477,13 @@ skip_pending:
     _LSTransportClientUnref(client);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Perform "dirty shutdown" cleanup.
  *
  * @attention locks outgoing serial lock
- * 
- * @param  client   IN  client that shutdown 
+ *
+ * @param  client   IN  client that shutdown
  *******************************************************************************
  */
 void
@@ -493,7 +493,7 @@ _LSTransportClientShutdownDirty(_LSTransportClient *client)
      * need to treat all of them as having failed */
     LSMessageToken last_serial;
 
-    OUTGOING_SERIAL_LOCK(&client->outgoing->serial->lock); 
+    OUTGOING_SERIAL_LOCK(&client->outgoing->serial->lock);
 
     _LSTransportSerialListItem *item = (_LSTransportSerialListItem*) g_queue_peek_head(client->outgoing->serial->queue);
 
@@ -507,7 +507,7 @@ _LSTransportClientShutdownDirty(_LSTransportClient *client)
         last_serial = LSMESSAGE_TOKEN_INVALID;
     }
 
-    OUTGOING_SERIAL_UNLOCK(&client->outgoing->serial->lock); 
+    OUTGOING_SERIAL_UNLOCK(&client->outgoing->serial->lock);
 
     _LSTransportClientShutdown(client, last_serial, _LSTransportDisconnectTypeDirty, false);
 
@@ -555,16 +555,16 @@ _call_pending(_LSTransportClient *client, int serial)
         return g_hash_table_lookup(pending->serial->map, &serial) != NULL;
     }
     else
-    {    
+    {
         return false;
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a shutdown message.
- * 
- * @param  message  IN  shutdown message 
+ *
+ * @param  message  IN  shutdown message
  *******************************************************************************
  */
 void
@@ -672,14 +672,14 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
     {
         LSError lserror;
         LSErrorInit(&lserror);
-        
+
 #if 0
-        // FIXME - take this expensive operation out after testing    
+        // FIXME - take this expensive operation out after testing
         OUTGOING_LOCK(&client->outgoing->serial->lock);
         LS_ASSERT(g_queue_get_length(client->outgoing->serial->queue) == 0);
         OUTGOING_UNLOCK(&client->outgoing->serial->lock);
 
-        // FIXME - take this expensive operation out after testing    
+        // FIXME - take this expensive operation out after testing
         OUTGOING_LOCK(&client->outgoing->lock);
         LS_ASSERT(g_queue_get_length(client->outgoing->queue) == 0);
         OUTGOING_UNLOCK(&client->outgoing->lock);
@@ -721,7 +721,7 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
     }
 
     if (new_pending)
-    {    
+    {
         g_queue_free(new_pending);
     }
 
@@ -729,17 +729,17 @@ _LSTransportHandleShutdown(_LSTransportMessage *message)
     client->state = _LSTransportClientStateShutdown;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a watch to a channel and attach it to the main context.
- * 
- * @param  channel       IN  channel to watch 
- * @param  condition     IN  condition to watch 
- * @param  context       IN  main context 
- * @param  transport_cb  IN  callback when watch is triggered 
- * @param  user_data     IN  context passed to callback 
- * @param  destroy_cb    IN  callback when watch is destroyed 
- * @param  *out_watch    OUT newly created watch 
+ *
+ * @param  channel       IN  channel to watch
+ * @param  condition     IN  condition to watch
+ * @param  context       IN  main context
+ * @param  transport_cb  IN  callback when watch is triggered
+ * @param  user_data     IN  context passed to callback
+ * @param  destroy_cb    IN  callback when watch is destroyed
+ * @param  *out_watch    OUT newly created watch
  *******************************************************************************
  */
 static void
@@ -752,20 +752,20 @@ _LSTransportAddWatch(_LSTransportChannel *channel, GIOCondition condition, GMain
     LS_ASSERT(*out_watch == NULL);
 
     GSource *watch = g_io_create_watch(channel->channel, condition);
-    
+
     if (channel->priority != G_PRIORITY_DEFAULT)
     {
         g_source_set_priority(watch, channel->priority);
     }
-   
+
     g_source_set_callback(watch, (GSourceFunc)transport_cb, user_data, destroy_cb);
-   
+
     /* we set this before attaching because once we call attach, we can potentially
-     * wake a separate thread running the mainloop associated with this context */ 
+     * wake a separate thread running the mainloop associated with this context */
     *out_watch = watch;
-    
+
     g_source_attach(watch, context);
-   
+
 	/* We should be able to unref the channel here because g_io_create_watch
      * increments the ref count */
     //g_io_channel_unref(channel->channel);
@@ -773,12 +773,12 @@ _LSTransportAddWatch(_LSTransportChannel *channel, GIOCondition condition, GMain
     //g_source_unref(watch);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a watch from a channel.
- * 
- * @param  channel      IN      channel that watch is on 
- * @param  *out_watch   IN/OUT  watch (set to NULL after destroying) 
+ *
+ * @param  channel      IN      channel that watch is on
+ * @param  *out_watch   IN/OUT  watch (set to NULL after destroying)
  *******************************************************************************
  */
 static void
@@ -794,13 +794,13 @@ _LSTransportRemoveWatch(_LSTransportChannel *channel, GSource **out_watch)
     *out_watch = NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a send watch to a channel.
- * 
- * @param  channel  IN  channel 
- * @param  context  IN  main loop context 
- * @param  client   IN  client to pass to watch callback 
+ *
+ * @param  channel  IN  channel
+ * @param  context  IN  main loop context
+ * @param  client   IN  client to pass to watch callback
  *******************************************************************************
  */
 void
@@ -812,17 +812,17 @@ _LSTransportAddSendWatch(_LSTransportChannel *channel, GMainContext *context, _L
     if (!channel->send_watch)
     {
         _ls_verbose("%s: channel: %p, context: %p, client: %p\n", __func__, channel, context, client);
-        
+
         _LSTransportClientRef(client);
         _LSTransportAddWatch(channel, G_IO_OUT, context, _LSTransportSendClient, client, (GDestroyNotify) _LSTransportClientUnref, &channel->send_watch);
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a send watch from a channel.
- * 
- * @param  channel  IN  channel 
+ *
+ * @param  channel  IN  channel
  *******************************************************************************
  */
 void
@@ -830,7 +830,7 @@ _LSTransportRemoveSendWatch(_LSTransportChannel *channel)
 {
     LS_ASSERT(channel != NULL);
     LS_ASSERT(channel->send_watch != NULL);
-    
+
     _ls_verbose("%s: channel: %p\n", __func__, channel);
 
     if (channel->send_watch)
@@ -840,13 +840,13 @@ _LSTransportRemoveSendWatch(_LSTransportChannel *channel)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a receive watch to a channel.
- * 
- * @param  channel  IN  channel 
- * @param  context  IN  main loop context 
- * @param  client   IN  client to pass to watch callback 
+ *
+ * @param  channel  IN  channel
+ * @param  context  IN  main loop context
+ * @param  client   IN  client to pass to watch callback
  *******************************************************************************
  */
 void
@@ -858,17 +858,17 @@ _LSTransportAddReceiveWatch(_LSTransportChannel *channel, GMainContext *context,
     if (!channel->recv_watch)
     {
         _ls_verbose("%s: channel: %p, context: %p, client: %p\n", __func__, channel, context, client);
-       
-        _LSTransportClientRef(client); 
+
+        _LSTransportClientRef(client);
         _LSTransportAddWatch(channel, G_IO_IN | G_IO_ERR | G_IO_HUP, context, _LSTransportReceiveClient, client, (GDestroyNotify) _LSTransportClientUnref, &channel->recv_watch);
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove a receive watch from a channel.
- * 
- * @param  channel  IN  channel 
+ *
+ * @param  channel  IN  channel
  *******************************************************************************
  */
 void
@@ -876,7 +876,7 @@ _LSTransportRemoveReceiveWatch(_LSTransportChannel *channel)
 {
     LS_ASSERT(channel != NULL);
     LS_ASSERT(channel->recv_watch != NULL);
-    
+
     _ls_verbose("%s: channel: %p\n", __func__, channel);
 
     if (channel->recv_watch)
@@ -886,12 +886,12 @@ _LSTransportRemoveReceiveWatch(_LSTransportChannel *channel)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add an accept watch to a channel.
- * 
- * @param  channel  IN  channel 
- * @param  context  IN  main loop context 
+ *
+ * @param  channel  IN  channel
+ * @param  context  IN  main loop context
  * @param  user_data IN user data to pass to watch callback
  *******************************************************************************
  */
@@ -902,15 +902,15 @@ _LSTransportAddAcceptWatch(_LSTransportChannel *channel, GMainContext *context, 
     LS_ASSERT(context != NULL);
 
     _ls_verbose("%s: channel: %p, context: %p, transport: %p\n", __func__, channel, context, user_data);
-    
+
     _LSTransportAddWatch(channel, G_IO_IN | G_IO_ERR | G_IO_HUP, context, _LSTransportAcceptConnection, user_data, NULL, &channel->accept_watch);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove an accept watch from a channel.
- * 
- * @param  channel  IN  channel 
+ *
+ * @param  channel  IN  channel
  *******************************************************************************
  */
 void
@@ -918,19 +918,19 @@ _LSTransportRemoveAcceptWatch(_LSTransportChannel *channel)
 {
     LS_ASSERT(channel != NULL);
     LS_ASSERT(channel->accept_watch != NULL);
-    
+
     _ls_verbose("%s: channel: %p\n", __func__, channel);
 
     _LSTransportRemoveWatch(channel, &channel->accept_watch);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add send and receive watches to a client's channel.
- * 
- * @param  ignored              IN  ignored 
- * @param  client               IN  client to add watches to 
- * @param  mainloop_context     IN  main loop context 
+ *
+ * @param  ignored              IN  ignored
+ * @param  client               IN  client to add watches to
+ * @param  mainloop_context     IN  main loop context
  *******************************************************************************
  */
 void
@@ -940,19 +940,19 @@ _LSTransportAddClientWatches(void *ignored, _LSTransportClient *client, GMainCon
     LS_ASSERT(mainloop_context != NULL);
 
     _ls_verbose("%s: client: %p, mainloop_context: %p\n", __func__, client, mainloop_context);
- 
-    _LSTransportAddSendWatch(&client->channel, mainloop_context, client); 
-    _LSTransportAddReceiveWatch(&client->channel, mainloop_context, client); 
+
+    _LSTransportAddSendWatch(&client->channel, mainloop_context, client);
+    _LSTransportAddReceiveWatch(&client->channel, mainloop_context, client);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add the first set of watches to kick off sending messages.
  *
  * @attention locks the transport lock
- * 
- * @param  transport    IN  transport 
- * @param  context      IN  main loop context 
+ *
+ * @param  transport    IN  transport
+ * @param  context      IN  main loop context
  *******************************************************************************
  */
 void
@@ -969,17 +969,17 @@ _LSTransportAddInitialWatches(_LSTransport *transport, GMainContext *context)
     {
         _LSTransportAddClientWatches(NULL, transport->monitor, context);
     }
-   
-    /* Watch and accept incoming connections */ 
+
+    /* Watch and accept incoming connections */
     _LSTransportAddAcceptWatch(&transport->listen_channel, context, transport);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Associate a GMainContext set of sources with this transport.
- * 
+ *
  * @param  transport    IN  transport
- * @param  context      IN  main loop context 
+ * @param  context      IN  main loop context
  *******************************************************************************
  */
 void
@@ -995,12 +995,12 @@ _LSTransportGmainAttach(_LSTransport *transport, GMainContext *context)
     _LSTransportAddInitialWatches(transport, transport->mainloop_context);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the GMainContext associated with this transport.
- * 
- * @param  transport    IN  transport 
- * 
+ *
+ * @param  transport    IN  transport
+ *
  * @retval  GMainContext or NULL
  *******************************************************************************
  */
@@ -1011,13 +1011,13 @@ _LSTransportGetGmainContext(const _LSTransport *transport)
     return transport->mainloop_context;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the glib mainloop priority for sending and receiving.
- * 
+ *
  * @param  unused       IN      dummy arg for GHFunc callback
  * @param  client       IN      client
- * @param  priority     IN      priority to set 
+ * @param  priority     IN      priority to set
  *******************************************************************************
  */
 static void
@@ -1026,7 +1026,7 @@ _LSTransportClientSetPriority(int unused, _LSTransportClient *client, int priori
     _LSTransportChannelSetPriority(&client->channel, priority);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the glib mainloop priority for the send, receive, and
  * accept watches (sources).
@@ -1034,11 +1034,11 @@ _LSTransportClientSetPriority(int unused, _LSTransportClient *client, int priori
  * @todo I think this should be deprecated. Searching around with cscope
  * shows that only LunaSysMgr uses it, and I'm not sure if it really
  * provides much benefit.
- * 
- * @param  transport    IN  transport 
- * @param  priority     IN  glib mainloop priority (e.g., G_PRIORITY_DEFAULT) 
- * @param  lserror      OUT error 
- * 
+ *
+ * @param  transport    IN  transport
+ * @param  priority     IN  glib mainloop priority (e.g., G_PRIORITY_DEFAULT)
+ * @param  lserror      OUT error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1066,7 +1066,7 @@ bool
 _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *lserror)
 {
     struct sockaddr_un addr;
-    
+
     int tmp_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 
     if (tmp_fd < 0)
@@ -1096,7 +1096,7 @@ _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *
     }
 
     *fd = tmp_fd;
-    
+
     return true;
 
 error:
@@ -1106,7 +1106,7 @@ error:
     {
         close(tmp_fd);
     }
-    
+
     return false;
 }
 
@@ -1130,9 +1130,9 @@ _LSTransportSetupListenerLocalRaw(_LSTransport *transport, const char *name, int
     {
         _LSTransportChannelInit(transport, &transport->listen_channel, listen_fd, transport->source_priority);
     }
-   
-    /* we'll add the accept watch when we get a gmain context to attach it to */ 
-    
+
+    /* we'll add the accept watch when we get a gmain context to attach it to */
+
     return ret;
 }
 
@@ -1148,23 +1148,23 @@ _LSTransportSetupListenerLocalWithFd(_LSTransport *transport, const char *name, 
 
     /* create the channel */
     _LSTransportChannelInit(transport, &transport->listen_channel, listen_fd, transport->source_priority);
-   
-    /* we'll add the accept watch when we get a gmain context to attach it to */ 
-    
+
+    /* we'll add the accept watch when we get a gmain context to attach it to */
+
     return true;
 #endif
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set up the listen channel for the unix domain socket @ref name.
- * 
- * @param  transport    IN  transport 
- * @param  name         IN  full path to unix domain socket 
+ *
+ * @param  transport    IN  transport
+ * @param  name         IN  full path to unix domain socket
  * @param  listen_fd    IN  fd that is already bound to @name and set up to listen
- * @mode   mode         IN  permissions for 
- * @param  lserror      OUT set on error 
- * 
+ * @mode   mode         IN  permissions for
+ * @param  lserror      OUT set on error
+ *
  * @retval true on success
  * @retval false on error
  *******************************************************************************
@@ -1211,9 +1211,9 @@ _LSTransportSetupListenerLocal(_LSTransport *transport, const char *name, mode_t
 
     /* create the channel */
     _LSTransportChannelInit(transport, &transport->listen_channel, listen_fd, transport->source_priority);
-   
-    /* we'll add the accept watch when we get a gmain context to attach it to */ 
-    
+
+    /* we'll add the accept watch when we get a gmain context to attach it to */
+
     return true;
 
 #if 0
@@ -1225,21 +1225,21 @@ error:
     {
         close(fd);
     }
-    
+
     return false;
 #endif
 
 #endif
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set up the listen channel on an inet address.
- * 
- * @param  transport    IN  transport 
+ *
+ * @param  transport    IN  transport
  * @param  port         IN  port to listen on (negative means any)
- * @param  lserror      OUT set on error 
- * 
+ * @param  lserror      OUT set on error
+ *
  * @retval true on success
  * @retval false on error
  *******************************************************************************
@@ -1286,9 +1286,9 @@ _LSTransportSetupListenerInet(_LSTransport *transport, int port, LSError *lserro
 
     /* create the channel */
     _LSTransportChannelInit(transport, &transport->listen_channel, fd, transport->source_priority);
-   
-    /* we'll add the accept watch when we get a gmain context to attach it to */ 
-    
+
+    /* we'll add the accept watch when we get a gmain context to attach it to */
+
     return true;
 
 error:
@@ -1298,20 +1298,20 @@ error:
     {
         close(fd);
     }
-    
+
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add client to hash of service name to client.
  *
  * @attention should be called with transport lock
- * 
- * @param  transport    IN  transport 
+ *
+ * @param  transport    IN  transport
  * @param  client       IN  client to add (value)
- * @param  client_name  IN  client service name (key) 
- * 
+ * @param  client_name  IN  client service name (key)
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -1326,23 +1326,23 @@ _LSTransportAddClientHash(_LSTransport *transport, _LSTransportClient *client, c
     {
         return false;
     }
-    
+
     _LSTransportClientRef(client);
-    
+
     /* TODO: insert or replace ? */
     g_hash_table_insert(transport->clients, (gpointer)name, client);
-    
+
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Callback for removing a client fromt the client hash.
- * 
- * @param  key          IN     ignored 
+ *
+ * @param  key          IN     ignored
  * @param  value        IN     client for this @ref key
- * @param  user_data    IN     client we're searching for 
- * 
+ * @param  user_data    IN     client we're searching for
+ *
  * @retval TRUE if client matches client we're trying to remove
  * @retval FALSE otherwise
  *******************************************************************************
@@ -1352,7 +1352,7 @@ _LSTransportClientHashRemoveFunc(gpointer key, gpointer value, gpointer user_dat
 {
     _LSTransportClient *search_client = (_LSTransportClient*)(user_data);
     _LSTransportClient *value_client = (_LSTransportClient*)(value);
-    
+
     if (search_client == value_client)
     {
         _ls_verbose("%s: removing client: %p\n", __func__, search_client);
@@ -1361,19 +1361,19 @@ _LSTransportClientHashRemoveFunc(gpointer key, gpointer value, gpointer user_dat
     return FALSE;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove the specified client from the client hash.
- * 
- * @param  transport    IN  transport 
- * @param  client       IN  client to remove 
+ *
+ * @param  transport    IN  transport
+ * @param  client       IN  client to remove
  *******************************************************************************
  */
 void
 _LSTransportRemoveClientHash(_LSTransport *transport, _LSTransportClient *client)
 {
     _ls_verbose("%s: transport: %p, client: %p\n", __func__, transport, client);
-    
+
     /*
      * TODO: this is a linear search; it's only done on shutdown, but we should
      * still probably change it.
@@ -1383,16 +1383,16 @@ _LSTransportRemoveClientHash(_LSTransport *transport, _LSTransportClient *client
     LS_ASSERT(ret == 1 || ret == 0);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add client to hash of all clients. Key is file descriptor and value
  * is @ref _LSTransportClient.
  *
  * @attention must be called with transport lock
- * 
+ *
  * @param  transport    IN  transport
- * @param  client       IN  client to add 
- * 
+ * @param  client       IN  client to add
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1412,13 +1412,13 @@ _LSTransportAddAllConnectionHash(_LSTransport *transport, _LSTransportClient *cl
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Remove specified client from the all connection hash.
- * 
- * @param  transport    IN  transport 
- * @param  client       IN  client to remove 
- * 
+ *
+ * @param  transport    IN  transport
+ * @param  client       IN  client to remove
+ *
  * @retval true if client was removed
  * @retval false otherwise
  *******************************************************************************
@@ -1440,16 +1440,16 @@ _LSTransportRemoveAllConnectionHash(_LSTransport *transport, _LSTransportClient 
     return g_hash_table_remove(transport->all_connections, GINT_TO_POINTER(client->channel.fd));
 }
 
-/** 
+/**
 *******************************************************************************
 * @brief Split a unique name string of the form "ip:port" into ip address
 * and port number
-* 
-* @param  unique_name 
-* @param  ip 
-* @param  port 
-* @param  lserror 
-* 
+*
+* @param  unique_name
+* @param  ip
+* @param  port
+* @param  lserror
+*
 * @retval
 *******************************************************************************
 */
@@ -1492,7 +1492,7 @@ _LSTransportSplitInetUniqueName(const char *unique_name, struct in_addr *ip, uin
         _LSErrorSet(lserror, -1, "Badly formatted address:port");
         goto error;
     }
-    
+
     errno = 0;
     tmp_port = strtol(delim, NULL, 10);
 
@@ -1512,7 +1512,7 @@ error:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Connect to a local (domain socket) endpoint. This function operates
  * in two modes depending on the value of "new_socket"
@@ -1528,13 +1528,13 @@ error:
  *      function will attempt to connect the socket to the specfied
  *      unique_name. The input socket (fd) will never be closed (even on
  *      error).
- * 
+ *
  * @param  unique_name  IN  unique name to connect to
  * @param  new_socket   IN  true means create a new socket, otherwise use
- *                          existing 
- * @param  fd        IN/OUT input when new_socket is false, output otherwise 
+ *                          existing
+ * @param  fd        IN/OUT input when new_socket is false, output otherwise
  * @param  lserror      OUT set on fatal error (_LSTransportConnectStateOtherFailure)
- * 
+ *
  * @retval  _LSTransportConnectStateNoError on success
  * @retval  _LSTransportConnectStateOtherFailure on fatal error
  * @retval  _LSTransportConnectStateEinprogress on EINPROGRESS (would block)
@@ -1580,7 +1580,7 @@ _LSTransportConnectLocal(const char *unique_name, bool new_socket, int *fd, LSEr
          * when using domain sockets if the backlog queue is full, it will
          * return EAGAIN. See unix_stream_connect() in net/unix/af_unix.c */
         if (errno == EINPROGRESS)
-        {   
+        {
             if (new_socket)
             {
                 *fd = tmp_fd;
@@ -1659,7 +1659,7 @@ _LSTransportConnectInet(const char *unique_name, int *fd, LSError *lserror)
     }
 
     int ret = connect(tmp_fd, (struct sockaddr*)&addr, sizeof(addr));
-    
+
     if (ret < 0)
     {
         /* POSIX says EINPROGRESS is the return value when the socket is
@@ -1690,19 +1690,19 @@ _LSTransportConnectInet(const char *unique_name, int *fd, LSError *lserror)
     return _LSTransportConnectStateNoError;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Connect to a client of a given unique name. If @ref outgoing is
  * specified, then use it as the outbound queue of messages. Otherwise,
  * create a new one.
- * 
- * @param  transport 
- * @param  service_name 
+ *
+ * @param  transport
+ * @param  service_name
  * @param  unique_name
- * @param  connected_fd         IN      use the already connected fd (local only) 
- * @param  outgoing 
- * @param  lserror 
- * 
+ * @param  connected_fd         IN      use the already connected fd (local only)
+ * @param  outgoing
+ * @param  lserror
+ *
  * @retval client with ref count of 1 on success
  * @retval NULL on failure
  *******************************************************************************
@@ -1787,7 +1787,7 @@ _LSTransportRecvFd(int fd, int *fd_to_recv, bool *retry, LSError *lserror)
     struct iovec iov[1];
     char iov_buf[1];
     int ret = 0;
-    
+
     iov[0].iov_base = iov_buf;
     iov[0].iov_len = sizeof(iov_buf);
 
@@ -1862,20 +1862,20 @@ _LSTransportSendFd(int fd, int fd_to_send, bool *retry, LSError *lserror)
     fdmsg.msg_name = NULL;
     fdmsg.msg_namelen = 0;
     fdmsg.msg_flags = 0;
-   
+
     if (fd_to_send < 0)
     {
         fdmsg.msg_control = NULL;
         fdmsg.msg_controllen = 0;
-    
+
         iov_buf[0] = 1;     /* non-zero means invalid fd, since we can't send
                              * an invalid fd with the control message */
     }
     else
-    { 
+    {
         fdmsg.msg_control = cmsg_buf;
         fdmsg.msg_controllen = sizeof(cmsg_buf);
-       
+
         cmsg = CMSG_FIRSTHDR(&fdmsg);
         cmsg->cmsg_level = SOL_SOCKET;
         cmsg->cmsg_type = SCM_RIGHTS;
@@ -1896,21 +1896,21 @@ _LSTransportSendFd(int fd, int fd_to_send, bool *retry, LSError *lserror)
             _LSErrorSetFromErrno(lserror, errno);
             g_critical("sendmsg failed");
         }
-        return false;         
+        return false;
     }
 
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send data until all has been sent or an error is encountered.
- * 
+ *
  * @param  fd       IN  destination fd
  * @param  buf      IN  data to send
  * @param  len      IN  size of @ref buf
  * @param  lserror  IN  set on error
- * 
+ *
  * @retval  bytes sent (same as len) on success
  * @retval  -1 on failure
  *******************************************************************************
@@ -1925,7 +1925,7 @@ _LSTransportSendComplete(int fd, void *buf, int len, LSError *lserror)
 
         int bytes_sent = send(fd, (char*)buf + total_bytes_sent, len - total_bytes_sent, 0);
 
-        /* 
+        /*
          * We encountered an error. This could happen for a variety of
          * reasons. One example would be if a client goes down after
          * we've already started sending to it (or we haven't yet processed
@@ -1952,15 +1952,15 @@ _LSTransportSendComplete(int fd, void *buf, int len, LSError *lserror)
     return total_bytes_sent;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Receive data until all has been received or an error is encountered.
- * 
- * @param  fd       IN  source fd 
- * @param  buf      IN  buf to store data 
+ *
+ * @param  fd       IN  source fd
+ * @param  buf      IN  buf to store data
  * @param  len      IN  size of @buf
- * @param  lserror  IN  set on error 
- * 
+ * @param  lserror  IN  set on error
+ *
  * @retval bytes read on success (same as len)
  * @retval -1 on failure
  *******************************************************************************
@@ -1999,7 +1999,7 @@ _LSTransportRecvComplete(int fd, void *buf, int len, LSError *lserror)
     return total_bytes_recvd;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief  Block until we receive the complete message of the specified type.
  *
@@ -2007,12 +2007,12 @@ _LSTransportRecvComplete(int fd, void *buf, int len, LSError *lserror)
  * watch set on a client or there will be a race between the two. It's really
  * only meant for use during startup and shutdown.
  *
- * @param  client       IN   client 
+ * @param  client       IN   client
  * @param  types        IN   array of message types to wait for
  * @param  num_types    IN   num items in types array
- * @param  timeout_ms   IN   timeout in ms 
- * @param  lserror      OUT  set on error 
- * 
+ * @param  timeout_ms   IN   timeout in ms
+ * @param  lserror      OUT  set on error
+ *
  * @retval message on success
  * @retval NULL on failure
  *******************************************************************************
@@ -2119,19 +2119,19 @@ exit:
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message and block until it has been completely sent. The
  * message ref count does not change when calling this function.
  *
  * If there is a send watch for the client, this function will remove and restore
  * it so that the two do not conflict if running in different threads.
- * 
- * @param  message  IN  message to send 
+ *
+ * @param  message  IN  message to send
  * @param  client   IN  client performing send
- * @param  token    OUT token of message 
- * @param  lserror  OUT set on error 
- * 
+ * @param  token    OUT token of message
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -2179,7 +2179,7 @@ _LSTransportSendMessageBlocking(_LSTransportMessage *message, _LSTransportClient
 
     if (token)
     {
-        *token = _LSTransportMessageGetToken(message); 
+        *token = _LSTransportMessageGetToken(message);
     }
 
     /* TODO: MONITOR: send message to monitor as well */
@@ -2198,14 +2198,14 @@ exit:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Process a monitor message, which involves connecting to the monitor
  * and sending our client info to it.
  *
  * @attention locks transport lock
- * 
- * @param  message  IN  monitor message 
+ *
+ * @param  message  IN  monitor message
  *******************************************************************************
  */
 static void
@@ -2213,7 +2213,7 @@ _LSTransportHandleMonitor(_LSTransportMessage *message)
 {
     LSError lserror;
     LSErrorInit(&lserror);
-    
+
     const char *unique_name = NULL;
 
     _LSTransport *transport = message->client->transport;
@@ -2253,37 +2253,37 @@ _LSTransportHandleMonitor(_LSTransportMessage *message)
     /* client ref +1 (total = 2) */
     _LSTransportAddAllConnectionHash(transport, transport->monitor);
     TRANSPORT_UNLOCK(&transport->lock);
-   
+
     if (transport->mainloop_context)
-    { 
+    {
         _LSTransportAddSendWatch(&transport->monitor->channel, transport->mainloop_context, transport->monitor);
         _LSTransportAddReceiveWatch(&transport->monitor->channel, transport->mainloop_context, transport->monitor);
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Run the user's message handler for the message. If the message is of
  * method call type, check the return value from the callback and possibly
  * send an error message in reply.
- * 
- * @param  message  IN  message 
+ *
+ * @param  message  IN  message
  *******************************************************************************
  */
 static void
 _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
 {
     _ls_verbose("%s: calling user's msg_handler\n", __func__);
-    
+
     LSError lserror;
     LSErrorInit(&lserror);
 
-    _LSTransportClient *client = _LSTransportMessageGetClient(message); 
+    _LSTransportClient *client = _LSTransportMessageGetClient(message);
     void *msg_context = client->transport->msg_context;
 
     LSMessageHandlerResult ret = (*client->transport->msg_handler)(message, msg_context);
 
-    /* 
+    /*
      * We only care about whether the message was handled if the message type
      * is a method call, since we need to send a reply error message in that
      * case
@@ -2299,11 +2299,11 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
     {
         /* success, don't need to do anything */
         break;
-    } 
+    }
     case LSMessageHandlerResultNotHandled:
     {
         char *error_msg = g_strdup_printf("Method \"%s\" for category \"%s\" was not handled", _LSTransportMessageGetMethod(message), _LSTransportMessageGetCategory(message));
-        
+
         if (!error_msg) goto error;
 
         if (!_LSTransportSendErrorReply(message, _LSTransportMessageTypeError, error_msg, &lserror))
@@ -2313,7 +2313,7 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
         }
 
         g_free(error_msg);
-        
+
         break;
     }
     case LSMessageHandlerResultUnknownMethod:
@@ -2341,7 +2341,7 @@ _LSTransportHandleUserMessageHandler(_LSTransportMessage *message)
         break;
     }
     }
-    
+
     return;
 
 error:
@@ -2352,15 +2352,15 @@ error:
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the status of the monitor when first connecting to the hub so we
- * know whether to send our messages to the monitor. 
- * 
- * @param  transport    IN  transport 
- * @param  client       IN  client 
- * @param  lserror      OUT set on error 
- * 
+ * know whether to send our messages to the monitor.
+ *
+ * @param  transport    IN  transport
+ * @param  client       IN  client
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -2386,19 +2386,19 @@ _LSTransportReceiveMonitorStatus(_LSTransport *transport, _LSTransportClient *cl
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Request a service name from the hub. NULL means we just need a unique
  * name.
  *
  * @attention This call blocks until a name has been received from the hub.
- * 
- * @param  requested_name   IN  service name or NULL for only unique name 
+ *
+ * @param  requested_name   IN  service name or NULL for only unique name
  * @param  client           IN  client
- * @param  fd               OUT fd passed from hub that we should listen on 
+ * @param  fd               OUT fd passed from hub that we should listen on
  * @param  privileged       OUT true if the service is privileged
- * @param  lserror          OUT set on error 
- * 
+ * @param  lserror          OUT set on error
+ *
  * @retval  name that is allocated (and must be free'd) on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -2468,19 +2468,19 @@ _LSTransportRequestNameLocal(const char *requested_name, _LSTransportClient *cli
         {
             LS_ASSERT(0);
         }
-    
+
         int message_fd = _LSTransportMessageGetConnectionFd(message);
         LS_ASSERT(message_fd != -1);
-        
+
         *fd = dup(message_fd);
         if (-1 == *fd)
         {
             g_critical("%s: dup() failed, errno %d, \"%s\"", __func__, errno, g_strerror(errno));
         }
         LS_ASSERT(*fd != -1);
-        
+
         _ls_verbose("%s: received unique_name: %s, %sprivileged\n", __func__, unique_name, *privileged ? "" : "not ");
-        
+
         break;
     }
 
@@ -2507,18 +2507,18 @@ error:
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Request a service name from the hub. NULL means we just need a unique
  * name.
  *
  * @attention This call blocks until a name has been received from the hub.
- * 
- * @param  requested_name   IN  service name or NULL for only unique name 
- * @param  client           IN  client 
+ *
+ * @param  requested_name   IN  service name or NULL for only unique name
+ * @param  client           IN  client
  * @param  privileged       OUT true if the service is privileged
- * @param  lserror          OUT set on error 
- * 
+ * @param  lserror          OUT set on error
+ *
  * @retval  name that is allocated (and must be free'd) on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -2532,7 +2532,7 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
     _LSTransportMessage *message = NULL;
     bool alloc_error = true;
     _LSTransportMessageIter iter;
-    
+
     _ls_verbose("%s: requested_name: %s, client: %p\n", __func__, requested_name, client);
 
     int listen_fd = _LSTransportChannelGetFd(&client->transport->listen_channel);
@@ -2562,7 +2562,7 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
     if (!_LSTransportMessageAppendString(&iter, requested_name)) goto error;
     if (!_LSTransportMessageAppendInt32(&iter, port)) goto error;
     if (!_LSTransportMessageAppendInvalid(&iter)) goto error;
-     
+
     if (!_LSTransportSendMessageBlocking(message, client, NULL, lserror)) goto exit;
 
     _LSTransportMessageUnref(message);
@@ -2601,7 +2601,7 @@ _LSTransportRequestNameInet(const char *requested_name, _LSTransportClient *clie
         {
             LS_ASSERT(0);
         }
-        
+
         _ls_verbose("%s: received unique_name: %s, %sprivileged\n", __func__, unique_name, *privileged ? "" : "not ");
 
         break;
@@ -2651,15 +2651,15 @@ _LSTransportRequestName(const char *requested_name, _LSTransportClient *client, 
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a "QueryName" message to the hub.
- * 
- * @param  hub                   IN  client info for hub 
+ *
+ * @param  hub                   IN  client info for hub
  * @param  trigger_message       IN  message that triggered this "QueryName"
- * @param  service_name          IN  service name to look up 
- * @param  lserror               OUT set on error 
- * 
+ * @param  service_name          IN  service name to look up
+ * @param  lserror               OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -2703,12 +2703,12 @@ error:
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the return value out of a "QueryName" reply message.
- * 
- * @param  message  IN  query name message 
- * 
+ *
+ * @param  message  IN  query name message
+ *
  * @retval  return val (numeric value)
  *******************************************************************************
  */
@@ -2731,15 +2731,15 @@ _LSTransportQueryNameReplyGetReturnVal(_LSTransportMessage *message)
 
 /* @warn these point inside the message, so you should ref the message or copy the
  * string if you want it to persist */
-/** 
+/**
  *******************************************************************************
  * @brief Get the service name from a "QueryName" reply message.
  *
  * @warning The returned pointer points inside the message so you should ref
  * the message or copy the string if you want it to persist.
- * 
- * @param  message  IN  query name message 
- * 
+ *
+ * @param  message  IN  query name message
+ *
  * @retval name on success
  * @retval NULL on failure
  *******************************************************************************
@@ -2763,15 +2763,15 @@ _LSTransportQueryNameReplyGetServiceName(_LSTransportMessage *message)
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the unique name from a message.
  *
  * @warning The returned pointer points inside the message, so you should ref
  * the message or copy the string if you need it to persist.
- * 
+ *
  * @param  message  IN  message
- * 
+ *
  * @retval name on success
  * @retval NULL on failure
  *******************************************************************************
@@ -2788,7 +2788,7 @@ _LSTransportQueryNameReplyGetUniqueName(_LSTransportMessage *message)
     /* move past return code and service name */
     _LSTransportMessageIterNext(&iter);
     _LSTransportMessageIterNext(&iter);
-   
+
     if (_LSTransportMessageGetString(&iter, &ret))
     {
         return ret;
@@ -2796,12 +2796,12 @@ _LSTransportQueryNameReplyGetUniqueName(_LSTransportMessage *message)
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get is_dynamic boolean out of a "QueryName" reply message.
- * 
- * @param  message  IN  query name message 
- * 
+ *
+ * @param  message  IN  query name message
+ *
  * @retval  is_dynamic
  *******************************************************************************
  */
@@ -2827,13 +2827,13 @@ _LSTransportQueryNameReplyGetIsDynamic(_LSTransportMessage *message)
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Helper callback to send a message to a monitor if it's a message
  * that we care about monitoring.
- * 
- * @param  message  IN  message 
- * @param  client   IN  client 
+ *
+ * @param  message  IN  message
+ * @param  client   IN  client
  *******************************************************************************
  */
 static void
@@ -2845,15 +2845,15 @@ _LSTransportSendMessageMonitorHelper(_LSTransportMessage *message, _LSTransportC
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send messages on the pending queue to the monitor.
- * 
+ *
  * @attention locks the outgoing lock
  *
  * @param  transport    IN  transport
- * @param  client       IN  client 
- * @param  pending      IN  outgoing queue 
+ * @param  client       IN  client
+ * @param  pending      IN  outgoing queue
  *******************************************************************************
  */
 static void
@@ -2862,19 +2862,19 @@ _LSTransportSendPendingMonitorMessages(_LSTransport *transport, _LSTransportClie
     _ls_verbose("%s: client: %p, pending: %p\n", __func__, client, pending);
 
     OUTGOING_LOCK(&pending->lock);
-    g_queue_foreach(pending->queue, (GFunc)_LSTransportSendMessageMonitorHelper, client);    
+    g_queue_foreach(pending->queue, (GFunc)_LSTransportSendMessageMonitorHelper, client);
     OUTGOING_UNLOCK(&pending->lock);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Handle a failure reply to a "QueryName" message.
  *
  * @attention locks both the transport and outgoing lock
- * 
+ *
  * @param  message          IN  query name reply message
- * @param  err_code         IN  error code - see @LunaServiceQueryNameReturnCodes 
- * @param  service_name     IN  service name that we failed to find 
+ * @param  err_code         IN  error code - see @LunaServiceQueryNameReturnCodes
+ * @param  service_name     IN  service name that we failed to find
  * @param  is_dynamic       IN  true if the service is dynamic
  *******************************************************************************
  */
@@ -2896,7 +2896,7 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
     _LSTransport *transport = _LSTransportMessageGetClient(message)->transport;
 
     TRANSPORT_LOCK(&transport->lock);
-    
+
     _LSTransportOutgoing *pending = g_hash_table_lookup(transport->pending, service_name);
 
     if (!pending)
@@ -2913,15 +2913,15 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
     _LSTransportMessage *failed_message = g_queue_pop_head(pending->queue);
 
     LS_ASSERT(failed_message);
-    
+
     /* At the point where we're querying for a name we should only be
-     * queuing up method calls or canceling method calls 
-     * See LSCall_kill_server_continue_sending_messages test for an example of the latter */ 
+     * queuing up method calls or canceling method calls
+     * See LSCall_kill_server_continue_sending_messages test for an example of the latter */
     _LSTransportMessageType msg_type = _LSTransportMessageGetType(failed_message);
     LS_ASSERT(msg_type == _LSTransportMessageTypeMethodCall
               || msg_type == _LSTransportMessageTypeCancelMethodCall);
-    
-    
+
+
     if (is_dynamic && LS_TRANSPORT_QUERY_NAME_SERVICE_NOT_AVAILABLE == err_code)
     {
         if (--failed_message->retries > 0)
@@ -2929,8 +2929,8 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
             g_queue_push_head(pending->queue, failed_message);
             OUTGOING_UNLOCK(&pending->lock);
 
-            g_warning("%s: retrying sending query name to service \"%s\", %d retries remain", __func__, service_name, failed_message->retries); 
-    
+            g_warning("%s: retrying sending query name to service \"%s\", %d retries remain", __func__, service_name, failed_message->retries);
+
             if (!_LSTransportQueryName(transport->hub, failed_message, service_name, &lserror))
             {
                 LS_ASSERT(!"_LSTransportQueryName failed");
@@ -2940,7 +2940,7 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
         }
         else
         {
-            g_critical("%s: too many retries sending query name to service \"%s\"", __func__, service_name); 
+            g_critical("%s: too many retries sending query name to service \"%s\"", __func__, service_name);
         }
     }
 
@@ -2953,7 +2953,7 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
     if (NULL != next_message)
     {
         OUTGOING_UNLOCK(&pending->lock);
-        
+
         LS_ASSERT(transport->hub);
         /* we still have messages destined for this service, so send another
          * query message to see if the service has come up since */
@@ -2972,15 +2972,15 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
         {
             LS_ASSERT(0);
         }
-       
+
         OUTGOING_UNLOCK(&pending->lock);
 
         /* the key was free'd, but we need to clean up the value */
         _LSTransportOutgoingFree(pending);
     }
-    
+
     TRANSPORT_UNLOCK(&transport->lock);
-    
+
     /* call failure handler for this message -- only makes sense for method calls */
     if (msg_type == _LSTransportMessageTypeMethodCall)
     {
@@ -3009,34 +3009,34 @@ _LSTransportHandleQueryNameFailure(_LSTransportMessage *message, long err_code, 
 
         transport->message_failure_handler(_LSTransportMessageGetToken(failed_message), failure_type, transport->message_failure_context);
     }
-    
-    /* we're done with this message */ 
+
+    /* we're done with this message */
     _LSTransportMessageUnref(failed_message);
 done:;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Handle a reply to a "QueryName" message from the hub.
  *
  * @attention locks transport lock
  *
- * @param  message  IN  query name reply message 
+ * @param  message  IN  query name reply message
  *******************************************************************************
  */
 void
 _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 {
     _ls_verbose("%s\n", __func__);
-    
+
     LSError lserror;
     LSErrorInit(&lserror);
 
     int32_t ret_code = 0;
     int dup_fd = -1;
-    
+
     _LSTransport *transport = _LSTransportClientGetTransport(_LSTransportMessageGetClient(message));
-    
+
     /* get the service name out of the message -- always have this, even in failure */
     const char *service_name = _LSTransportQueryNameReplyGetServiceName(message);
 
@@ -3080,14 +3080,14 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 
     _ls_verbose("%s: service_name: %s, unique_name: %s, %s\n", __func__, service_name, unique_name, is_dynamic ? "dynamic" : "static");
 
-    /* Atomically move messages from pending queue to hash of available services */ 
+    /* Atomically move messages from pending queue to hash of available services */
     TRANSPORT_LOCK(&transport->lock);
- 
+
     /* move set of messages in pending queue to outbound queue for the now-connected client -- by defintion if we get here there should be at least one message on the queue for this service */
     _LSTransportOutgoing *pending = (_LSTransportOutgoing*)g_hash_table_lookup(transport->pending, service_name);
-    
+
     LS_ASSERT(pending);
-   
+
     if (_LSTransportGetTransportType(transport) == _LSTransportTypeLocal)
     {
         dup_fd = dup(message_fd);
@@ -3112,22 +3112,22 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
         _LSTransportHandleQueryNameFailure(message, LS_TRANSPORT_QUERY_NAME_SERVICE_NOT_AVAILABLE, service_name, is_dynamic);
         return;
     }
-    
+
     client->is_dynamic = is_dynamic;
-        
+
     /* We successfully connected to the far side, so remove the service from
      * the transport lookup queue.
-     * 
+     *
      * This frees the key, but not the value due to choice in
      * g_hash_table_new_full */
     if (!g_hash_table_remove(transport->pending, service_name))
     {
         LS_ASSERT(0);
     }
-   
+
     /* client ref +1 (total = 1) */
 
-    /* client ref +1 (total = 2) */ 
+    /* client ref +1 (total = 2) */
     if (!_LSTransportAddClientHash(transport, client, service_name))
     {
         LS_ASSERT(0);
@@ -3135,11 +3135,11 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 
     /* client ref +1 (total = 3) */
     _LSTransportAddAllConnectionHash(transport, client);
-    
+
     TRANSPORT_UNLOCK(&transport->lock);
 
     LS_ASSERT(client->transport->mainloop_context);
-    
+
     /* MONITOR -- send our info to the newly connected client
      *
      * This message *must* be put at the beginning of the pending queue
@@ -3170,16 +3170,16 @@ _LSTransportHandleQueryNameReply(_LSTransportMessage *message)
 
     /* client ref -1 (total = 2) */
     _ls_verbose("%s: unref'ing\n", __func__);
-    _LSTransportClientUnref(client); 
+    _LSTransportClientUnref(client);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Tell the client (always the hub) that we're up
- * 
+ *
  * @param  client   IN  hub
- * @param  lserror  OUT set on error 
- * 
+ * @param  lserror  OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -3198,7 +3198,7 @@ _LSTransportNodeUp(_LSTransportClient *client, LSError *lserror)
         _LSErrorSetOOM(lserror);
         return false;
     }
-    
+
     _LSTransportMessageSetType(message, _LSTransportMessageTypeNodeUp);
 
     if (!_LSTransportSendMessageBlocking(message, client, NULL, lserror))
@@ -3212,17 +3212,17 @@ _LSTransportNodeUp(_LSTransportClient *client, LSError *lserror)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief Connect and get a name from the hub.
  *
  * @attention This blocks until we get a name from the hub.
- * 
+ *
  * @param  transport    IN  transport
- * @param  local        IN  true for unix domain sockets 
- * @param  public_bus   IN  true to connect to public hub 
- * @param  lserror      OUT set on error 
- * 
+ * @param  local        IN  true for unix domain sockets
+ * @param  public_bus   IN  true to connect to public hub
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -3231,7 +3231,7 @@ bool
 _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSError *lserror)
 {
     _ls_verbose("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
-    
+
     bool ret = false;
     const char *hub_addr = NULL;
 
@@ -3244,7 +3244,7 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
         return false;
     }
 
-    /* 
+    /*
      * 1. Attempt to connect to local hub.
      * 2. Attempt to connect to inet hub on device.
      * 3. Attempt to connecto to inet hub on emulator.
@@ -3260,10 +3260,10 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
     {
         hub_addr = HUB_LOCAL_ADDRESS_PRIVATE;
     }
-    
+
     /* try to connect to the local hub */
     _LSTransportClient *hub = _LSTransportConnectClient(transport, HUB_NAME, hub_addr, -1, NULL, lserror);
-    
+
 #ifndef TARGET_EMULATOR
     if (!hub)
     {
@@ -3281,7 +3281,7 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
             /* defaults */
             if (public_bus)
             {
-                hub_addr = HUB_INET_ADDRESS_PUBLIC; 
+                hub_addr = HUB_INET_ADDRESS_PUBLIC;
             }
             else
             {
@@ -3300,14 +3300,14 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
                 LSErrorFree(lserror);
                 LSErrorInit(lserror);
             }
-        
+
             transport->type = _LSTransportTypeInet;
-           
-#ifdef TARGET_DESKTOP 
+
+#ifdef TARGET_DESKTOP
             /* Running on the desktop and connecting to emulator */
             if (public_bus)
             {
-                hub_addr = EMULATOR_DESKTOP_INET_ADDRESS_PUBLIC; 
+                hub_addr = EMULATOR_DESKTOP_INET_ADDRESS_PUBLIC;
             }
             else
             {
@@ -3317,14 +3317,14 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
             /* Running on the emulator and connecting to emulator */
             if (public_bus)
             {
-                hub_addr = EMULATOR_INET_ADDRESS_PUBLIC; 
+                hub_addr = EMULATOR_INET_ADDRESS_PUBLIC;
             }
             else
             {
                 hub_addr = EMULATOR_INET_ADDRESS_PRIVATE;
             }
 #endif
-        
+
             hub = _LSTransportConnectClient(transport, HUB_NAME, hub_addr, -1, NULL, lserror);
 
             if (!hub)
@@ -3401,16 +3401,16 @@ Done:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Called when watch indicates that there is data to be read from a
  * channel. This function does non-blocking reads of the incoming data and
  * processes the complete messages.
- * 
+ *
  * @param  source       IN  io source
- * @param  condition    IN  condition that triggered this callback 
- * @param  data         IN  client 
- * 
+ * @param  condition    IN  condition that triggered this callback
+ * @param  data         IN  client
+ *
  * @retval TRUE when client is still alive
  * @retval FALSE when client goes away so that this watch is removed
  *******************************************************************************
@@ -3429,14 +3429,14 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
     /* calculate bytes remaining in buf */
     int num_bytes_to_read;
     unsigned long offset;
-    
+
     /* we're using the client's incoming buffer, so ref it */
     _LSTransportClientRef(client);
     _LSTransportIncoming *incoming = client->incoming;
-    
+
     bool shutdown = false;
-    
-    /* 
+
+    /*
      * TODO: limit the number of messages that we queue up before processing
      * them. We don't want to starve other parts of the program's operation
      * and we don't want to use too much memory; this should be configurable
@@ -3450,7 +3450,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
     {
         char* buf = (char*)&incoming->tmp_header;
         int ret = 0;
-        
+
         if (incoming->tmp_msg)
         {
             /* We have a message with at least a header, so attempt to read
@@ -3470,7 +3470,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
         if (num_bytes_to_read > 0)
         {
             ret = recv(client->channel.fd, buf + offset, num_bytes_to_read, MSG_DONTWAIT);
-            
+
             /* If there was an error or we would block, we're done reading in data */
             if (ret <= 0)
             {
@@ -3497,7 +3497,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
 
             /* ret > 0 */
             LS_ASSERT(ret > 0);
-            
+
             if (incoming->tmp_msg)
             {
                 /* We're continuing an already allocated msg */
@@ -3516,7 +3516,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
             if (incoming->tmp_msg_offset == incoming->tmp_msg->raw->header.len)
             {
                 //printf("recvd message: token %d, type: %d, len: %d\n", (int)incoming->tmp_msg->raw->header.token, (int)incoming->tmp_msg->raw->header.type, (int)incoming->tmp_msg->raw->header.len);
-                
+
                 /* check to see if we need to read in the special file
                  * descriptor message for this type of message */
                 if (_LSTransportMessageIsConnectionFdType(incoming->tmp_msg))
@@ -3544,7 +3544,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
 
                     _LSTransportMessageSetConnectionFd(incoming->tmp_msg, recv_fd);
                 }
-                
+
                 g_queue_push_tail(incoming->complete_messages, incoming->tmp_msg);
                 incoming->tmp_msg = NULL;
                 incoming->tmp_msg_offset = 0;
@@ -3553,7 +3553,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
         else
         {
             LS_ASSERT(incoming->tmp_header_offset >= 0 && incoming->tmp_header_offset <= sizeof(_LSTransportHeader));
-            
+
             if (incoming->tmp_header_offset == sizeof(incoming->tmp_header))
             {
                 /* construct the new message */
@@ -3583,16 +3583,16 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                     /* Not much we can do except give up and attempt to
                      * process any messages that we've already allocated */
                     g_critical("Out of memory");
-                    break; 
+                    break;
                 }
 
                 /* copy header and sender */
                 _LSTransportMessageSetHeader(incoming->tmp_msg, &incoming->tmp_header);
                 //printf("recvd message alloc: token %d, type: %d, len: %d\n", (int)incoming->tmp_msg->raw->header.token, (int)incoming->tmp_msg->raw->header.type, (int)incoming->tmp_msg->raw->header.len);
-           
+
                 _LSTransportMessageSetClient(incoming->tmp_msg, client);
-   
-                /* TODO: can we fold this in better to the above code? */ 
+
+                /* TODO: can we fold this in better to the above code? */
                 if (_LSTransportMessageGetHeader(incoming->tmp_msg)->len == 0)
                 {
                     g_queue_push_tail(incoming->complete_messages, incoming->tmp_msg);
@@ -3605,7 +3605,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
         }
     }
 
-    /* 
+    /*
      * Call the callbacks for methods and filter function callbacks for replies
      * TODO: should this be done in another callback (idle handler?)
 
@@ -3638,7 +3638,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
         }
 
         _LSTransportClientUnref(client);
-        
+
         return FALSE;
     }
     else
@@ -3648,14 +3648,14 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Callback to accept incoming connections.
- * 
- * @param  source       IN  io source 
- * @param  condition    IN  condition that triggered callback 
- * @param  data         IN  transport 
- * 
+ *
+ * @param  source       IN  io source
+ * @param  condition    IN  condition that triggered callback
+ * @param  data         IN  transport
+ *
  * @retval TRUE always
  *******************************************************************************
  */
@@ -3669,7 +3669,7 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
     /* Call accept to accept the connection */
     if (condition & G_IO_IN)
     {
-        /* 
+        /*
          * This socket is set as blocking, but we should only get the
          * G_IO_IN condition if data is available (and no one else is
          * watching this socket), so we won't block.
@@ -3688,7 +3688,7 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
             if (new_client)
             {
                 _ls_verbose("%s: new_client: %p\n", __func__, new_client);
-                
+
                 /* client ref +1 (total = 1) */
 
                 TRANSPORT_LOCK(&transport->lock);
@@ -3698,7 +3698,7 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
 
                 /* TODO: maybe ref the client again here */
                 _LSTransportAddReceiveWatch(&new_client->channel, transport->mainloop_context, new_client);
-               
+
                 /* client ref -1 (total = 1) */
                 _ls_verbose("%s: unref'ing\n", __func__);
                 _LSTransportClientUnref(new_client);
@@ -3709,28 +3709,28 @@ _LSTransportAcceptConnection(GIOChannel *source, GIOCondition condition,
     {
         /* something unexpected -- probably an error */
         g_debug("condition: %d", condition);
-    } 
+    }
 
     return TRUE;    /* FALSE means this source should be removed */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message that has been constructed as an io vector.
- * 
+ *
  * @warning This function does NOT set the token like @ref
  * _LSTransportSendMessage since it does not know where in the vector the
  * token lies.
  *
  * @attention locks outgoing lock
  *
- * @param  iov              IN  array of io vectors 
- * @param  iovcnt           IN  size of @ref iov array 
- * @param  total_len        IN  total size of @ref iov array 
+ * @param  iov              IN  array of io vectors
+ * @param  iovcnt           IN  size of @ref iov array
+ * @param  total_len        IN  total size of @ref iov array
  * @param  app_id_offset    IN  offset of app_id from beginning of raw message
- * @param  client           IN  client 
- * @param  lserror          OUT set on error 
- * 
+ * @param  client           IN  client
+ * @param  lserror          OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -3747,11 +3747,11 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
     /* If there is anything in the queue, we can't do a fast send
      * or we risk re-ordering the messages */
     OUTGOING_LOCK(&client->outgoing->lock);
-   
+
     if (g_queue_is_empty(client->outgoing->queue))
     {
         //int total_bytes = 0;
-        
+
         /* writev -- send as much of the message as possible without blocking */
         bytes_written = writev(client->channel.fd, iov, iovcnt);
 
@@ -3766,7 +3766,7 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
                 /* Client went away -- this could happen if the client
                  * crashes or disconnects for some other reason (e.g.,
                  * the monitor may disconnect at any time */
-                
+
                 /* If the destination service is dynamic then we want to queue
                  * the message so that it's automatically sent when the
                  * service is available. Otherwise, if it's a static service
@@ -3798,8 +3798,8 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
             return true;
         }
     }
-    
-    /* either we don't send all the data or there is data on the queue, 
+
+    /* either we don't send all the data or there is data on the queue,
      * queue up the rest of the message to be sent */
     _LSTransportMessage *message = _LSTransportMessageFromVectorNewRef(iov, iovcnt, total_len);
 
@@ -3827,29 +3827,29 @@ _LSTransportSendVector(const struct iovec *iov, int iovcnt, unsigned long total_
     }
 
     g_queue_push_tail(client->outgoing->queue, message);
-    
+
     OUTGOING_UNLOCK(&client->outgoing->lock);
 
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message that has been constructed as an io vector.
- * 
+ *
  * @warning This function does NOT set the token like @ref
  * _LSTransportSendMessage since it does not know where in the vector the
  * token lies.
  *
  * @attention locks outgoing lock
  *
- * @param  iov              IN  array of io vectors 
- * @param  iovcnt           IN  size of @ref iov array 
- * @param  total_len        IN  total size of @ref iov array 
+ * @param  iov              IN  array of io vectors
+ * @param  iovcnt           IN  size of @ref iov array
+ * @param  total_len        IN  total size of @ref iov array
  * @param  app_id_offset    IN  offset of app_id from beginning of raw message
- * @param  client           IN  client 
- * @param  lserror          OUT set on error 
- * 
+ * @param  client           IN  client
+ * @param  lserror          OUT set on error
+ *
  * @retval message on success
  * @retval NULL on failure
  *******************************************************************************
@@ -3866,7 +3866,7 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
     /* If there is anything in the queue, we can't do a fast send
      * or we risk re-ordering the messages */
     OUTGOING_LOCK(&client->outgoing->lock);
-   
+
     _LSTransportMessage *message = _LSTransportMessageFromVectorNewRef(iov, iovcnt, total_len);
 
     if (!message)
@@ -3881,7 +3881,7 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
     if (g_queue_is_empty(client->outgoing->queue))
     {
         //int total_bytes = 0;
-        
+
         /* write -- send as much of the message as possible without blocking */
         bytes_written = write(client->channel.fd, message->raw, total_len);
 
@@ -3929,7 +3929,7 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
             return message;
         }
     }
-    
+
     message->tx_bytes_remaining -= bytes_written;
 
     /* if the queue is empty, there's no send watch set on it, so we
@@ -3946,23 +3946,23 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
 
     _LSTransportMessageRef(message);
     g_queue_push_tail(client->outgoing->queue, message);
-    
+
     OUTGOING_UNLOCK(&client->outgoing->lock);
 
     return message;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message to the monitor.
  *
  * @warning Make sure that the message token (serial) has been set before
  * calling this function.
- * 
+ *
  * @param  message  IN   message
- * @param  client   IN   client 
- * @param  lserror  OUT  set on error 
- * 
+ * @param  client   IN   client
+ * @param  lserror  OUT  set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -3971,7 +3971,7 @@ static bool
 _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *client, LSError *lserror)
 {
     bool ret = true;
-    
+
     /* Get a serial number from the shared memory area (global serial) */
     _LSTransportMonitorSerial monitor_serial = _LSTransportShmGetSerial(client->transport->shm);
     unsigned long monitor_serial_size = sizeof(_LSTransportMonitorSerial);
@@ -3989,7 +3989,7 @@ _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient 
 
     LS_ASSERT(dest_unique_name != NULL);
     unsigned long dest_unique_name_len = strlen(client->unique_name) + 1;
-    
+
     unsigned long monitor_message_body_size = orig_msg_size + dest_service_name_len + dest_unique_name_len;
 
     unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, sizeof(_LSTransportHeader) + monitor_message_body_size);
@@ -4009,7 +4009,7 @@ _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient 
         memcpy(body, dest_unique_name, dest_unique_name_len);
         body += dest_unique_name_len;
 
-        /* padding for alignment */ 
+        /* padding for alignment */
         body += padding_bytes;
 
         memcpy(body, &monitor_serial, monitor_serial_size);
@@ -4024,14 +4024,14 @@ _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient 
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a "MonitorRequest" message, which is sent from the monitor to
  * the hub so that the hub can tell all the clients to connect to the monitor.
- * 
- * @param  transport    IN   transport 
- * @param  lserror      OUT  set on error 
- * 
+ *
+ * @param  transport    IN   transport
+ * @param  lserror      OUT  set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -4063,13 +4063,13 @@ LSTransportSendMessageMonitorRequest(_LSTransport *transport, LSError *lserror)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message to the hub requesting a list of all connected clients.
- * 
- * @param  transport    IN  transport connected to the hub 
- * @param  lserror      OUT set on error 
- * 
+ *
+ * @param  transport    IN  transport connected to the hub
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4102,12 +4102,12 @@ _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror)
 }
 
 
-/** 
+/**
  *******************************************************************************
  * @brief  Process a "ClientInfo" message. This message is used to know who
  * has connected to us.
- * 
- * @param  message  IN  client info message 
+ *
+ * @param  message  IN  client info message
  *******************************************************************************
  */
 static void
@@ -4120,7 +4120,7 @@ _LSTransportHandleClientInfo(_LSTransportMessage *message)
     const char *unique_name = NULL;
 
     _LSTransportClient *client = _LSTransportMessageGetClient(message);
-    
+
     LS_ASSERT(client->service_name == NULL);
     LS_ASSERT(client->unique_name == NULL);
 
@@ -4151,19 +4151,19 @@ _LSTransportHandleClientInfo(_LSTransportMessage *message)
     _ls_verbose("%s: client: %p, service_name: %s, unique_name: %s\n", __func__, client, client->service_name, client->unique_name);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message and put it at the front of the outgoing queue.
  *
  * @warning This function does not change the serial number of the messages on
  * the queue and as a result, the serial numbers will be out of order. Do not
  * use this function unless you absolutely know what you are doing.
- * 
+ *
  * @param  message      IN  message
- * @param  client       IN  client 
- * @param  token        OUT message token 
- * @param  lserror      OUT set on error 
- * 
+ * @param  client       IN  client
+ * @param  token        OUT message token
+ * @param  lserror      OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -4173,17 +4173,17 @@ _LSTransportSendMessagePrepend(_LSTransportMessage *message, _LSTransportClient 
                                LSMessageToken *token, LSError *lserror)
 {
     _ls_verbose("%s: client: %p\n", __func__, client);
-    
+
     return _LSTransportSendMessageRaw(message, client, true, token, true, lserror);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new "ClientInfo" message with ref count of 1.
- * 
- * @param  service_name     IN  service name 
- * @param  unique_name      IN  unique name 
- * 
+ *
+ * @param  service_name     IN  service name
+ * @param  unique_name      IN  unique name
+ *
  * @retval message on success
  * @retval NULL on failure
  *******************************************************************************
@@ -4197,14 +4197,14 @@ _LSTransportMessageClientInfoNewRef(const char *service_name, const char *unique
     _LSTransportMessage *message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
 
     if (!message) goto error;
-    
+
     _LSTransportMessageSetType(message, _LSTransportMessageTypeClientInfo);
 
     _LSTransportMessageIterInit(message, &iter);
     if (!_LSTransportMessageAppendString(&iter, service_name)) goto error;
     if (!_LSTransportMessageAppendString(&iter, unique_name)) goto error;
     if (!_LSTransportMessageAppendInvalid(&iter)) goto error;
-    
+
     return message;
 
 error:
@@ -4212,18 +4212,18 @@ error:
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a "ClientInfo" message, which contains the service name and
  * unique name of the client so the newly connected client knows who we are.
  *
  * @param  client        IN  destination client
- * @param  service_name  IN  service name of client 
- * @param  unique_name   IN  unique name of client 
+ * @param  service_name  IN  service name of client
+ * @param  unique_name   IN  unique name of client
  * @param  prepend       IN  true means put this message at beginning of
- *                           outgoing queue 
- * @param  lserror       OUT set on error 
- * 
+ *                           outgoing queue
+ * @param  lserror       OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4242,7 +4242,7 @@ _LSTransportSendMessageClientInfo(_LSTransportClient *client, const char *servic
         _LSErrorSet(lserror, -ENOMEM, "OOM");
         goto error;
     }
-   
+
     if (prepend)
     {
         if (!_LSTransportSendMessagePrepend(message, client, NULL, lserror))
@@ -4256,7 +4256,7 @@ _LSTransportSendMessageClientInfo(_LSTransportClient *client, const char *servic
         {
             goto error;
         }
-    } 
+    }
 
     ret = true;
 
@@ -4266,13 +4266,13 @@ error:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a "NodeUp" message, which tells the hub that this client is up.
- * 
- * @param  client   IN  client 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  client   IN  client
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4304,18 +4304,18 @@ _LSTransportSendMessageNodeUp(_LSTransportClient *client, LSError *lserror)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Underlying message sending function.
- * 
+ *
  * @param  message      IN  message to send
- * @param  client       IN  client 
- * @param  set_token    IN  true means this function will set the token 
- * @param  token        OUT token if @ref set_token is true 
+ * @param  client       IN  client
+ * @param  set_token    IN  true means this function will set the token
+ * @param  token        OUT token if @ref set_token is true
  * @param  prepend      IN  true means prepend message (You probably don't
- *                          want to use this 
- * @param  lserror      OUT set on error 
- * 
+ *                          want to use this
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4333,7 +4333,7 @@ _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *cli
     /* add message to outgoing queue */
     _LSTransportMessageRef(message);
     message->tx_bytes_remaining = message->raw->header.len + sizeof(message->raw->header);
- 
+
     /* For some messages we may not want to set the token
      * (e.g., monitor messages are clones of regular messages, so we
      * don't want to create a new token)
@@ -4379,9 +4379,9 @@ _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *cli
         GList *iter = NULL;
         _LSTransportMessage *cur_msg = NULL;
         _LSTransportMessage *next_msg = NULL;
-        
+
         g_queue_push_head(client->outgoing->queue, message);
-        
+
         for (iter = g_queue_peek_head_link(client->outgoing->queue);
              iter != NULL && g_list_next(iter) != NULL;
              iter = g_list_next(iter))
@@ -4393,14 +4393,14 @@ _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *cli
         cur_msg = iter->data;
         _LSTransportMessageSetToken(cur_msg, msg_token);
 #endif
-        
-        /* 
+
+        /*
          * Note that we don't preserve the ordering of serial numbers
          * when we do this. If we re-ordered the serial numbers as shown above,
          * we would be changing the serial number that could have been saved
          * by a caller. In our current usage, that means that we would break
          * the callmap lookups for a message.
-         */    
+         */
         g_queue_push_head(client->outgoing->queue, message);
     }
     else
@@ -4412,15 +4412,15 @@ _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *cli
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message.
- * 
- * @param  message  IN  message to send 
- * @param  client   IN  client 
- * @param  token    OUT token 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  message  IN  message to send
+ * @param  client   IN  client
+ * @param  token    OUT token
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4444,15 +4444,15 @@ _LSTransportSendMessage(_LSTransportMessage *message, _LSTransportClient *client
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Underlying message reply implementation.
- * 
- * @param  message  IN  message to reply to 
- * @param  type     IN  reply type 
- * @param  payload  IN  payload 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  message  IN  message to reply to
+ * @param  type     IN  reply type
+ * @param  payload  IN  payload
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4474,7 +4474,7 @@ _LSTransportSendReplyRaw(const _LSTransportMessage *message, _LSTransportMessage
         _LSErrorSetOOM(lserror);
         return false;
     }
-    
+
     /* set type */
     _LSTransportMessageSetType(reply, type);
 
@@ -4490,21 +4490,21 @@ _LSTransportSendReplyRaw(const _LSTransportMessage *message, _LSTransportMessage
     _ls_verbose("sending reply reply_token %d, type: %d, len: %d\n", (int)msg_token, (int)reply->raw->header.type, (int)reply->raw->header.len);
 
     _LSTransportSendMessage(reply, message->client, NULL, NULL);
-   
+
     _LSTransportMessageUnref(reply);
- 
+
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send an error reply message.
- * 
- * @param  message      IN  message to reply to 
- * @param  error_type   IN  error type 
- * @param  error_msg    IN  error message 
- * @param  lserror      OUT set on error 
- * 
+ *
+ * @param  message      IN  message to reply to
+ * @param  error_type   IN  error type
+ * @param  error_msg    IN  error message
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4517,14 +4517,14 @@ _LSTransportSendErrorReply(const _LSTransportMessage *message, _LSTransportMessa
     return _LSTransportSendReplyRaw(message, error_type, error_msg, lserror);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a rely to a message.
- * 
- * @param  message  IN  message to reply to 
- * @param  payload  IN  payload to send 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  message  IN  message to reply to
+ * @param  payload  IN  payload to send
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4535,15 +4535,15 @@ _LSTransportSendReply(const _LSTransportMessage *message, const char *payload, L
     return _LSTransportSendReplyRaw(message, _LSTransportMessageTypeReply, payload, lserror);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a "cancel method call" message to the far side.
- * 
+ *
  * @param  transport        IN  transport
- * @param  service_name     IN  service name 
- * @param  serial           IN  serial of message to cancel 
- * @param  lserror          OUT set on error 
- * 
+ * @param  service_name     IN  service name
+ * @param  serial           IN  serial of message to cancel
+ * @param  lserror          OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4553,13 +4553,13 @@ LSTransportCancelMethodCall(_LSTransport *transport, const char *service_name, L
 {
     /*
      * FIXME: add generic code that can be shared with normal method call sending
-     * 
+     *
      * TODO: re-think this when we modify subscription handling
      */
-    
+
     bool ret = true;
     _LSTransportMessage *message = NULL;
-    
+
     const char *category = "/com/palm/luna/private";
     const char *method = "cancel";
 
@@ -4603,19 +4603,19 @@ error:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Check to see if a service is up or not.
  *
  * The message argument is just the service name string (e.g., "com.palm.foo")
  *
  * The hub will reply with a boolean value of whether the service is up.
- * 
+ *
  * @param  transport        IN  transport
  * @param  service_name     IN  service name to check status of
- * @param  serial           OUT serial for this query message 
- * @param  lserror          OUT set on error 
- * 
+ * @param  serial           OUT serial for this query message
+ * @param  lserror          OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4653,18 +4653,18 @@ error:
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a message to the pending queue for the given service with a specified token.
- * 
+ *
  * @attention locks the transport lock
  *
- * @param  transport        IN  transport 
- * @param  service_name     IN  service name 
- * @param  message          IN  message to add 
- * @param  token            IN  token for message 
- * @param  lserror          OUT set on error 
- * 
+ * @param  transport        IN  transport
+ * @param  service_name     IN  service name
+ * @param  message          IN  message to add
+ * @param  token            IN  token for message
+ * @param  lserror          OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -4681,9 +4681,9 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
     {
         /* yes, stick it on the pending queue */
         OUTGOING_LOCK(&pending->lock);
-        
+
         _LSTransportMessageSetToken(message, msg_token);
-       
+
         if (_LSTransportMessageGetType(message) == _LSTransportMessageTypeMethodCall)
         {
             _LSTransportSerialSave(pending->serial, message, lserror);
@@ -4698,7 +4698,7 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
     }
     else
     {
-        /* no existing queue, create one and push message on it */ 
+        /* no existing queue, create one and push message on it */
         _LSTransportOutgoing *out = _LSTransportOutgoingNew();
 
         if (!out)
@@ -4710,7 +4710,7 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
         }
 
         _LSTransportMessageSetToken(message, msg_token);
-        
+
         _LSTransportMessageType type = _LSTransportMessageGetType(message);
 
         if (type == _LSTransportMessageTypeMethodCall)
@@ -4723,12 +4723,12 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
         g_queue_push_tail(out->queue, message);
 
         _ls_verbose("%s: inserting \"%s\" into pending: %p\n", __func__, service_name, transport->pending);
-        g_hash_table_insert(transport->pending, g_strdup(service_name), out);  
-       
+        g_hash_table_insert(transport->pending, g_strdup(service_name), out);
+
         TRANSPORT_UNLOCK(&transport->lock);
-        
+
         LS_ASSERT(transport->hub != NULL);
-        
+
         if (!_LSTransportQueryName(transport->hub, message, service_name, lserror))
         {
             return false;
@@ -4738,18 +4738,18 @@ _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *serv
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Add a message to the pending queue for the given service.
- * 
+ *
  * @attention locks the transport lock
  *
- * @param  transport        IN  transport 
- * @param  service_name     IN  service name 
- * @param  message          IN  message to add 
- * @param  token            OUT token for message 
- * @param  lserror          OUT set on error 
- * 
+ * @param  transport        IN  transport
+ * @param  service_name     IN  service name
+ * @param  message          IN  message to add
+ * @param  token            OUT token for message
+ * @param  lserror          OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -4769,18 +4769,18 @@ _LSTransportAddPendingMessage(_LSTransport *transport, const char *service_name,
     return retVal;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a message to the specified service.
  *
  * @attention locks the transport lock
  *
- * @param  transport        IN  transport 
- * @param  service_name     IN  service 
- * @param  message          IN  message to send 
- * @param  token            OUT token for message 
- * @param  lserror          OUT set on error 
- * 
+ * @param  transport        IN  transport
+ * @param  service_name     IN  service
+ * @param  message          IN  message to send
+ * @param  token            OUT token for message
+ * @param  lserror          OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -4802,19 +4802,19 @@ _LSTransportSendMessageToService(_LSTransport *transport, const char *service_na
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send a method call.
- * 
- * @param  transport        IN  transport 
- * @param  service_name     IN  destination service name 
- * @param  category         IN  method category 
- * @param  method           IN  method 
- * @param  payload          IN  payload 
- * @param  applicationId    IN  application id 
- * @param  token            OUT message token 
- * @param  lserror          OUT set on error 
- * 
+ *
+ * @param  transport        IN  transport
+ * @param  service_name     IN  destination service name
+ * @param  category         IN  method category
+ * @param  method           IN  method
+ * @param  payload          IN  payload
+ * @param  applicationId    IN  application id
+ * @param  token            OUT message token
+ * @param  lserror          OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -4826,12 +4826,12 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
                 LSMessageToken *token, LSError *lserror)
 {
     _LSTransportMessage *message = NULL;
-    _LSTransportHeader header; 
+    _LSTransportHeader header;
     struct iovec iov[5];
     char nul = '\0';
     unsigned long app_id_offset = 0;
     char *app_id_in_raw_msg = NULL;
-    
+
     unsigned long category_len = strlen(category) + 1;
     unsigned long method_len = strlen(method) + 1;
     unsigned long payload_len = strlen(payload) + 1;
@@ -4861,17 +4861,17 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
     }
     else
     {
-        iov[4].iov_base = (char*)applicationId;     
+        iov[4].iov_base = (char*)applicationId;
     }
     iov[4].iov_len = app_id_len;
-    
+
     /* The _LSTransportMessageGetBody() function skips the header */
     app_id_offset = iov[1].iov_len + iov[2].iov_len + iov[3].iov_len;
 
-    /* TODO: use accessors */    
+    /* TODO: use accessors */
     header.len = category_len + method_len + payload_len + app_id_len;
     header.type = _LSTransportMessageTypeMethodCall;
-    
+
     /* Look up destination and connect to it if we haven't already */
     TRANSPORT_LOCK(&transport->lock);
     _LSTransportClient *client = g_hash_table_lookup(transport->clients, service_name);
@@ -4899,27 +4899,27 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             _LSTransportMessageUnref(message);
             return false;
         }
-    
+
         _ls_verbose("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)_LSTransportMessageGetToken(message), _LSTransportMessageGetCategory(message), _LSTransportMessageGetMethod(message), _LSTransportMessageGetPayload(message));
     }
     else
     {
         /* *WARN*: if this function is ever changed to be called for anything
          * but method call */
-     
+
         /* we have to set the token here SendVector doesn't know which vector
          * has the token */
-        
+
         LSMessageToken msg_token = _LSTransportGetNextToken(transport);
 
         _LSTransportMonitorSerial monitor_serial = 0;
         if (transport->monitor)
-        {    
+        {
             monitor_serial = _LSTransportShmGetSerial(client->transport->shm);
         }
 
         _ls_verbose("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)msg_token, category, method, payload);
-       
+
         header.token = msg_token;
 
         message = _LSTransportSendVectorRet(iov, ARRAY_SIZE(iov), total_size, app_id_offset, client, lserror);
@@ -4927,18 +4927,18 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
         {
             return false;
         }
-        
+
         /* Successfully sent the message so save the serial and set the
          * return token val */
 
         /* Ref's the message */
         _LSTransportSerialSave(client->outgoing->serial, message, lserror);
         *token = msg_token;
-        
+
         /* MONITOR */
         if (transport->monitor)
         {
-            /* 
+            /*
              * Add destination service name and destination unique name
              * so that the monitor knows where this message was going. It
              * knows the source since it receives it directly from the
@@ -4949,10 +4949,10 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
 
             struct iovec iov_monitor[ARRAY_SIZE(iov) + 4];
             memcpy(iov_monitor, iov, sizeof(iov));
-            
+
             LS_ASSERT(client->service_name != NULL);
             LS_ASSERT(client->unique_name != NULL);
-           
+
             unsigned long monitor_serial_size = sizeof(_LSTransportMonitorSerial);
 
             unsigned long dest_service_name_len = strlen(client->service_name) + 1;
@@ -4960,18 +4960,18 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             unsigned long monitor_total_size = total_size + dest_service_name_len + dest_unique_name_len;
 
             unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, monitor_total_size);
-            
+
             monitor_total_size += padding_bytes + monitor_serial_size;
 
             /* Set the new header size
-             * 
+             *
              * Note that monitor_total_size includes the size of the header
              * itself and this doesn't */
             header.len += dest_service_name_len + dest_unique_name_len + padding_bytes + monitor_serial_size;
 
             iov_monitor[ARRAY_SIZE(iov)].iov_base = client->service_name;
             iov_monitor[ARRAY_SIZE(iov)].iov_len = dest_service_name_len;
-            
+
             iov_monitor[ARRAY_SIZE(iov) + 1].iov_base = client->unique_name;
             iov_monitor[ARRAY_SIZE(iov) + 1].iov_len = dest_unique_name_len;
 
@@ -4980,9 +4980,9 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
 
             iov_monitor[ARRAY_SIZE(iov) + 3].iov_base = &monitor_serial;
             iov_monitor[ARRAY_SIZE(iov) + 3].iov_len = monitor_serial_size;
-           
+
             /* We don't really care if this fails and it may fail when the
-             * monitor goes down */ 
+             * monitor goes down */
             (void)_LSTransportSendVector(iov_monitor, ARRAY_SIZE(iov_monitor), monitor_total_size, app_id_offset, transport->monitor, lserror);
         }
     }
@@ -4991,16 +4991,16 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Callback that is called when a watch is ready to send.
- * 
+ *
  * @attention locks the outgoing lock
  *
- * @param  source       IN  io source 
- * @param  condition    IN  condition that triggered the watch 
- * @param  data         IN  client 
- * 
+ * @param  source       IN  io source
+ * @param  condition    IN  condition that triggered the watch
+ * @param  data         IN  client
+ *
  * @retval  TRUE when we have more data to send
  * @retval  FALSE when we're done sending data and want the callback removed
  *******************************************************************************
@@ -5011,14 +5011,14 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
 {
     /* send as many messages as we can out of the outgoing client queues
      * and quit if the call will block */
-    
+
     _LSTransportClient *client = (_LSTransportClient*)data;
 
     _ls_verbose("%s: client: %p\n", __func__, client);
 
     /* attempt to send out of this client queue */
     OUTGOING_LOCK(&client->outgoing->lock);
-    
+
     while (1)
     {
         int ret = 0;
@@ -5043,13 +5043,13 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
         }
 
         //printf("SendClient: sending message: token %d, type: %d, len: %d, data: %s\n", (int)_LSTransportMessageGetToken(message), (int)_LSTransportMessageGetType(message), (int)message->raw->header.len, _LSTransportMessageGetBody(message));
-        //printf("sending %ld bytes\n", message->tx_bytes_remaining);   
-        
+        //printf("sending %ld bytes\n", message->tx_bytes_remaining);
+
         if (message->tx_bytes_remaining > 0)
         {
             /* attempt to send message */
 
-            /* TODO */ 
+            /* TODO */
             /* <eeh> This is a lot of math.  Can you calc a ptr upfront and increment it by ret? */
             ret = send(client->channel.fd, (char*)message->raw + message->raw->header.len + sizeof(_LSTransportHeader) - message->tx_bytes_remaining, message->tx_bytes_remaining, MSG_DONTWAIT);
 
@@ -5071,7 +5071,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
                 g_debug("Error when attempting to send: %d, %s [fd: %d, client service name: %s, client unique name: %s",
                         errno, g_strerror(errno), client->channel.fd,
                         _LSTransportClientGetServiceName(client),
-                        _LSTransportClientGetUniqueName(client)); 
+                        _LSTransportClientGetUniqueName(client));
                 _LSTransportMessageUnref(message);
                 goto Done;     /* <eeh> You're going to return TRUE here.  Want that? */
             }
@@ -5080,9 +5080,9 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
         if (message->tx_bytes_remaining == 0)
         {
             /* transmitted entire message */
-            
+
             /* Send the connection fd if we have one
-             * 
+             *
              * TODO: make sure this handles failure case correctly.
              */
             if (_LSTransportMessageIsConnectionFdType(message))
@@ -5139,10 +5139,10 @@ Done:
     return TRUE;    /* FALSE means this source should be removed */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new "global token" structure.
- * 
+ *
  * @retval global token on success
  * @retval NULL on failure
  *******************************************************************************
@@ -5156,21 +5156,21 @@ _LSTransportGlobalTokenNew()
         pthread_mutex_init(&ret->lock, NULL);
         ret->value = LSMESSAGE_TOKEN_INVALID;
     }
-    return ret; 
+    return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a global token structure.
- * 
- * @param  token    IN  structure to free 
+ *
+ * @param  token    IN  structure to free
  *******************************************************************************
  */
 void
 _LSTransportGlobalTokenFree(_LSTransportGlobalToken *token)
 {
     LS_ASSERT(token != NULL);
-    
+
 #ifdef MEMCHECK
     memset(token, 0xFF, sizeof(_LSTransportGlobalToken));
 #endif
@@ -5178,12 +5178,12 @@ _LSTransportGlobalTokenFree(_LSTransportGlobalToken *token)
     g_free(token);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Returns true if the current process using this library is the hub.
  * Note that this is not secure in any way and can easily be spoofed so it
  * shouldn't be used for anything where that would cause a problem.
- * 
+ *
  * @retval  true if process calling this command is hub
  * @retval  false otherwise
  *******************************************************************************
@@ -5194,10 +5194,10 @@ _LSTransportIsHub(void)
     return s_is_hub;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Mark this process as being the hub.
- * 
+ *
  * @param  is_hub
  *******************************************************************************
  */
@@ -5207,35 +5207,35 @@ _LSTransportSetIsHub(bool is_hub)
     s_is_hub = is_hub;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate and initialize a new transport.
- * 
- * @param  *ret_transport   OUT  new transport 
- * @param  service_name     IN   service name 
- * @param  handlers         IN   handler callbacks 
- * @param  lserror          OUT  set on error 
- * 
+ *
+ * @param  *ret_transport   OUT  new transport
+ * @param  service_name     IN   service name
+ * @param  handlers         IN   handler callbacks
+ * @param  lserror          OUT  set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
  */
 bool
-_LSTransportInit(_LSTransport **ret_transport, const char *service_name, 
+_LSTransportInit(_LSTransport **ret_transport, const char *service_name,
                  LSTransportHandlers *handlers, LSError *lserror)
 {
     _ls_verbose("%s\n", __func__);
 
     _LSTransport *transport = g_new0(_LSTransport, 1);
-    
+
     if (!transport)
     {
         _LSErrorSetOOM(lserror);
         goto Error;
     }
- 
-    /* set to a real value when we call _LSTransportConnect or _LSTransportSetupListener/Local/Inet */ 
-    transport->type = _LSTransportTypeInvalid;  
+
+    /* set to a real value when we call _LSTransportConnect or _LSTransportSetupListener/Local/Inet */
+    transport->type = _LSTransportTypeInvalid;
     transport->service_name = g_strdup(service_name);
 
     if (service_name && strcmp(service_name, HUB_NAME) == 0)
@@ -5244,14 +5244,14 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
     }
 
     transport->mainloop_context = NULL; /* not really necessary, but... */
-   
-    /* 
+
+    /*
      * use default glib priority; can be changed with _LSTransportGmainSetPriority
      */
     transport->source_priority = G_PRIORITY_DEFAULT;
 
     transport->shm = NULL;      /* Set in _LSTransportConnect */
- 
+
     pthread_mutex_init(&transport->lock, NULL);
 
     transport->global_token = _LSTransportGlobalTokenNew();
@@ -5260,8 +5260,8 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
         _LSErrorSetOOM(lserror);
         goto Error;
     }
- 
-    /* TODO: wrap this? */ 
+
+    /* TODO: wrap this? */
     transport->clients = g_hash_table_new_full(g_str_hash, g_str_equal,
         (GDestroyNotify)g_free, (GDestroyNotify)_LSTransportClientUnref);
 
@@ -5286,8 +5286,8 @@ _LSTransportInit(_LSTransport **ret_transport, const char *service_name,
         _LSErrorSet(lserror, -ENOMEM, "OOM");
         goto Error;
     }
-   
-    /* TODO: just copy the struct! */ 
+
+    /* TODO: just copy the struct! */
     transport->message_failure_handler = handlers->message_failure_handler;
     transport->message_failure_context = handlers->message_failure_context;
 
@@ -5313,16 +5313,16 @@ Error:
     return false;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Send shutdown messages (and block until sent or connection is
  * broken).
  *
  * @attention This function blocks.
- * 
- * @param  client   IN  client 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  client   IN  client
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -5374,27 +5374,27 @@ _LSTransportFlushQueueMessages(_LSTransportClient *client, GQueue *queue, LSErro
             g_critical("queue should not be empty");
             LS_ASSERT(0);
         }
-        
+
         if (!_LSTransportSendMessageBlocking(message, client, NULL, lserror))
         {
             ret = false;
         }
-    } 
+    }
 
     return ret;
 }
 #endif
 
-/** 
+/**
  *******************************************************************************
  * @brief Process incoming messages by calling the appropriate message
  * handlers or user callback.
  *
  * @attention locks the incoming queue
- * 
+ *
  * @param  client   IN  client
- * @param  lserror  OUT set on error 
- * 
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -5404,7 +5404,7 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
 {
     _LSTransportClientRef(client);
     _LSTransportIncoming *incoming = client->incoming;
-    
+
     /* TODO: review locking, this function can be called recursively because
      * we can call out to user code, which can potentially call LSUnregister,
      * which would call this function to clean up */
@@ -5416,7 +5416,7 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
     while (!g_queue_is_empty(incoming->complete_messages))
     {
         /* check message type and handle appropriately (method, reply, signal, etc.) */
-      
+
         _LSTransportMessage *tmsg = (_LSTransportMessage*) g_queue_pop_head(incoming->complete_messages);
 
         //INCOMING_UNLOCK(&incoming->lock);
@@ -5433,11 +5433,11 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
         case _LSTransportMessageTypeShutdown:
             _LSTransportHandleShutdown(tmsg);
             break;
-        
+
         case _LSTransportMessageTypeError:
         case _LSTransportMessageTypeErrorUnknownMethod:
         case _LSTransportMessageTypeReply:
-            /* FIXME -- signal replies currently have this same type, 
+            /* FIXME -- signal replies currently have this same type,
              * but signals are not in the serial hash
              * -- see _LSHubHandleSignalRegister */
             _ls_verbose("%s: removing reply serial: %d, message serial: %d\n", __func__, (int)_LSTransportMessageGetReplyToken(tmsg), (int)_LSTransportMessageGetToken(tmsg));
@@ -5471,21 +5471,21 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
     }
 
     //INCOMING_UNLOCK(&incoming->lock);
-    
+
     _LSTransportClientUnref(client);
 
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Flush all messages in the outgoing queue.
  *
  * @attention locks the outgoing queue
  *
- * @param  client   IN  client 
- * @param  lserror  OUT set on error 
- * 
+ * @param  client   IN  client
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -5518,26 +5518,26 @@ _LSTransportFlushOutgoingMessages(_LSTransportClient *client, LSError *lserror)
                        " Any messages to that service will not be sent.",
                        _LSTransportMessageTypeQueryNameGetQueryName(message));
         }
-        
+
         ret = _LSTransportSendMessageBlocking(message, client, NULL, lserror);
 
         _LSTransportMessageUnref(message);
-    } 
+    }
 
     OUTGOING_UNLOCK(&client->outgoing->lock);
 
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Callback to send shutdown messages.
  *
  * @attention This is callled with the transport lock held.
- * 
- * @param  key          IN  pointer to fd 
- * @param  value        IN  client 
- * @param  user_data    IN  transport 
+ *
+ * @param  key          IN  pointer to fd
+ * @param  value        IN  client
+ * @param  user_data    IN  transport
  *******************************************************************************
  */
 void
@@ -5549,8 +5549,8 @@ _LSTransportSendShutdownMessages(gpointer key, gpointer value, gpointer user_dat
     //int *fd = (int*)key;
     _LSTransportClient *client = (_LSTransportClient*)value;
     bool flush_and_send_shutdown = (bool)(GPOINTER_TO_INT(user_data));
-    
-    _ls_verbose("%s: client: %p\n", __func__, client); 
+
+    _ls_verbose("%s: client: %p\n", __func__, client);
 
     /* remove watches */
     if (client->channel.send_watch)
@@ -5619,13 +5619,13 @@ _LSTransportSendShutdownMessages(gpointer key, gpointer value, gpointer user_dat
     _LSTransportChannelDeinit(&client->channel);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Callback to discard pending incoming messages for a given client.
  *
  * @attention This is callled with the transport lock held.
- *  
- * @param  client       IN  client 
+ *
+ * @param  client       IN  client
  *******************************************************************************
  */
 void
@@ -5634,7 +5634,7 @@ _LSTransportDiscardIncomingMessages(void *ignored, _LSTransportClient *client, G
     LS_ASSERT(client != NULL);
 
     _ls_verbose("%s: client: %p\n", __func__, client);
- 
+
     _LSTransportClientRef(client);
     _LSTransportIncoming *incoming = client->incoming;
     int discards = 0;
@@ -5654,13 +5654,13 @@ _LSTransportDiscardIncomingMessages(void *ignored, _LSTransportClient *client, G
     _LSTransportClientUnref(client);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Discards all pending incoming messages for all clients in a transport.
  *
  * @attention locks the transport lock.
- * 
- * @param  transport    IN  transport 
+ *
+ * @param  transport    IN  transport
  *******************************************************************************
  */
 void
@@ -5671,7 +5671,7 @@ _LSTransportDiscardAllClientIncoming(_LSTransport *transport)
     TRANSPORT_UNLOCK(&transport->lock);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Perform disconnect operations. Removes the watches, sends shutdown
  * messages (if requested) and closes the connections.
@@ -5679,7 +5679,7 @@ _LSTransportDiscardAllClientIncoming(_LSTransport *transport)
  * @attention locks the transport lock
  *
  * @param  transport    IN  transport
- * 
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -5718,11 +5718,11 @@ _freePending(gpointer key, _LSTransportOutgoing *outgoing, gpointer user_data)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Clean up a disconnected transport. This function should be called
  * after @ref _LSTransportDisconnect.
- * 
+ *
  * @param  transport    IN  transport
  *******************************************************************************
  */

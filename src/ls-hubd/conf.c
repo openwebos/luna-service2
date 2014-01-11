@@ -81,7 +81,7 @@ typedef struct _ConfigGroup {
  */
 typedef struct _ConfigDOM {
     _ConfigGroup groups[MAX_GROUPS];    /**< all groups in file */
-} _ConfigDOM; 
+} _ConfigDOM;
 
 bool
 _ConfigKeyGetStringList(GKeyFile *key_file, const char *group_name,
@@ -303,7 +303,7 @@ static _ConfigDOM conf_file_dom = {
             }
         },
         { NULL }
-    } 
+    }
 };
 
 /* config globals */
@@ -344,7 +344,7 @@ static int config_reload_pipe[2] = {-1, -1};    /**< used for alerting mainloop
                                                      about SIGHUP signal to reload
                                                      the config file */
 
-/** 
+/**
  *******************************************************************************
  * @brief SIGHUP|SIGUSR1 signal handler that notifies the mainloop that we should
  * reload the config file or rescan volatile directories.
@@ -372,14 +372,14 @@ _ConfigHandleSignal(int signal)
 }
 
 #ifdef HAVE_SYS_INOTIFY_H
-/** 
+/**
  *******************************************************************************
  * @brief Called when inotify on config file directory is triggered.
- * 
+ *
  * @param  channel      IN  channel
  * @param  condition    IN  condition
- * @param  data         IN  user data 
- * 
+ * @param  data         IN  user data
+ *
  * @retval  TRUE, always
  *******************************************************************************
  */
@@ -406,9 +406,9 @@ ConfigInotifyCallback(GIOChannel *channel, GIOCondition condition, gpointer data
     while (offset < bytes_read)
     {
         event = (struct inotify_event*)&event_buf[offset];
-        
+
         _ls_verbose("%s: event: wd: %d, mask: %08X, cookie: %d, len: %d, name: \"%s\"\n",
-                    __func__, event->wd, event->mask, 
+                    __func__, event->wd, event->mask,
                     event->cookie, event->len, event->len > 0 ? event->name : NULL);
 
         if ((event->mask & INOTIFY_MASK) && (event->wd == inotify_conf_file_wd)
@@ -427,14 +427,14 @@ ConfigInotifyCallback(GIOChannel *channel, GIOCondition condition, gpointer data
 }
 #endif
 
-/** 
+/**
  *******************************************************************************
  * @brief Called when we need to re-load the config file.
- * 
- * @param  channel      IN  channel 
- * @param  condition    IN  condition 
- * @param  data         IN  user data 
- * 
+ *
+ * @param  channel      IN  channel
+ * @param  condition    IN  condition
+ * @param  data         IN  user data
+ *
  * @retval  TRUE, always
  *******************************************************************************
  */
@@ -446,7 +446,7 @@ _ConfigParseFileWrapper(GIOChannel *channel, GIOCondition condition, gpointer da
     gsize bytes_read = 0;
 
     _ls_verbose("%s: parsing config file\n", __func__);
-    
+
     GIOStatus status = g_io_channel_read_chars(channel, (gchar*)&read_data, sizeof(read_data),
                                                &bytes_read, &error);
 
@@ -459,7 +459,7 @@ _ConfigParseFileWrapper(GIOChannel *channel, GIOCondition condition, gpointer da
 
     LSError lserror;
     LSErrorInit(&lserror);
-    
+
     switch(read_data)
     {
         case RELOAD_CONFIGURATION:
@@ -489,13 +489,13 @@ _ConfigParseFileWrapper(GIOChannel *channel, GIOCondition condition, gpointer da
     return TRUE;    /* FALSE means remove */
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Create a GIOChannel suitable for binary data.
- * 
- * @param  fd       IN  existing fd to convert to channel 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  fd       IN  existing fd to convert to channel
+ * @param  lserror  OUT set on error
+ *
  * @retval  channel on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -504,9 +504,9 @@ GIOChannel*
 _ConfigCreateBinaryChannel(int fd, LSError *lserror)
 {
     GError *error = NULL;
-    
+
     GIOChannel *channel = g_io_channel_unix_new(fd);
-    
+
     if (G_IO_STATUS_NORMAL != g_io_channel_set_encoding(channel, NULL, &error))
     {
         _LSErrorSetFromGError(lserror, error);
@@ -519,13 +519,13 @@ _ConfigCreateBinaryChannel(int fd, LSError *lserror)
     return channel;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set up an inotify watch and a signal handler for config file.
- * 
+ *
  * @param  conf_file    IN  path to config file
- * @param  lserror      OUT set on error 
- * 
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -579,7 +579,7 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
     inotify_conf_file_wd = inotify_add_watch(inotify_fd, dir_name, INOTIFY_MASK /*IN_ALL_EVENTS*/);
 
     g_free(dir_name);
-    
+
     if (inotify_conf_file_wd < 0)
     {
         _LSErrorSetFromErrno(lserror, errno);
@@ -595,7 +595,7 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
 
     inotify_watch_id = g_io_add_watch(inotify_channel, G_IO_IN,
                                       ConfigInotifyCallback, &inotify_conf_file_wd);
-    
+
     g_io_channel_unref(inotify_channel);
 
 #endif  /* HAVE_SYS_INOTIFY_H */
@@ -603,7 +603,7 @@ ConfigSetupInotify(const char* conf_file, LSError *lserror)
     return true;
 
 error:
-    if (inotify_fd != -1) 
+    if (inotify_fd != -1)
     {
         close(inotify_fd);
     }
@@ -616,7 +616,7 @@ error:
     {
         close(config_reload_pipe[PIPE_READ_END]);
     }
-    
+
     if (config_reload_pipe[PIPE_WRITE_END] != -1) close(config_reload_pipe[PIPE_WRITE_END]);
 
     return false;
@@ -632,7 +632,7 @@ _ConfigKeyGetInt(GKeyFile *key_file, const char *group_name,
     if (error)
     {
         _LSErrorSetFromGError(lserror, error);
-        return false; 
+        return false;
     }
 
     return (*user)(&value, ctxt, lserror);
@@ -705,17 +705,17 @@ _ConfigKeySetString(const char *value, const char **conf_var, LSError *lserror)
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Parses a key of type "string list" and calls user callback.
- * 
- * @param  key_file     IN  key file 
- * @param  group_name   IN  group name 
- * @param  key          IN  key to parse 
- * @param  user         IN  user callback 
- * @param  ctxt         IN  user context 
- * @param  lserror      OUT set on error 
- * 
+ *
+ * @param  key_file     IN  key file
+ * @param  group_name   IN  group name
+ * @param  key          IN  key to parse
+ * @param  user         IN  user callback
+ * @param  ctxt         IN  user context
+ * @param  lserror      OUT set on error
+ *
  * @retval true on success
  * @retval false on failure
  *******************************************************************************
@@ -741,7 +741,7 @@ _ConfigKeyGetStringList(GKeyFile *key_file, const char *group_name,
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set default config settings for remaining unset values.
  *******************************************************************************
@@ -782,7 +782,7 @@ ConfigSetDefaults(void)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free config file settings
  *******************************************************************************
@@ -847,14 +847,14 @@ _ConfigKeyProcessDynamicServiceExecPrefix(char *value, const char **conf_var, LS
     return _ConfigKeySetString(value, conf_var, lserror);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Set the watchdog failure mode.
- * 
- * @param  mode_str     IN  failure mode string 
- * @param  conf_var     OUT numeric failure mode 
- * @param  lserror      OUT set on error 
- * 
+ *
+ * @param  mode_str     IN  failure mode string
+ * @param  conf_var     OUT numeric failure mode
+ * @param  lserror      OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -866,23 +866,23 @@ _ConfigKeyProcessWatchdogFailureMode(char *mode_str, LSHubWatchdogFailureMode *c
     LS_ASSERT(conf_var != NULL);
 
     *conf_var = LSHubWatchdogProcessFailureMode(mode_str);
-    
-    /* we don't need to save the string */ 
+
+    /* we don't need to save the string */
     g_free(mode_str);
-    
+
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Parse dynamic services from steady directories and load dynamic service map.
  * This function can safely be called multiple times to reload data.
  * The service map is reset before loading data.
- * 
- * @param  *dirs    IN  array of directories 
- * @param  ctxt     IN  unused 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  *dirs    IN  array of directories
+ * @param  ctxt     IN  unused
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -921,15 +921,15 @@ ConfigKeyProcessDynamicServiceDirs(const char **dirs, void *ctxt, LSError *lserr
     return true;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Parse the keys in a "keyfile", calling the user callback as
  * appropriate.
- * 
+ *
  * @param  key_file     IN   key file
- * @param  group        IN   parent group 
- * @param  lserror      OUT  set on error 
- * 
+ * @param  group        IN   parent group
+ * @param  lserror      OUT  set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -963,7 +963,7 @@ _ConfigParseKeys(GKeyFile *key_file, const _ConfigGroup *group, LSError *lserror
                 }
                 break;
             }
-        } 
+        }
     }
 
     ret = true;
@@ -975,16 +975,16 @@ exit:
     return ret;
 }
 
-static 
+static
 
-/** 
+/**
  *******************************************************************************
  * @brief Parse the config file according to the given DOM.
- * 
- * @param  path     IN  path to config file 
- * @param  dom      IN  DOM representation 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  path     IN  path to config file
+ * @param  dom      IN  DOM representation
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -1045,7 +1045,7 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
         }
     }
     ret = true;
-    
+
 error:
     /* free up memory */
     if (key_file) g_key_file_free(key_file);
@@ -1055,13 +1055,13 @@ error:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Parse the config file.
- * 
- * @param  path     IN  path to config file 
- * @param  lserror  OUT set on error 
- * 
+ *
+ * @param  path     IN  path to config file
+ * @param  lserror  OUT set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************

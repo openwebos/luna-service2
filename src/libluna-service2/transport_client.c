@@ -35,17 +35,17 @@
  * @{
  */
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new client.
- * 
- * @param  transport        IN  transport 
- * @param  fd               IN  fd 
- * @param  service_name     IN  client service name 
- * @param  unique_name      IN  client unique name 
- * @param  outgoing         IN  outgoing queue (NULL means allocate) 
+ *
+ * @param  transport        IN  transport
+ * @param  fd               IN  fd
+ * @param  service_name     IN  client service name
+ * @param  unique_name      IN  client unique name
+ * @param  outgoing         IN  outgoing queue (NULL means allocate)
  * @param  initiator        IN  true if this is the end of the connection that initiated the connection
- * 
+ *
  * @retval client on success
  * @retval NULL on failure
  *******************************************************************************
@@ -134,10 +134,10 @@ error:
     return NULL;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a client.
- * 
+ *
  * @param  client   IN  client
  *******************************************************************************
  */
@@ -159,17 +159,17 @@ _LSTransportClientFree(_LSTransportClient* client)
     g_slice_free(_LSTransportClient, client);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new client with a ref count of 1.
  *
- * @param  transport        IN  transport 
- * @param  fd               IN  fd 
- * @param  service_name     IN  client service name 
- * @param  unique_name      IN  client unique name 
- * @param  outgoing         IN  outgoing queue (NULL means allocate) 
+ * @param  transport        IN  transport
+ * @param  fd               IN  fd
+ * @param  service_name     IN  client service name
+ * @param  unique_name      IN  client unique name
+ * @param  outgoing         IN  outgoing queue (NULL means allocate)
  * @param  initiator        IN  true if this is the end of the connection that initiated the connection
- * 
+ *
  * @retval client on success
  * @retval NULL on failure
  *******************************************************************************
@@ -183,16 +183,16 @@ _LSTransportClientNewRef(_LSTransport* transport, int fd, const char *service_na
         client->ref = 1;
         _ls_verbose("%s: %d (%p)\n", __func__, client->ref, client);
     }
-    
-    
+
+
     return client;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Increment the ref count of a client.
- * 
- * @param  client   IN  client 
+ *
+ * @param  client   IN  client
  *******************************************************************************
  */
 void
@@ -206,11 +206,11 @@ _LSTransportClientRef(_LSTransportClient *client)
     _ls_verbose("%s: %d (%p)\n", __func__, client->ref, client);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Decrement the ref count of a client.
- * 
- * @param  client   IN  client 
+ *
+ * @param  client   IN  client
  *******************************************************************************
  */
 void
@@ -230,12 +230,12 @@ _LSTransportClientUnref(_LSTransportClient *client)
     }
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get a client's unique name.
- * 
- * @param  client   IN  client 
- * 
+ *
+ * @param  client   IN  client
+ *
  * @retval  name on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -247,14 +247,14 @@ _LSTransportClientGetUniqueName(const _LSTransportClient *client)
     return client->unique_name;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get a client's service name.
- * 
- * @param  client   IN  client 
- * 
+ *
+ * @param  client   IN  client
+ *
  * @retval name on success
- * @retval NULL on failure 
+ * @retval NULL on failure
  *******************************************************************************
  */
 const char*
@@ -264,13 +264,13 @@ _LSTransportClientGetServiceName(const _LSTransportClient *client)
     return client->service_name;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the channel associated with this client. Does not ref count the
  * channel.
- * 
+ *
  * @param  client   IN  client
- * 
+ *
  * @retval  channel
  *******************************************************************************
  */
@@ -288,12 +288,12 @@ _LSTransportClientGetTransport(const _LSTransportClient *client)
     return client->transport;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get credentials for the client.
- * 
+ *
  * @param  client   IN  client
- * 
+ *
  * @retval  credentials on success
  * @retval  NULL on failure
  *******************************************************************************

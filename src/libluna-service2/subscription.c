@@ -32,12 +32,12 @@
  * @{
  */
 
-/** 
+/**
 * @brief Internal representation of a subscription list.
 */
 typedef GPtrArray _SubList;
 
-/** 
+/**
 * @brief One subscription.
 */
 typedef struct _Subscription
@@ -51,7 +51,7 @@ typedef struct _Subscription
 
 } _Subscription;
 
-/** 
+/**
 * @brief Internal struct that contains all the subscriptions.
 */
 struct _Catalog {
@@ -60,9 +60,9 @@ struct _Catalog {
 
     LSHandle  *sh;
 
-    // each key is user defined 
+    // each key is user defined
     // each token is ':sender.connection.serial'
-    
+
     GHashTable *token_map;           //< map of token -> _Subscription
     GHashTable *subscription_lists;  //< map from key ->
                                      //   list of tokens (_SubList)
@@ -71,7 +71,7 @@ struct _Catalog {
     void*        cancel_function_ctx;
 };
 
-/** 
+/**
 * @brief User reference to a subscription list.
 */
 struct LSSubscriptionIter {
@@ -177,11 +177,11 @@ _SubscriptionRelease(_Catalog *catalog, _Subscription *subs)
     }
 }
 
-/** 
+/**
 * @brief Create a new subscription.
-* 
-* @param  message 
-* 
+*
+* @param  message
+*
 * @retval
 */
 static _Subscription *
@@ -229,9 +229,9 @@ error:
     return NULL;
 }
 
-/** 
+/**
 * @brief Create new subscription List
-* 
+*
 * @retval
 */
 static _SubList *
@@ -256,11 +256,11 @@ _SubListLen(_SubList *tokens)
     return tokens->len;
 }
 
-/** 
+/**
 * @brief Add _SubList.
-* 
-* @param  tokens 
-* @param  data 
+*
+* @param  tokens
+* @param  data
 */
 static void
 _SubListAdd(_SubList *tokens, char *data)
@@ -269,7 +269,7 @@ _SubListAdd(_SubList *tokens, char *data)
         g_ptr_array_add(tokens, data);
 }
 
-static _SubList* 
+static _SubList*
 _SubListDup(_SubList *src)
 {
     _SubList *dst = NULL;
@@ -289,11 +289,11 @@ _SubListDup(_SubList *src)
     return dst;
 }
 
-/** 
+/**
 * @brief Remove from _SubList.  This is more expensive.
-* 
-* @param  tokens 
-* @param  data 
+*
+* @param  tokens
+* @param  data
 */
 static void
 _SubListRemove(_SubList *tokens, const char *data)
@@ -489,7 +489,7 @@ _CatalogRemoveToken(_Catalog *catalog, const char *token,
                              bool notify)
 {
     _Subscription *subs = _SubscriptionAcquire(catalog, token);
-    if (!subs) return false; 
+    if (!subs) return false;
 
     if (notify && catalog->cancel_function)
     {
@@ -642,13 +642,13 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
     struct json_object *sub_array_item = NULL;
     struct json_object *unique_name_obj = NULL;
     struct json_object *service_name_obj = NULL;
-    
+
     *ret_obj = json_object_new_object();
     if (JSON_ERROR(ret_obj)) goto error;
-       
+
     true_obj = json_object_new_boolean(true);
     if (JSON_ERROR(true_obj)) goto error;
- 
+
     array = json_object_new_array();
     if (JSON_ERROR(array)) goto error;
 
@@ -669,7 +669,7 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
 
         sub_array = json_object_new_array();
         if (JSON_ERROR(sub_array)) goto error;
-                
+
         key_name = json_object_new_string(key);
         if (JSON_ERROR(key_name)) goto error;
 
@@ -686,12 +686,12 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
                 _Subscription *sub = g_hash_table_lookup(catalog->token_map, token);
 
                 if (!sub) continue;
-    
+
                 LSMessage *msg = sub->message;
                 const char *unique_name = LSMessageGetSender(msg);
                 const char *service_name = LSMessageGetSenderServiceName(msg);
                 const char *message_body = LSMessageGetPayload(msg);
-                
+
                 /* create subscribers item and add to sub_array */
                 sub_array_item = json_object_new_object();
                 if (JSON_ERROR(sub_array_item)) goto error;
@@ -703,16 +703,16 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
                 service_name_obj = service_name ? json_object_new_string(service_name)
                                                 : json_object_new_string("");
                 if (JSON_ERROR(service_name_obj)) goto error;
-                
+
                 message_obj = message_body ? json_object_new_string(message_body)
-                                                : json_object_new_string("");                                                
+                                                : json_object_new_string("");
                 if (JSON_ERROR(message_obj)) goto error;
 
                 json_object_object_add(sub_array_item, "unique_name", unique_name_obj);
                 json_object_object_add(sub_array_item, "service_name", service_name_obj);
                 json_object_object_add(sub_array_item, "subscription_message", message_obj);
                 json_object_array_add(sub_array, sub_array_item);
-               
+
                 sub_array_item = NULL;
                 unique_name_obj = NULL;
                 service_name_obj = NULL;
@@ -722,11 +722,11 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
         json_object_object_add(cur_obj, "key", key_name);
         json_object_object_add(cur_obj, "subscribers", sub_array);
         json_object_array_add(array, cur_obj);
-        key_name = NULL; 
+        key_name = NULL;
         cur_obj = NULL;
         sub_array = NULL;
     }
-    
+
     json_object_object_add(*ret_obj, "returnValue", true_obj);
     json_object_object_add(*ret_obj, "subscriptions", array);
 
@@ -736,19 +736,19 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
 
 error:
     _CatalogUnlock(catalog);
-    
+
     if (!JSON_ERROR(*ret_obj)) json_object_put(*ret_obj);
     if (!JSON_ERROR(true_obj)) json_object_put(true_obj);
     if (!JSON_ERROR(array)) json_object_put(array);
-    
+
     if (!JSON_ERROR(cur_obj)) json_object_put(cur_obj);
     if (!JSON_ERROR(sub_array)) json_object_put(sub_array);
     if (!JSON_ERROR(key_name)) json_object_put(key_name);
- 
-    if (!JSON_ERROR(sub_array_item)) json_object_put(sub_array_item); 
-    if (!JSON_ERROR(unique_name_obj)) json_object_put(unique_name_obj); 
-    if (!JSON_ERROR(service_name_obj)) json_object_put(service_name_obj); 
-    
+
+    if (!JSON_ERROR(sub_array_item)) json_object_put(sub_array_item);
+    if (!JSON_ERROR(unique_name_obj)) json_object_put(unique_name_obj);
+    if (!JSON_ERROR(service_name_obj)) json_object_put(service_name_obj);
+
     return false;
 }
 
@@ -760,17 +760,17 @@ error:
  * @{
  */
 
-/** 
+/**
 * @brief Register a callback to be called when subscription cancelled.
 *
 *  Callback may be called when client cancels subscription via LSCallCancel()
 *  or if the client drops off the bus.
-* 
-* @param  sh 
-* @param  cancelFunction 
-* @param  ctx 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  cancelFunction
+* @param  ctx
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -784,14 +784,14 @@ LSSubscriptionSetCancelFunction(LSHandle *sh, LSFilterFunc cancelFunction,
     return true;
 }
 
-/** 
+/**
 * @brief Add a subscription to a list associated with 'key'.
-* 
-* @param  sh 
-* @param  key 
-* @param  message 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  key
+* @param  message
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -803,15 +803,15 @@ LSSubscriptionAdd(LSHandle *sh, const char *key,
     return _CatalogAdd(sh->catalog, key, message, lserror);
 }
 
-/** 
+/**
 * @brief Acquire an iterator to iterate through the subscription
 *        for 'key'.
-* 
-* @param  sh 
-* @param  key 
-* @param  *ret_iter 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  key
+* @param  *ret_iter
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -845,10 +845,10 @@ LSSubscriptionAcquire(LSHandle *sh, const char *key,
     return true;
 }
 
-/** 
+/**
 * @brief Frees up resources for LSSubscriptionIter.
-* 
-* @param  iter 
+*
+* @param  iter
 */
 void
 LSSubscriptionRelease(LSSubscriptionIter *iter)
@@ -867,11 +867,11 @@ LSSubscriptionRelease(LSSubscriptionIter *iter)
     g_free(iter);
 }
 
-/** 
+/**
 * @brief Returns whether there is a next item in subscription.
-* 
-* @param  iter 
-* 
+*
+* @param  iter
+*
 * @retval
 */
 bool
@@ -885,11 +885,11 @@ LSSubscriptionHasNext(LSSubscriptionIter *iter)
     return iter->index+1 < _SubListLen(iter->tokens);
 }
 
-/** 
+/**
 * @brief Obtain the next subscription message.
-* 
-* @param  iter 
-* 
+*
+* @param  iter
+*
 * @retval
 */
 LSMessage *
@@ -918,10 +918,10 @@ LSSubscriptionNext(LSSubscriptionIter *iter)
     return message;
 }
 
-/** 
+/**
 * @brief Remove the last subscription returned by LSSubscriptionNext().
-* 
-* @param  iter 
+*
+* @param  iter
 */
 void
 LSSubscriptionRemove(LSSubscriptionIter *iter)
@@ -933,14 +933,14 @@ LSSubscriptionRemove(LSSubscriptionIter *iter)
     }
 }
 
-/** 
+/**
 * @brief Sends a message to subscription list with name 'key'.
-* 
-* @param  sh 
-* @param  key 
-* @param  payload 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  key
+* @param  payload
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -980,18 +980,18 @@ cleanup:
     return retVal;
 }
 
-/** 
+/**
 * @brief Post a notification to all subscribers with name 'key'.
 *
 * This is equivalent to:
 * LSSubscriptionReply(public_bus, ...)
 * LSSubscriptionReply(private_bus, ...)
-* 
-* @param  psh 
-* @param  key 
-* @param  payload 
-* @param  lserror 
-* 
+*
+* @param  psh
+* @param  key
+* @param  payload
+* @param  lserror
+*
 * @retval
 */
 bool
@@ -1011,22 +1011,22 @@ LSSubscriptionRespond(LSPalmService *psh, const char *key,
     return true;
 }
 
-/** 
+/**
 * @brief If message contains subscribe:true, add the message
          to subscription list using the default key '/category/method'.
 *
 *        This is equivalent to LSSubscriptionAdd(sh, key, message, lserror)
 *        where the key is LSMessageGetKind(message).
-* 
-* @param  sh 
-* @param  message 
-* @param  subscribed 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  message
+* @param  subscribed
+* @param  lserror
+*
 * @retval
 */
 bool
-LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed, 
+LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,
                         LSError *lserror)
 {
     bool retVal = false;
@@ -1078,19 +1078,19 @@ exit:
     return retVal;
 }
 
-/** 
+/**
 * @brief Posts a message to all in subscription '/category/method'.
 *        This is equivalent to:
 *        LSSubscriptionReply(sh, '/category/method', payload, lserror)
 *
 * @deprecated Please use LSSubscriptionReply() instead.
-* 
-* @param  sh 
-* @param  category 
-* @param  method 
-* @param  payload 
-* @param  lserror 
-* 
+*
+* @param  sh
+* @param  category
+* @param  method
+* @param  payload
+* @param  lserror
+*
 * @retval
 */
 bool

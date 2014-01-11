@@ -66,7 +66,7 @@ g_timer_set_expiration(GTimerSource *rsource, GTimeVal *now)
     if (rsource->expiration.tv_usec >= USECS_PER_SEC)
     {
         rsource->expiration.tv_usec -= USECS_PER_SEC;
-        rsource->expiration.tv_sec++;     
+        rsource->expiration.tv_sec++;
     }
 
     if (rsource->granularity)
@@ -175,11 +175,11 @@ g_timer_source_dispatch(GSource *source,
 
 /** Public Functions */
 
-/** 
+/**
 * @brief A create a timer with 100 ms resolution.
-* 
-* @param  interval_ms 
-* 
+*
+* @param  interval_ms
+*
 * @retval
 */
 GTimerSource *
@@ -249,7 +249,7 @@ g_timer_source_set_interval(GTimerSource *tsource, guint interval_ms, gboolean f
                        "Maybe you didn't call g_source_attach()\n");
             return;
         }
-        g_main_context_wakeup(context); 
+        g_main_context_wakeup(context);
     }
 }
 

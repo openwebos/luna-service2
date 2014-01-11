@@ -51,10 +51,10 @@ struct _LSTransportCred {
     const char *cmd_line;   /**< process' cmdline */
 };
 
-/** 
+/**
  *******************************************************************************
  * @brief Allocate a new credentials object.
- * 
+ *
  * @retval  credentials on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -76,10 +76,10 @@ _LSTransportCredNew(void)
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Free a credentials object.
- * 
+ *
  * @param  cred     IN  credentials
  *******************************************************************************
  */
@@ -97,12 +97,12 @@ _LSTransportCredFree(_LSTransportCred *cred)
     g_slice_free(_LSTransportCred, cred);
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the PID.
- * 
- * @param  cred     IN  credentials 
- * 
+ *
+ * @param  cred     IN  credentials
+ *
  * @retval  pid on success
  * @retval  LS_PID_INVALID on failure
  *******************************************************************************
@@ -114,12 +114,12 @@ _LSTransportCredGetPid(const _LSTransportCred *cred)
     return cred->pid;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the UID.
- * 
- * @param  creda    IN  credentials 
- * 
+ *
+ * @param  creda    IN  credentials
+ *
  * @retval  uid on success
  * @retval  LS_UID_INVALID on failure
  *******************************************************************************
@@ -131,12 +131,12 @@ _LSTransportCredGetUid(const _LSTransportCred *cred)
     return cred->uid;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the GID.
- * 
- * @param  cred     IN  credentials 
- * 
+ *
+ * @param  cred     IN  credentials
+ *
  * @retval  gid on success
  * @retval  LS_GID_INVALID on failure
  *******************************************************************************
@@ -148,12 +148,12 @@ _LSTransportCredGetGid(const _LSTransportCred *cred)
     return cred->gid;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the full path to executable.
- * 
- * @param  cred     IN  credentials 
- * 
+ *
+ * @param  cred     IN  credentials
+ *
  * @retval  path on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -165,12 +165,12 @@ _LSTransportCredGetExePath(const _LSTransportCred *cred)
     return cred->exe_path;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the process' command line.
- * 
- * @param  cred     IN  credentials 
- * 
+ *
+ * @param  cred     IN  credentials
+ *
  * @retval  cmdline on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -182,13 +182,13 @@ _LSTransportCredGetCmdLine(const _LSTransportCred *cred)
     return cred->cmd_line;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the executable path for a given pid.
- * 
+ *
  * @param  pid          IN  pid
- * @param  lserror      OUT set on error 
- * 
+ * @param  lserror      OUT set on error
+ *
  * @retval  executable path on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -197,7 +197,7 @@ static char*
 _LSTransportPidToExe(pid_t pid, LSError *lserror)
 {
     GError *error = NULL;
-    
+
     char *ret = NULL;
     char *root = NULL;
     char *exe = NULL;
@@ -236,7 +236,7 @@ _LSTransportPidToExe(pid_t pid, LSError *lserror)
     {
         ret = g_strdup(exe);
     }
-        
+
 
 cleanup:
     if (proc_exe_path) g_free(proc_exe_path);
@@ -247,13 +247,13 @@ cleanup:
     return ret;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the command line for a given pid.
- * 
+ *
  * @param  pid          IN  pid
- * @param  lserror      OUT set on error 
- * 
+ * @param  lserror      OUT set on error
+ *
  * @retval  command line on success
  * @retval  NULL on failure
  *******************************************************************************
@@ -262,7 +262,7 @@ static char*
 _LSTransportPidToCmdLine(pid_t pid, LSError *lserror)
 {
     GError *error = NULL;
-    
+
     char *cmd_line = NULL;
     int i = 0;
     gsize len = 0;
@@ -281,7 +281,7 @@ _LSTransportPidToCmdLine(pid_t pid, LSError *lserror)
         _LSErrorSetFromGError(lserror, error);
         goto cleanup;
     }
-    
+
     /* /proc/PID/cmdline has ASCII NUL instead of spaces, so replace all of
      * them except for the last one */
     for (i = 0; i < ((int)len) - 1; i++)
@@ -308,14 +308,14 @@ cleanup:
     return cmd_line;
 }
 
-/** 
+/**
  *******************************************************************************
  * @brief Get the credentials from a unix domain socket.
- * 
- * @param  fd           IN       unix domain socket fd 
+ *
+ * @param  fd           IN       unix domain socket fd
  * @param  cred         IN/OUT   credentials
- * @param  lserror      OUT      set on error 
- * 
+ * @param  lserror      OUT      set on error
+ *
  * @retval  true on success
  * @retval  false on failure
  *******************************************************************************
@@ -333,7 +333,7 @@ _LSTransportGetCredentials(int fd, _LSTransportCred *cred, LSError *lserror)
     if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &tmp_cred, &len) != 0)
     {
         _LSErrorSetFromErrno(lserror, errno);
-        return false;        
+        return false;
     }
 
     cred->pid = tmp_cred.pid;
@@ -368,7 +368,7 @@ _LSTransportGetCredentials(int fd, _LSTransportCred *cred, LSError *lserror)
     cred->uid = LS_UID_INVALID;
     cred->gid = LS_GID_INVALID;
 #endif
-    
+
     return true;
 }
 

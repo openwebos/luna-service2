@@ -73,7 +73,7 @@ do {                    \
 do {                                               \
     (object)->magic = LS_MAGIC(#type);             \
 } while (0)
- 
+
 #define LS_MAGIC_ASSERT(object,type, ...)                            \
 do {                                                                 \
     if ( (object) && ((object)->magic !=  LS_MAGIC(#type)) )         \
@@ -159,13 +159,13 @@ do {                                                                    \
                     error_code, error_message);                         \
 } while (0)
 
-/** 
+/**
  *******************************************************************************
  * @brief Used to set an error with a printf-style error message.
- * 
- * @param  lserror      OUT error 
- * @param  error_code   IN  error code 
- * @param  ...          IN  printf-style format 
+ *
+ * @param  lserror      OUT error
+ * @param  error_code   IN  error code
+ * @param  ...          IN  printf-style format
  *******************************************************************************
  */
 #define _LSErrorSet(lserror, error_code, ...)                     \
@@ -175,15 +175,15 @@ do {                                                              \
     _LSErrorSetNoPrint(lserror, error_code, __VA_ARGS__);         \
 } while (0)
 
-/** 
+/**
  *******************************************************************************
  * @brief Use this instead of _LSErrorSet when the error_message is not a
  * printf-style string (error_message could contain printf() escape
  * sequences)
- * 
+ *
  * @param  lserror          OUT error
- * @param  error_code       IN  code 
- * @param  error_message    IN  error_message  
+ * @param  error_code       IN  code
+ * @param  error_message    IN  error_message
  *******************************************************************************
  */
 #define _LSErrorSetLiteral(lserror, error_code, error_message)              \
@@ -192,21 +192,21 @@ do {                                                                        \
     _LSErrorSetNoPrintLiteral(lserror, error_code, error_message);          \
 } while (0)
 
-/** 
+/**
  *******************************************************************************
  * @brief Use this function instead of _LSErrorSet to set an error when
  * out of memory.
  *
  * @todo This shouldn't attempt to allocate any memory, since we're already
  * out of memory
- * 
+ *
  * @param  lserror  IN  ptr to lserror
  *******************************************************************************
  */
 #define _LSErrorSetOOM(lserror)                                 \
 do {                                                            \
     _LSErrorSet(lserror, LS_ERROR_CODE_OOM, LS_ERROR_TEXT_OOM); \
-} while (0) 
+} while (0)
 
 /**
  *******************************************************************************
@@ -225,9 +225,9 @@ do {                                                            \
  *******************************************************************************
  * @brief Use this function instead of _LSErrorSet() to set an error from a
  * glib GError. This function frees the GError.
- * 
+ *
  * @param  lserror  IN  lserror
- * @param  gerror   IN  GError ptr 
+ * @param  gerror   IN  GError ptr
  *******************************************************************************
  */
 #define _LSErrorSetFromGError(lserror, gerror)                              \
@@ -237,13 +237,13 @@ do {                                                                        \
     g_error_free(gerror);                                                   \
 } while (0)
 
-/** 
+/**
  *******************************************************************************
  * @brief Use this function instead of _LSErrorSet() to set an error from an
  * errno
- * 
+ *
  * @param  lserror      IN  lserror
- * @param  error_code   IN  errno 
+ * @param  error_code   IN  errno
  *******************************************************************************
  */
 #define _LSErrorSetFromErrno(lserror, error_code)                   \

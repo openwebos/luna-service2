@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -180,6 +180,8 @@ typedef struct LSTransportMessage _LSTransportMessage;
 
 bool LSTransportMessageFilterMatch(_LSTransportMessage *message, const char *filter);
 void LSTransportMessagePrint(_LSTransportMessage *message, FILE *file);
+int LSTransportMessagePrintCompactHeader(_LSTransportMessage *message, FILE *file);
+int LSTransportMessagePrintCompactPayload(_LSTransportMessage *message, FILE *file, int width);
 
 INLINE _LSTransportMessage* _LSTransportMessageEmpty();
 INLINE _LSTransportMessage* _LSTransportMessageNew(unsigned long payload_size);

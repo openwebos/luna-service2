@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 #endif
+#include <signal.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 #include "utils.h"
 #include "transport.h"
@@ -38,6 +41,9 @@
 #define HUB_TYPE_PUBLIC     1
 #define HUB_TYPE_PRIVATE    2
 
+#define TERMINAL_WIDTH_DEFAULT  80
+#define TERMINAL_WIDTH_WIDE     100
+#define HEADER_WIDTH_DEFAULT    45
 
 #ifdef PUBLIC_ONLY
 #define FINAL_MONITOR_NAME MONITOR_NAME_PUB
@@ -67,7 +73,11 @@ static gboolean list_clients = false;
 static gboolean list_subscriptions = false;
 static gboolean list_malloc = false;
 static gboolean debug_output = false;
+static gboolean compact_output = false;
+static gboolean two_line_output = false;
 static GMainLoop *mainloop = NULL;
+
+static uint32_t terminal_width = TERMINAL_WIDTH_DEFAULT;
 
 static _LSTransport *transport_pub = NULL;
 /* List of _SubscriptionReplyData for public and private hubs */
@@ -125,10 +135,10 @@ _LSMonitorTimeDiff(struct timespec *time1, struct timespec *time2)
  * actual time that the message was sent, but it's the best that we can
  * do without sending a timestamp in the message itself
  */
-static void
+static int
 _LSMonitorPrintTime(struct timespec *time)
 {
-    fprintf(stdout, "%.3f\t", ((double)(time->tv_sec)) + (((double)time->tv_nsec) / (double)1000000000.0));
+    return fprintf(stdout, "%.3f", ((double)(time->tv_sec)) + (((double)time->tv_nsec) / (double)1000000000.0));
 }
 
 #ifndef PUBLIC_ONLY
@@ -154,26 +164,54 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
 {
     if (LSTransportMessageFilterMatch(message, message_filter_str))
     {
+        struct timespec _time;
+
         if (time)
         {
-            _LSMonitorPrintTime(time);
+            _time = *time;
         }
         else
         {
-            struct timespec now;
-            _LSMonitorGetTime(&now);
-            _LSMonitorPrintTime(&now);
+            _LSMonitorGetTime(&_time);
         }
 
-        if (public_bus)
+        if (compact_output)
         {
-            fprintf(stdout, "[PUB]\t");
+            int nchar = 0;
+            nchar += _LSMonitorPrintTime(&_time);
+            nchar += fprintf(stdout, public_bus?" pub ":" prv ");
+
+            int mchar = LSTransportMessagePrintCompactHeader(message, stdout);
+            if (mchar > 0)
+            {
+                nchar += mchar;
+                if (two_line_output)
+                {
+#define _PAYLOAD_LEFT_PADDING 14
+                    fprintf(stdout, "\n%*s", _PAYLOAD_LEFT_PADDING, " ");
+                    nchar = _PAYLOAD_LEFT_PADDING;
+                }
+                else
+                {
+                    nchar += fprintf(stdout, " ");
+                }
+
+                /* In case length of header exceed terminal_width, use one more line */
+                while (terminal_width < nchar)
+                {
+                    nchar -= terminal_width;
+                }
+
+                LSTransportMessagePrintCompactPayload(message, stdout, terminal_width - nchar - 1);
+                fprintf(stdout, "\n");
+            }
         }
         else
         {
-            fprintf(stdout, "[PRV]\t");
+            _LSMonitorPrintTime(&_time);
+            fprintf(stdout, public_bus?"\t[PUB]\t":"\t[PRV]\t");
+            LSTransportMessagePrint(message, stdout);
         }
-        LSTransportMessagePrint(message, stdout);
     }
 }
 
@@ -554,11 +592,18 @@ _HandleCommandline(int argc, char *argv[])
         {"subscriptions", 's', 0, G_OPTION_ARG_NONE, &list_subscriptions, "List all subscriptions in the system", NULL},
         {"malloc", 'm', 0, G_OPTION_ARG_NONE, &list_malloc, "List malloc data from all services in the system", NULL},
         {"debug", 'd', 0, G_OPTION_ARG_NONE, &debug_output, "Print extra output for debugging monitor but with UNBOUNDED MEMORY GROWTH", NULL},
+        {"compact", 'c', 0, G_OPTION_ARG_NONE, &compact_output, "Print compact output to fit terminal. Take precedence over debug", NULL},
         { NULL }
     };
 
     opt_context = g_option_context_new("- Luna Service monitor");
     g_option_context_add_main_entries(opt_context, opt_entries, NULL);
+    g_option_context_set_description(opt_context, ""
+"Compact mode symbols:\n"
+"   >*      signal\n"
+"   >|      cancel method call\n"
+"    >      method call\n"
+"   <       reply");
 
     if (!g_option_context_parse(opt_context, &argc, &argv, &gerror))
     {
@@ -569,11 +614,40 @@ _HandleCommandline(int argc, char *argv[])
 
     g_option_context_free(opt_context);
 
+    if (compact_output)
+    {
+        debug_output = false;
+    }
+
     if (debug_output)
     {
         g_warning("extra output for debugging monitor enabled, causes UNBOUNDED MEMORY GROWTH");
     }
 }
+
+static void
+_HandleTerminal()
+{
+#ifdef TIOCGWINSZ
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+    if (w.ws_col > TERMINAL_WIDTH_DEFAULT)
+    {
+        terminal_width = w.ws_col;
+    }
+#endif
+    two_line_output = terminal_width < TERMINAL_WIDTH_WIDE;
+}
+
+#ifdef SIGWINCH
+static void
+_HandleWindowChange(int signal)
+{
+    terminal_width = TERMINAL_WIDTH_DEFAULT;
+    _HandleTerminal();
+}
+#endif
 
 int
 main(int argc, char *argv[])
@@ -620,8 +694,11 @@ main(int argc, char *argv[])
 
     _LSTransportSetupSignalHandler(SIGTERM, _HandleShutdown);
     _LSTransportSetupSignalHandler(SIGINT, _HandleShutdown);
-
+#ifdef SIGWINCH
+    _LSTransportSetupSignalHandler(SIGWINCH, _HandleWindowChange);
+#endif
     _HandleCommandline(argc, argv);
+    _HandleTerminal();
 
     if (list_clients || list_subscriptions || list_malloc)
     {
@@ -715,6 +792,10 @@ main(int argc, char *argv[])
         if (debug_output)
         {
             fprintf(stdout, "Debug\tTime\t\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
+        }
+        else if (compact_output)
+        {
+            fprintf(stdout, "Time Prot&Type Caller.Serial Callee/Method Payload\n");
         }
         else
         {

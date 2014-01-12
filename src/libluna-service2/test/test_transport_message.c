@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,6 +25,12 @@
 #include <transport.h>
 
 /* Test data ******************************************************************/
+
+/* Not in transport_message.h */
+#define _LST_DIRECTION_ALIGN    25
+#define _LST_DATA_ALIGN         49
+char const* ServiceNameCompactCopy(const char *service_name, char buffer[], size_t buffer_size );
+int LSTransportMessagePrintCompactHeaderCommon(const char *caller_service_name, const char *callee_service_name, const char *directions, const char *appId, const char *category, const char *method, LSMessageToken messageToken, FILE *file);
 
 typedef struct TestData
 {
@@ -465,22 +471,23 @@ test_LSTransportMessagePrintSignal(TestData *fixture, gconstpointer user_data)
     fixture->msg->raw->header.token = 1;
     fixture->msg->raw->header.type = _LSTransportMessageTypeSignal;
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
-    {
-        LSTransportMessagePrint(fixture->msg, stdout);
-        exit(0);
-    }
+    FILE *output = tmpfile();
+    g_assert(output);
+    LSTransportMessagePrint(fixture->msg, output);
+    rewind(output);
 
     const char *format = "signal\t%d\t\t%s (%s)\t\t\t%s/%s\t\xc2\xab%s\xc2\xbb\n";
-    gchar *expected_stdout = g_strdup_printf(format,
+    gchar *expected_output = g_strdup_printf(format,
             fixture->msg->raw->header.token,
             fixture->transport_client_service_name,
             fixture->transport_client_unique_name,
             category,
             method,
             payload);
-    g_test_trap_assert_stdout(expected_stdout);
-    g_free(expected_stdout);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
 }
 
 static void
@@ -498,14 +505,13 @@ test_LSTransportMessagePrintCancelMethodCall(TestData *fixture, gconstpointer us
     fixture->msg->raw->header.token = 1;
     fixture->msg->raw->header.type = _LSTransportMessageTypeCancelMethodCall;
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
-    {
-        LSTransportMessagePrint(fixture->msg, stdout);
-        exit(0);
-    }
+    FILE *output = tmpfile();
+    g_assert(output);
+    LSTransportMessagePrint(fixture->msg, output);
+    rewind(output);
 
     const char *format = "call\t%d\t\t%s (%s)\t\t%s (%s)\t\t%s/%s\t\xc2\xab%s\xc2\xbb\n";
-    gchar *expected_stdout = g_strdup_printf(format,
+    gchar *expected_output = g_strdup_printf(format,
             fixture->msg->raw->header.token,
             fixture->transport_client_service_name,
             fixture->transport_client_unique_name,
@@ -514,8 +520,10 @@ test_LSTransportMessagePrintCancelMethodCall(TestData *fixture, gconstpointer us
             category,
             method,
             payload);
-    g_test_trap_assert_stdout(expected_stdout);
-    g_free(expected_stdout);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
 }
 
 static void
@@ -534,14 +542,13 @@ test_LSTransportMessagePrintMethodCall(TestData *fixture, gconstpointer user_dat
     fixture->msg->raw->header.token = 1;
     fixture->msg->raw->header.type = _LSTransportMessageTypeMethodCall;
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
-    {
-        LSTransportMessagePrint(fixture->msg, stdout);
-        exit(0);
-    }
+    FILE *output = tmpfile();
+    g_assert(output);
+    LSTransportMessagePrint(fixture->msg, output);
+    rewind(output);
 
     const char *format = "call\t%d\t\t%s (%s)\t%s (%s)\t\t%s\t\t%s/%s\t\xc2\xab%s\xc2\xbb\n";
-    gchar *expected_stdout = g_strdup_printf(format,
+    gchar *expected_output = g_strdup_printf(format,
             fixture->msg->raw->header.token,
             fixture->transport_client_service_name,
             fixture->transport_client_unique_name,
@@ -551,8 +558,10 @@ test_LSTransportMessagePrintMethodCall(TestData *fixture, gconstpointer user_dat
             category,
             method,
             payload);
-    g_test_trap_assert_stdout(expected_stdout);
-    g_free(expected_stdout);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
 }
 
 static void
@@ -569,23 +578,239 @@ test_LSTransportMessagePrintReply(TestData *fixture, gconstpointer user_data)
     fixture->msg->raw->header.token = 1;
     fixture->msg->raw->header.len = formatTransportMessageReplyBuffer(fixture->msg->raw->data, token, payload, dest_servicename, dest_uniquename);
 
-    if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDOUT))
-    {
-        LSTransportMessagePrint(fixture->msg, stdout);
-        exit(0);
-    }
+    FILE *output = tmpfile();
+    g_assert(output);
+
+    LSTransportMessagePrint(fixture->msg, output);
+    rewind(output);
 
     const char *format = "return\t%d\t\t%s (%s)\t\t%s (%s)\t\xc2\xab%s\xc2\xbb\n";
-    gchar *expected_stdout = g_strdup_printf(format,
+    gchar *expected_output = g_strdup_printf(format,
             token,
             fixture->transport_client_service_name,
             fixture->transport_client_unique_name,
             dest_servicename,
             dest_uniquename,
             payload);
-    g_test_trap_assert_stdout(expected_stdout);
-    g_free(expected_stdout);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
 }
+
+static void
+test_ServiceNameCompactCopy(TestData *fixture, gconstpointer user_data)
+{
+    typedef struct ServiceNamePair
+    {
+        char *full_name;
+        char *compact_name;
+    } ServiceNamePair;
+    ServiceNamePair service_pairs [] =
+    {
+        { "o",                                           "o"},
+        { "onenode",                                     "onenode"},
+        { "two.node",                                    "two.node"},
+        { "com.webos.three",                             "c.webos.three"},
+        { "com.webos.four.node",                         "c.w.four.node"},
+        { "com.webos.very.long.node.sample.service.name","c.w.v.l.n.s.service.name"},
+        { "c.w",                                         "c.w"},
+        { "c.w.v.l.n.s.service.name",                    "c.w.v.l.n.s.service.name"},
+    };
+
+    int i;
+    for (i=0; i < sizeof(service_pairs)/sizeof(service_pairs[0]); ++i)
+    {
+        char output_buffer[strlen(service_pairs[i].full_name)+1];
+        g_assert_cmpstr(ServiceNameCompactCopy(service_pairs[i].full_name, output_buffer, sizeof(output_buffer)),
+                        ==,
+                        service_pairs[i].compact_name);
+    }
+}
+
+static void
+test_LSTransportMessagePrintCompactHeaderCommon(TestData *fixture, gconstpointer user_data)
+{
+    LSMessageToken token = 1;
+    const char *category = "a";
+    const char *method = "b";
+    const char *appid = "c";
+    const char *service_name = "d";
+    const char *directions = "<>";
+
+    FILE *output = tmpfile();
+    g_assert(output);
+
+    /* supply full param */
+    LSTransportMessagePrintCompactHeaderCommon(service_name, service_name, directions,
+                                               appid, category, method, token, output);
+    rewind(output);
+
+    const char *format = "%s.%d(%s) %*s %*s%s/%s";
+    gchar *expected_output = g_strdup_printf(format,
+                                             service_name, token, appid,
+                                             (_LST_DIRECTION_ALIGN - 6), directions,
+                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN + 2)), service_name,
+                                             category, method);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
+
+    output = tmpfile();
+    g_assert(output);
+    /* supply null */
+    LSTransportMessagePrintCompactHeaderCommon(service_name, service_name, directions,
+                                               NULL, NULL, NULL, token, output);
+    rewind(output);
+
+    format = "%s.%d %*s %*s";
+    expected_output = g_strdup_printf(format,
+                                      service_name, token,
+                                      (_LST_DIRECTION_ALIGN - 3), directions,
+                                      (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN + 2)), service_name);
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+}
+
+static void
+test_LSTransportMessagePrintCompactSignalHeader(TestData *fixture, gconstpointer user_data)
+{
+    const char *category = "a";
+    const char *method = "b";
+    const char *payload = "{}";
+    fixture->transport_client_service_name = "2";
+    fixture->transport_client_unique_name = "3";
+
+    fixture->msg->raw->header.len = formatTransportMessageMethodCallBuffer(fixture->msg->raw->data, category, method, payload, NULL, NULL, NULL);
+    fixture->msg->raw->header.token = 1;
+    fixture->msg->raw->header.type = _LSTransportMessageTypeSignal;
+
+    FILE *output = tmpfile();
+    g_assert(output);
+
+    LSTransportMessagePrintCompactHeader(fixture->msg, output);
+    rewind(output);
+
+    const char *format = "%s.%d %*s %*s%s/%s";
+    gchar *expected_output = g_strdup_printf(format,
+                                             fixture->transport_client_service_name,
+                                             fixture->msg->raw->header.token,
+                                             (_LST_DIRECTION_ALIGN - 3), ">*",
+                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN +2)), "",
+                                             category,
+                                             method);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
+}
+
+static void
+test_LSTransportMessagePrintCompactCancelMethodCallHeader(TestData *fixture, gconstpointer user_data)
+{
+    const char *category = "a";
+    const char *method = "b";
+    const char *payload = "{}";
+    const char *dest_servicename = "d";
+    const char *dest_uniquename = "f";
+    fixture->transport_client_service_name = "2";
+    fixture->transport_client_unique_name = "3";
+
+    fixture->msg->raw->header.len = formatTransportMessageMethodCallBuffer(fixture->msg->raw->data, category, method, payload, NULL, dest_servicename, dest_uniquename);
+    fixture->msg->raw->header.token = 1;
+    fixture->msg->raw->header.type = _LSTransportMessageTypeCancelMethodCall;
+
+    FILE *output = tmpfile();
+    g_assert(output);
+
+    LSTransportMessagePrintCompactHeader(fixture->msg, output);
+    rewind(output);
+
+    const char *format = "%s.%d %*s %*s%s/%s";
+    gchar *expected_output = g_strdup_printf(format,
+                                             fixture->transport_client_service_name,
+                                             fixture->msg->raw->header.token,
+                                             (_LST_DIRECTION_ALIGN - 3), ">|",
+                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN +2)), dest_servicename,
+                                             category,
+                                             method);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
+}
+
+static void
+test_LSTransportMessagePrintCompactMethodCallHeader(TestData *fixture, gconstpointer user_data)
+{
+    const char *category = "a";
+    const char *method = "b";
+    const char *payload = "{}";
+    const char *appid = "c";
+    const char *dest_servicename = "d";
+    const char *dest_uniquename = "f";
+    fixture->transport_client_service_name = "2";
+    fixture->transport_client_unique_name = "3";
+
+    fixture->msg->raw->header.len = formatTransportMessageMethodCallBuffer(fixture->msg->raw->data, category, method, payload, appid, dest_servicename, dest_uniquename);
+    fixture->msg->raw->header.token = 1;
+    fixture->msg->raw->header.type = _LSTransportMessageTypeMethodCall;
+
+    FILE *output = tmpfile();
+    g_assert(output);
+
+    LSTransportMessagePrintCompactHeader(fixture->msg, output);
+    rewind(output);
+
+    const char *format = "%s.%d(%s) %*s %*s%s/%s";
+    gchar *expected_output = g_strdup_printf(format,
+                                             fixture->transport_client_service_name,
+                                             fixture->msg->raw->header.token,
+                                             appid,
+                                             (_LST_DIRECTION_ALIGN - 6), " >",
+                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN +2)), dest_servicename,
+                                             category,
+                                             method);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
+}
+
+static void
+test_LSTransportMessagePrintCompactReplyHeader(TestData *fixture, gconstpointer user_data)
+{
+    LSMessageToken token = 1;
+    const char *payload = "{}";
+    const char *dest_servicename = "a";
+    const char *dest_uniquename = "b";
+    fixture->transport_client_service_name = "2";
+    fixture->transport_client_unique_name = "3";
+
+    fixture->msg->raw->header.type = _LSTransportMessageTypeReply;
+    fixture->msg->raw->header.token = 1;
+    fixture->msg->raw->header.len = formatTransportMessageReplyBuffer(fixture->msg->raw->data, token, payload, dest_servicename, dest_uniquename);
+
+    FILE *output = tmpfile();
+    g_assert(output);
+
+    LSTransportMessagePrintCompactHeader(fixture->msg, output);
+    rewind(output);
+
+    const char *format = "%s.%d %*s %*s";
+    gchar *expected_output = g_strdup_printf(format,
+                                             dest_servicename,
+                                             fixture->msg->raw->header.token,
+                                             (_LST_DIRECTION_ALIGN - 3), "< ",
+                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN +2)),
+                                             fixture->transport_client_service_name);
+    char buffer[strlen(expected_output)+10];
+    g_assert_cmpstr(expected_output, ==, fgets(buffer, sizeof(buffer), output));
+    g_free(expected_output);
+    fclose(output);
+}
+
 
 static bool
 is_in_array(GArray *array, _LSTransportMessageType item)
@@ -868,6 +1093,12 @@ main(int argc, char *argv[])
     LSTEST_ADD("/luna-service2/LSTransportMessagePrintCancelMethodCall", test_LSTransportMessagePrintCancelMethodCall);
     LSTEST_ADD("/luna-service2/LSTransportMessagePrintMethodCall", test_LSTransportMessagePrintMethodCall);
     LSTEST_ADD("/luna-service2/LSTransportMessagePrintReply", test_LSTransportMessagePrintReply);
+    LSTEST_ADD("/luna-service2/ServiceNameCompactCopy", test_ServiceNameCompactCopy);
+    LSTEST_ADD("/luna-service2/LSTransportMessagePrintCompactHeaderCommon", test_LSTransportMessagePrintCompactHeaderCommon);
+    LSTEST_ADD("/luna-service2/LSTransportMessagePrintCompactSignalHeader", test_LSTransportMessagePrintCompactSignalHeader);
+    LSTEST_ADD("/luna-service2/LSTransportMessagePrintCompactCancelMethodCallHeader", test_LSTransportMessagePrintCompactCancelMethodCallHeader);
+    LSTEST_ADD("/luna-service2/LSTransportMessagePrintCompactMethodCallHeader", test_LSTransportMessagePrintCompactMethodCallHeader);
+    LSTEST_ADD("/luna-service2/LSTransportMessagePrintCompactReplyHeader", test_LSTransportMessagePrintCompactReplyHeader);
     LSTEST_ADD("/luna-service2/LSTransportMessageTypeQueryNameGetQueryName", test_LSTransportMessageTypeQueryNameGetQueryName);
     LSTEST_ADD("/luna-service2/LSTransportMessageTypeQueryNameGetAppId", test_LSTransportMessageTypeQueryNameGetAppId);
     LSTEST_ADD("/luna-service2/LSTransportMessageIter", test_LSTransportMessageIter);

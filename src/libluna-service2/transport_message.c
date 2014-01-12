@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -1600,6 +1600,214 @@ LSTransportMessagePrint(_LSTransportMessage *message, FILE *file)
         fprintf(stdout, "No print function for message type: %d\n", _LSTransportMessageGetType(message));
         break;
     }
+}
+
+/**
+ *******************************************************************************
+ * @brief Create compact service name
+ *
+ * ex) com.webos.activitymanager.client -> c.w.activitymanager.client
+ *
+ * @param  message      IN  service name
+ * @param  buffer       OUT compact service name
+ *                          size of buffer must be bigger than service name
+ * @param  buffer_size  IN size of buffer
+ *
+ * @retval buffer
+ *******************************************************************************
+ */
+#define _SERVICE_NAME_DELIMITER     '.'
+#define _SERVICE_NAME_COMPACT_KEEP  2           // keep last 2 node
+char const*
+ServiceNameCompactCopy(const char *service_name, char buffer[], size_t buffer_size )
+{
+    LS_ASSERT(service_name != NULL);
+    LS_ASSERT(strlen(service_name) < buffer_size);
+
+    const char *tmp_node = service_name;
+    int node_count = 1;
+
+    while ((tmp_node = strchr(tmp_node, _SERVICE_NAME_DELIMITER)) != NULL)
+    {
+        ++tmp_node;
+        ++node_count;
+    }
+
+    /* make compact service name */
+    char *compact_node = buffer;
+    tmp_node = service_name;
+    if (node_count > _SERVICE_NAME_COMPACT_KEEP)
+    {
+        /* first node */
+        int node_index = 1;
+        *compact_node++ = *tmp_node++;
+        while ((node_index <= (node_count - _SERVICE_NAME_COMPACT_KEEP))
+               && (tmp_node = strchr(tmp_node, _SERVICE_NAME_DELIMITER)) != NULL)
+        {
+            *compact_node++ = *tmp_node++; /* _SERVICE_NAME_DELIMITER */
+            *compact_node++ = *tmp_node++;
+            ++node_index;
+        }
+    }
+    /* keep at least last two nodes as is include delimiter */
+    strcpy(compact_node, tmp_node);
+
+    return buffer;
+}
+
+/**
+ *******************************************************************************
+ * @brief Print out a message header shorter formatted way.
+ *
+ * @param  caller_service_name IN service name of the origin caller
+ * @param  callee_service_name IN service name of the origin callee
+ * @param  directions          IN 2 byte printable string
+ * @param  appId               IN application id or NULL
+ * @param  category            IN category or NULL
+ * @param  method              IN method or NULL
+ * @param  messageToken        IN token for origin caller message
+ * @param  file                IN file to print message to
+ *
+ * @retval number of characters printed
+ *******************************************************************************
+ */
+#define _LST_DIRECTION_ALIGN    25
+#define _LST_DATA_ALIGN         49
+int
+LSTransportMessagePrintCompactHeaderCommon(const char *caller_service_name,
+                                           const char *callee_service_name,
+                                           const char *directions,
+                                           const char *appId,
+                                           const char *category,
+                                           const char *method,
+                                           LSMessageToken messageToken,
+                                           FILE *file)
+{
+    LS_ASSERT(caller_service_name != NULL);
+    LS_ASSERT(callee_service_name != NULL);
+    LS_ASSERT(directions != NULL);
+    LS_ASSERT(file != NULL);
+
+    int nchar = 0;
+    int nfill = 0;
+    char caller_compact[strlen(caller_service_name) + 1];
+    char callee_compact[strlen(callee_service_name) + 1];
+
+    ServiceNameCompactCopy(caller_service_name, caller_compact, sizeof(caller_compact));
+    ServiceNameCompactCopy(callee_service_name, callee_compact, sizeof(callee_compact));
+
+    nchar += fprintf(file, "%s.%d", caller_compact, (int)messageToken);
+    if (appId)
+    {
+        nchar += fprintf(file, "(%s)", appId);
+    }
+
+    nfill = _LST_DIRECTION_ALIGN - nchar;
+    nchar += fprintf(file, " %*s ", (nfill > 0 ? nfill : 1), directions);
+
+    nfill = _LST_DATA_ALIGN - nchar;
+    nchar += fprintf(file, "%*s", (nfill > 0 ? nfill : 1), callee_compact);
+
+    if (category)
+    {
+        nchar += fprintf(file, "%s", category);
+    }
+
+    if (method)
+    {
+        nchar += fprintf(file, "/%s", method);
+    }
+
+    return nchar;
+}
+
+/**
+ *******************************************************************************
+ * @brief Print a message header compactly
+ *
+ * @param  message  IN  message
+ * @param  file     IN  file to print message to
+ *
+ * @retval number of characters printed
+ *******************************************************************************
+ */
+int
+LSTransportMessagePrintCompactHeader(_LSTransportMessage *message, FILE *file)
+{
+    const char *caller_service_name = NULL;
+    const char *callee_service_name = NULL;
+    const char *directions = NULL;
+    const char *appId = NULL;
+    const char *category = NULL;
+    const char *method = NULL;
+    LSMessageToken messageToken = 0;
+
+    switch (_LSTransportMessageGetType(message))
+    {
+    case _LSTransportMessageTypeSignal:
+        directions = ">*";
+        caller_service_name = _LSTransportMessageGetSenderServiceName(message);
+        callee_service_name = "";
+        messageToken = (int)_LSTransportMessageGetToken(message);
+        category = _LSTransportMessageGetCategory(message);
+        method = _LSTransportMessageGetMethod(message);
+        break;
+
+    case _LSTransportMessageTypeCancelMethodCall:
+        directions = ">|";
+        caller_service_name = _LSTransportMessageGetSenderServiceName(message);
+        callee_service_name = _LSTransportMessageGetDestServiceName(message);
+        messageToken = (int)_LSTransportMessageGetToken(message);
+        category = _LSTransportMessageGetCategory(message);
+        method = _LSTransportMessageGetMethod(message);
+        break;
+
+    case _LSTransportMessageTypeMethodCall:
+        directions = " >";
+        caller_service_name = _LSTransportMessageGetSenderServiceName(message);
+        callee_service_name = _LSTransportMessageGetDestServiceName(message);
+        messageToken = (int)_LSTransportMessageGetToken(message);
+        appId = _LSTransportMessageGetAppId(message);
+        category = _LSTransportMessageGetCategory(message);
+        method = _LSTransportMessageGetMethod(message);
+        break;
+
+    case _LSTransportMessageTypeReply:
+        directions = "< ";
+        caller_service_name = _LSTransportMessageGetDestServiceName(message);
+        callee_service_name = _LSTransportMessageGetSenderServiceName(message);
+        messageToken = (int)_LSTransportMessageGetReplyToken(message);
+        break;
+
+    default:
+        fprintf(stdout, "No print function for message type: %d\n", _LSTransportMessageGetType(message));
+        break;
+    }
+
+    if (caller_service_name)
+    {
+        return LSTransportMessagePrintCompactHeaderCommon(caller_service_name, callee_service_name,
+                                                          directions, appId, category, method, messageToken,
+                                                          file);
+    }
+    return 0;
+}
+
+/**
+ *******************************************************************************
+ * @brief Print out a message payload compactly
+ *
+ * @param  message  IN  message
+ * @param  file     IN  file to print message to
+ * @param  width    IN  hard limit of payload output length
+ *
+ * @retval number of characters printed
+ *******************************************************************************
+ */
+int
+LSTransportMessagePrintCompactPayload(_LSTransportMessage *message, FILE *file, int width)
+{
+    return fprintf(file, "%.*s", width, _LSTransportMessageGetPayload(message));
 }
 
 /*

@@ -46,6 +46,7 @@ set(LIBRARIES
     ${GLIB2_LDFLAGS}
     ${GTHREAD2_LDFLAGS}
     ${CJSON_LDFLAGS}
+    ${PBNJSON_C_LDFLAGS}
     ${PMLOGLIB_LDFLAGS}
     dl
     pthread

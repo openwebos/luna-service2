@@ -28,7 +28,8 @@ _luna-service2_:
 * make (any version)
 * openwebos/cjson 1.8.0
 * openwebos/cmake-modules-webos 1.0.0 RC4
-* openwebos/PmLogLib 2.0.0
+* openwebos/libpbnjson 2.5.0
+* openwebos/PmLogLib 3.0.2
 * pkg-config 0.26
 
 ## Building
@@ -59,9 +60,9 @@ environment variable.
 
 If not specified, `WEBOS_INSTALL_ROOT` defaults to `/usr/local/webos`.
 
-To configure for a debug build, enter:
+To configure for a debug build treating warnings as errors, enter:
 
-    $ cmake -D CMAKE_BUILD_TYPE:STRING=Debug ..
+    $ cmake -D CMAKE_BUILD_TYPE:STRING=Debug -D WEBOS_USE_WERROR:BOOL=TRUE ..
 
 To see a list of the make targets that `cmake` has generated, enter:
 
@@ -103,7 +104,7 @@ You will need to use `sudo` if you did not specify `WEBOS_INSTALL_ROOT`.
 Unless otherwise specified, all content, including all source code files and
 documentation files in this repository are:
 
-Copyright (c) 2008-2013 LG Electronics, Inc.
+Copyright (c) 2008-2014 LG Electronics, Inc.
 
 Unless otherwise specified or set forth in the NOTICE file, all content,
 including all source code files and documentation files in this repository are:

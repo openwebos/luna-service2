@@ -21,7 +21,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
+
+#include "lserror_pbnjson.h"
 
 #include "transport.h"
 #include "transport_utils.h"
@@ -56,6 +58,81 @@
 
 static inline bool _LSTransportSupportsSecurityFeatures(const _LSTransport *transport);
 static inline bool _LSHubClientExePathMatches(const _LSTransportClient *client, const char *path);
+
+/* Handy macro to define local C-string from raw_buffer
+ * @param name specifies which identifier to use for variable
+ * @param buf says from which variable to get raw_buffer
+ */
+#define LOCAL_CSTR_FROM_BUF(name, buf) \
+    char name[buf.m_len+1]; \
+    { \
+        (void) memcpy(name, buf.m_str, buf.m_len); \
+        name[buf.m_len] = '\0'; \
+    }
+
+/*
+ * Handy function to obtain a string property from object
+ * @param obj where to lookup for property
+ * @param key what name of property we are looking for
+ * @param value optional output for property string value (assumed uninitialized)
+ * @param lserror optional output for errors
+ * @param msgid optional id for message to set if error met
+ * @param json optional reference to json document
+ */
+static inline bool
+jobject_get_string(jvalue_ref obj, raw_buffer key, raw_buffer *value, LSError *lserror, const char *msgid, const char *json)
+{
+    LS_ASSERT( obj != NULL && key.m_str != NULL && value != NULL );
+
+    const char *jsonDesc = json ? json : "<no-source>";
+
+    jvalue_ref prop;
+    if (!jobject_get_exists(obj, key, &prop))
+    {
+        _LSErrorSet(lserror, msgid, -1, "Unable to get %.*s from JSON (%s)", (int)key.m_len, key.m_str, jsonDesc);
+        return false;
+    }
+
+    if (!jis_string(prop))
+    {
+        _LSErrorSet(lserror, msgid, -1, "Property %.*s isn't a string inside JSON (%s)", (int)key.m_len, key.m_str, jsonDesc);
+        return false;
+    }
+
+    *value = jstring_get_fast(prop);
+
+    return true;
+}
+
+/*
+ * Handy function to obtain a string property from array
+ * @param array where our item located
+ * @param index where inside of array our item located
+ * @param value optional output for string value (assumed uninitialized)
+ * @param lserror optional output for errors
+ * @param msgid optional id for message to set if error met
+ * @param json optional reference to json document
+ */
+static inline bool
+jarray_get_string(jvalue_ref array, ssize_t index, raw_buffer *value, LSError *lserror, const char *msgid, const char *json)
+{
+    assert( array != NULL );
+    assert( 0 <= index && index < jarray_size(array) );
+
+    const char *jsonDesc = json ? json : "<no-source>";
+
+    jvalue_ref prop = jarray_get( array, index );
+
+    if (!jis_string(prop))
+    {
+        _LSErrorSet(lserror, msgid, -1, "Item #%ld isn't a string inside JSON (%s)", index, jsonDesc);
+        return false;
+    }
+
+    *value = jstring_get_fast(prop);
+
+    return true;
+}
 
 struct _LSHubPatternQueue {
     int ref;
@@ -295,22 +372,22 @@ LSHubGetActiveRoleMap(void)
     return active_role_map;
 }
 
-LSHubRole*
-LSHubRoleNew(const char *exe_path, LSHubRoleType type)
+static LSHubRole*
+LSHubRoleNew(raw_buffer exe_path, LSHubRoleType type)
 {
-    LS_ASSERT(exe_path != NULL);
+    LS_ASSERT(exe_path.m_str != NULL);
 
-    LOG_LS_DEBUG("%s: exe_path: \"%s\", type: %d\n", __func__, exe_path, type);
+    LOG_LS_DEBUG("%s: exe_path: \"%.*s\", type: %d\n", __func__, (int)exe_path.m_len, exe_path.m_str, type);
     LSHubRole *role = g_slice_new0(LSHubRole);
 
-    role->exe_path = g_strdup(exe_path);
+    role->exe_path = g_strndup(exe_path.m_str, exe_path.m_len);
     role->type = type;
     role->allowed_names = _LSHubPatternQueueNewRef();
 
     return role;
 }
 
-void
+static void
 LSHubRoleFree(LSHubRole *role)
 {
     LS_ASSERT(role != NULL);
@@ -327,10 +404,10 @@ LSHubRoleFree(LSHubRole *role)
     g_slice_free(LSHubRole, role);
 }
 
-LSHubRole*
-LSHubRoleNewRef(const char *exe_path, LSHubRoleType type)
+static LSHubRole*
+LSHubRoleNewRef(raw_buffer exe_path, LSHubRoleType type)
 {
-    LOG_LS_DEBUG("%s: exe_path: \"%s\", type: %d\n", __func__, exe_path, type);
+    LOG_LS_DEBUG("%s: exe_path: \"%.*s\", type: %d\n", __func__, (int)exe_path.m_len, exe_path.m_str, type);
     LSHubRole *role = LSHubRoleNew(exe_path, type);
 
     role->ref = 1;
@@ -338,7 +415,7 @@ LSHubRoleNewRef(const char *exe_path, LSHubRoleType type)
     return role;
 }
 
-void
+static void
 LSHubRoleRef(LSHubRole *role)
 {
     LS_ASSERT(role != NULL);
@@ -350,7 +427,7 @@ LSHubRoleRef(LSHubRole *role)
 }
 
 /* returns true if the ref count went to 0 and the role was freed */
-bool
+static bool
 LSHubRoleUnref(LSHubRole *role)
 {
     LS_ASSERT(role != NULL);
@@ -368,12 +445,17 @@ LSHubRoleUnref(LSHubRole *role)
 }
 
 /* creates a copy of a HubRole with refcount of 1 */
-LSHubRole*
+static LSHubRole*
 LSHubRoleCopyRef(const LSHubRole *role)
 {
     LOG_LS_DEBUG("%s\n", __func__);
 
-    LSHubRole *new_role = LSHubRoleNew(role->exe_path, role->type);
+    raw_buffer exe_path = {
+        .m_str = role->exe_path,
+        .m_len = strlen(role->exe_path)
+    };
+
+    LSHubRole *new_role = LSHubRoleNew(exe_path, role->type);
 
     new_role->ref = 1;
 
@@ -492,15 +574,15 @@ LSHubRoleAddAllowedName(LSHubRole *role, const char *name, LSError *lserror)
 }
 
 static LSHubRoleType
-_LSHubRoleTypeStringToType(const char *type)
+_LSHubRoleTypeStringToType(raw_buffer type)
 {
-    LOG_LS_DEBUG("%s: type: \"%s\"\n", __func__, type);
+    LOG_LS_DEBUG("%s: type: \"%.*s\"\n", __func__, (int)type.m_len, type.m_str);
 
-    if (strcmp(ROLE_TYPE_REGULAR, type) == 0)
+    if (strlen(ROLE_TYPE_REGULAR) == type.m_len && memcmp(ROLE_TYPE_REGULAR, type.m_str, type.m_len) == 0)
     {
         return LSHubRoleTypeRegular;
     }
-    else if (strcmp(ROLE_TYPE_PRIVILEGED, type) == 0)
+    else if (strlen(ROLE_TYPE_PRIVILEGED) == type.m_len && memcmp(ROLE_TYPE_PRIVILEGED, type.m_str, type.m_len) == 0)
     {
         return LSHubRoleTypePrivileged;
     }
@@ -510,24 +592,24 @@ _LSHubRoleTypeStringToType(const char *type)
     }
 }
 
-LSHubPermission*
-LSHubPermissionNew(const char *service_name)
+static LSHubPermission*
+LSHubPermissionNew(raw_buffer service_name)
 {
-    LS_ASSERT(service_name != NULL);
+    LS_ASSERT(service_name.m_str != NULL);
 
     LOG_LS_DEBUG("%s\n", __func__);
 
     LSHubPermission *perm = g_slice_new0(LSHubPermission);
 
-    perm->service_name = g_strdup(service_name);
+    perm->service_name = g_strndup(service_name.m_str, service_name.m_len);
     perm->inbound = _LSHubPatternQueueNewRef();
     perm->outbound = _LSHubPatternQueueNewRef();
 
     return perm;
 }
 
-LSHubPermission*
-LSHubPermissionNewRef(const char *service_name)
+static LSHubPermission*
+LSHubPermissionNewRef(raw_buffer service_name)
 {
     LOG_LS_DEBUG("%s\n", __func__);
 
@@ -541,7 +623,7 @@ LSHubPermissionNewRef(const char *service_name)
     return perm;
 }
 
-void
+static void
 LSHubPermissionFree(LSHubPermission *perm)
 {
     LS_ASSERT(perm != NULL);
@@ -560,7 +642,7 @@ LSHubPermissionFree(LSHubPermission *perm)
     g_slice_free(LSHubPermission, perm);
 }
 
-void
+static void
 LSHubPermissionRef(LSHubPermission *perm)
 {
     LS_ASSERT(perm != NULL);
@@ -571,7 +653,7 @@ LSHubPermissionRef(LSHubPermission *perm)
     g_atomic_int_inc(&perm->ref);
 }
 
-bool
+static bool
 LSHubPermissionUnref(LSHubPermission *perm)
 {
     LS_ASSERT(perm != NULL);
@@ -587,7 +669,7 @@ LSHubPermissionUnref(LSHubPermission *perm)
     return false;
 }
 
-bool
+static bool
 LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSError *lserror)
 {
     LS_ASSERT(perm != NULL);
@@ -602,7 +684,7 @@ LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSErro
     return true;
 }
 
-bool
+static bool
 LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSError *lserror)
 {
     LS_ASSERT(perm != NULL);
@@ -899,127 +981,100 @@ LSHubWildcardPermissionTreeClear(bool from_volatile_dir)
     }
 }
 
-bool
-ParseJSONFile(const char *path, struct json_object **json, LSError *lserror)
+static bool
+ParseJSONFile(const char *path, jvalue_ref *json, LSError *lserror)
 {
-    bool ret = false;
-    GIOChannel *file_channel = NULL;
-    char *file_text = NULL;
-    gsize file_text_len = 0;
-    GError *error = NULL;
-    GIOStatus status;
-    struct json_object *ret_json = NULL;
+    struct JErrorCallbacks errorCallbacks;
+    JSchemaInfo schemaInfo;
+    jvalue_ref dom;
+
+    SetLSErrorCallbacks(&errorCallbacks, lserror);
+
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, &errorCallbacks);
 
     LOG_LS_DEBUG("%s: parsing JSON from file: \"%s\"", __func__, path);
 
-    int fd = open(path, O_RDONLY);
+    dom = jdom_parse_file(path, &schemaInfo, JFileOptMMap);
 
-    if (fd == -1)
+    if (!jis_valid(dom)) /* error? */
     {
-        _LSErrorSetFromErrno(lserror, MSGID_LSHUB_NO_FD, errno);
-        goto exit;
+        j_release(&dom);
+        return false;
     }
 
-    file_channel = g_io_channel_unix_new(fd);
-
-    g_io_channel_set_close_on_unref(file_channel, true);
-
-    /* The role files are small, so it should be ok to parse them in one shot */
-    status = g_io_channel_read_to_end(file_channel, &file_text, &file_text_len, &error);
-
-    if (status != G_IO_STATUS_NORMAL)
-    {
-        _LSErrorSetFromGError(lserror, MSGID_LSHUB_FILE_READ_ERR, error);
-        goto exit;
-    }
-
-    ret_json = json_tokener_parse(file_text);
-
-    if (is_error(ret_json))
-    {
-        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Error parsing JSON");
-        goto exit;
-    }
-
-    *json = ret_json;
-
-    ret = true;
+    *json = dom;
 
     LOG_LS_DEBUG("%s: successfully parsed JSON\n", __func__);
 
-exit:
-
-    /* unref and close */
-    if (file_channel) g_io_channel_unref(file_channel);
-    g_free(file_text);
-
-    if (!ret)
-    {
-        LOG_LS_DEBUG("%s: error parsing JSON\n", __func__);
-        if (ret_json && !is_error(ret_json)) json_object_put(ret_json);
-    }
-
-    return ret;
+    return true;
 }
 
-bool
-ParseJSONGetRole(struct json_object *json, const char *json_file_path, LSHubRole **role,
+static bool
+ParseJSONGetRole(jvalue_ref json, const char *json_file_path, LSHubRole **role,
                  LSError *lserror)
 {
     bool ret = false;
-    struct json_object *role_obj = NULL;
-    struct json_object *exe_obj = NULL;
-    struct json_object *type_obj = NULL;
-    struct json_object *allowed_names_obj = NULL;
-    int allowed_names_arr_len = 0;
+    jvalue_ref role_obj = NULL;
+    jvalue_ref allowed_names_obj = NULL;
     LSHubRole *ret_role = NULL;
-    int i = 0;
 
     LOG_LS_DEBUG("%s: parsing role from file: %s\n", __func__, json_file_path);
 
-    if (!json_object_object_get_ex(json, ROLE_KEY, &role_obj))
+    if (!jobject_get_exists(json, J_CSTR_TO_BUF(ROLE_KEY), &role_obj))
     {
-        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get role from JSON (%s)", json_file_path);
+        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get %s from JSON (%s)", ROLE_KEY, json_file_path);
         goto exit;
     }
-
-    if (!json_object_object_get_ex(role_obj, EXE_NAME_KEY, &exe_obj))
-    {
-        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get exeName from JSON (%s)", json_file_path);
-        goto exit;
-    }
-
-    if (!json_object_object_get_ex(role_obj, TYPE_KEY, &type_obj))
-    {
-        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get type from JSON (%s)", json_file_path);
-        goto exit;
-    }
-
-    if (!json_object_object_get_ex(role_obj, ALLOWED_NAMES_KEY, &allowed_names_obj))
-    {
-        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get allowedNames from JSON (%s)", json_file_path);
-        goto exit;
-    }
-
-    allowed_names_arr_len = json_object_array_length(allowed_names_obj);
 
     /* exeName */
-    const char *exe_name = json_object_get_string(exe_obj);
+    raw_buffer exe_buf;
+    if (!jobject_get_string(role_obj, J_CSTR_TO_BUF(EXE_NAME_KEY), &exe_buf, lserror, MSGID_LSHUB_ROLE_FILE_ERR, json_file_path))
+    {
+        goto exit;
+    }
 
     /* type */
-    const char *type_str = json_object_get_string(type_obj);
+    raw_buffer type_buf;
+    if (!jobject_get_string(role_obj, J_CSTR_TO_BUF(TYPE_KEY), &type_buf, lserror, MSGID_LSHUB_ROLE_FILE_ERR, json_file_path))
+    {
+        goto exit;
+    }
 
-    LSHubRoleType type = _LSHubRoleTypeStringToType(type_str);
+    if (!jobject_get_exists(role_obj, J_CSTR_TO_BUF(ALLOWED_NAMES_KEY), &allowed_names_obj))
+    {
+        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get %s from JSON (%s)", ALLOWED_NAMES_KEY, json_file_path);
+        goto exit;
+    }
 
-    LOG_LS_DEBUG("%s: creating new role with exe_name: \"%s\", type: %d\n", __func__, exe_name, type);
+    if (!jis_array(allowed_names_obj))
+    {
+        _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Property %s isn't an array inside JSON (%s)", ALLOWED_NAMES_KEY, json_file_path);
+        goto exit;
+    }
 
-    ret_role = LSHubRoleNewRef(exe_name, type);
+    ssize_t allowed_names_arr_len = jarray_size(allowed_names_obj);
+
+    LSHubRoleType type = _LSHubRoleTypeStringToType(type_buf);
+
+    LOG_LS_DEBUG("%s: creating new role with exe_name: \"%.*s\", type: %d\n", __func__, (int)exe_buf.m_len, exe_buf.m_str, type);
+
+    ret_role = LSHubRoleNewRef(exe_buf, type);
 
     /* allowedNames */
+    ssize_t i;
     for (i = 0; i < allowed_names_arr_len; i++)
     {
-        struct json_object *tmp_obj = json_object_array_get_idx(allowed_names_obj, i);
-        if (!LSHubRoleAddAllowedName(ret_role, json_object_get_string(tmp_obj), lserror))
+        jvalue_ref tmp_obj = jarray_get(allowed_names_obj, i);
+        raw_buffer tmp_buf = jstring_get_fast(tmp_obj);
+
+        /* Work-around to get C-string.
+         * We would pass raw_buffer but there is an external (to this module)
+         * code around patterns that expects C-string used in
+         * LSHubRoleAddAllowedName.
+         */
+        LOCAL_CSTR_FROM_BUF( tmp, tmp_buf );
+
+        if (!LSHubRoleAddAllowedName(ret_role, tmp, lserror))
         {
             goto exit;
         }
@@ -1039,76 +1094,86 @@ exit:
     return ret;
 }
 
-bool
-ParseJSONGetPermissions(struct json_object *json, const char *json_file_path, GSList **perm_list,
+static bool
+ParseJSONGetPermissions(jvalue_ref json, const char *json_file_path, GSList **perm_list,
                         LSError *lserror)
 {
     bool ret = false;
-    struct json_object *perm_obj = NULL;
-    int perm_arr_len = 0;
-    struct json_object *service_obj = NULL;
-    struct json_object *inbound_obj = NULL;
-    struct json_object *outbound_obj = NULL;
-    LSHubPermission *new_perm = NULL;
-    int i = 0;
-    int j = 0;
-    int k = 0;
+    jvalue_ref perm_obj;
 
     LOG_LS_DEBUG("%s: parsing permissions from %s\n", __func__, json_file_path);
 
-    if (!json_object_object_get_ex(json, PERMISSION_KEY, &perm_obj))
+    if (!jobject_get_exists(json, J_CSTR_TO_BUF(PERMISSION_KEY), &perm_obj))
     {
         _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get permission from JSON (%s)", json_file_path);
         goto exit;
     }
 
-    perm_arr_len = json_object_array_length(perm_obj);
+    ssize_t perm_arr_len = jarray_size(perm_obj);
 
+    ssize_t i;
     for (i = 0; i < perm_arr_len; i++)
     {
-        struct json_object *cur_perm_obj = json_object_array_get_idx(perm_obj, i);
+        jvalue_ref cur_perm_obj = jarray_get(perm_obj, i);
 
-        if (!json_object_object_get_ex(cur_perm_obj, SERVICE_KEY, &service_obj))
+        raw_buffer service_buf;
+        if (!jobject_get_string(cur_perm_obj, J_CSTR_TO_BUF(SERVICE_KEY), &service_buf, lserror, MSGID_LSHUB_ROLE_FILE_ERR, json_file_path))
         {
-            _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get service from JSON (%s)", json_file_path);
             goto exit;
         }
 
-        if (!json_object_object_get_ex(cur_perm_obj, INBOUND_KEY, &inbound_obj))
+        jvalue_ref inbound_obj;
+        if (!jobject_get_exists(cur_perm_obj, J_CSTR_TO_BUF(INBOUND_KEY), &inbound_obj))
         {
-            _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get inbound from JSON (%s)", json_file_path);
+            _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get %s from JSON (%s)", INBOUND_KEY, json_file_path);
             goto exit;
         }
 
-        if (!json_object_object_get_ex(cur_perm_obj, OUTBOUND_KEY, &outbound_obj))
+        jvalue_ref outbound_obj;
+        if (!jobject_get_exists(cur_perm_obj, J_CSTR_TO_BUF(OUTBOUND_KEY), &outbound_obj))
         {
-            _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get outbound from JSON (%s)", json_file_path);
+            _LSErrorSet(lserror, MSGID_LSHUB_ROLE_FILE_ERR, -1, "Unable to get %s from JSON (%s)", OUTBOUND_KEY, json_file_path);
             goto exit;
         }
         LOG_LS_DEBUG("%s: creating new permission\n", __func__);
 
-        new_perm = LSHubPermissionNewRef(json_object_get_string(service_obj));
-
-        for (j = 0; j < json_object_array_length(inbound_obj); j++)
-        {
-            struct json_object *cur_inbound_obj = json_object_array_get_idx(inbound_obj, j);
-
-            if (!LSHubPermissionAddAllowedInbound(new_perm, json_object_get_string(cur_inbound_obj), lserror))
-            {
-                goto exit;
-            }
-        }
-
-        for (k = 0; k < json_object_array_length(outbound_obj); k++)
-        {
-            struct json_object *cur_outbound_obj = json_object_array_get_idx(outbound_obj, k);
-            if (!LSHubPermissionAddAllowedOutbound(new_perm, json_object_get_string(cur_outbound_obj), lserror))
-            {
-                goto exit;
-            }
-        }
+        LSHubPermission *new_perm = LSHubPermissionNewRef(service_buf);
 
         *perm_list = g_slist_prepend(*perm_list, new_perm);
+
+        ssize_t inbound_size = jarray_size(inbound_obj);
+        ssize_t j;
+        for (j = 0; j < inbound_size; j++)
+        {
+            raw_buffer cur_inbound_buf;
+            if (!jarray_get_string(inbound_obj, j, &cur_inbound_buf, lserror, MSGID_LSHUB_ROLE_FILE_ERR, json_file_path))
+            {
+                goto exit;
+            }
+
+            LOCAL_CSTR_FROM_BUF( cur_inbound, cur_inbound_buf );
+            if (!LSHubPermissionAddAllowedInbound(new_perm, cur_inbound, lserror))
+            {
+                goto exit;
+            }
+        }
+
+        ssize_t outbound_size = jarray_size(outbound_obj);
+        ssize_t k;
+        for (k = 0; k < outbound_size; k++)
+        {
+            raw_buffer cur_outbound_buf;
+            if (!jarray_get_string(outbound_obj, k, &cur_outbound_buf, lserror, MSGID_LSHUB_ROLE_FILE_ERR, json_file_path))
+            {
+                goto exit;
+            }
+
+            LOCAL_CSTR_FROM_BUF( cur_outbound, cur_outbound_buf );
+            if (!LSHubPermissionAddAllowedOutbound(new_perm, cur_outbound, lserror))
+            {
+                goto exit;
+            }
+        }
     }
 
     ret = true;
@@ -1155,7 +1220,7 @@ ParseRoleDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
             GSList *perm_list = NULL;
 
             /* Create role and permission objects */
-            struct json_object *json = NULL;
+            jvalue_ref json = NULL;
             if (!ParseJSONFile(full_path, &json, lserror))
             {
                 LOG_LSERROR(MSGID_LSHUB_ROLE_FILE_ERR, lserror);
@@ -1215,7 +1280,7 @@ ParseRoleDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
 
 next:
             if (role) LSHubRoleUnref(role);
-            if (json && !is_error(json)) json_object_put(json);
+            j_release(&json);
             g_free(full_path);
         }
     }
@@ -1229,7 +1294,7 @@ bool
 LSHubPushRole(const _LSTransportClient *client, const char *path, LSError *lserror)
 {
     bool ret = false;
-    struct json_object *json = NULL;
+    jvalue_ref json = NULL;
     LSHubRole *role = NULL;
 
     /* Remove current role from active role map if there is one */
@@ -1309,7 +1374,7 @@ LSHubPushRole(const _LSTransportClient *client, const char *path, LSError *lserr
     ret = true;
 
 exit:
-    if (json && !is_error(json)) json_object_put(json);
+    j_release(&json);
 
     return ret;
 }

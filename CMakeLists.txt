@@ -81,7 +81,13 @@ webos_add_compiler_flags(ALL -Wall)
 set(WEBOS_USE_WERROR FALSE CACHE BOOL "Set to TRUE to enable -Werror")
 if(WEBOS_USE_WERROR)
 	message("Build with treating most warnings as errors")
-	webos_add_compiler_flags(ALL -Werror)
+	webos_add_compiler_flags(ALL
+	                        -Werror -Wextra
+	                        -Wno-error=missing-field-initializers
+	                        -Wno-error=unused-parameter
+	                        -Wno-error=sign-compare
+	                        -Wno-error=type-limits
+	                        )
 endif()
 
 # Enable security by default

@@ -512,14 +512,18 @@ bool
 _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
                      LSError *lserror)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     const char *sender;
     int token;
-    struct json_object *tokenObj = NULL;
+    jvalue_ref tokenObj = NULL;
 
     const char *payload = LSMessageGetPayload(cancelMsg);
 
-    struct json_object *object = json_tokener_parse(payload);
-    if (JSON_ERROR(object))
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
+    if (jis_null(object))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Invalid json");
         goto error;
@@ -527,25 +531,25 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
 
     sender = LSMessageGetSender(cancelMsg);
 
-    if (!json_object_object_get_ex(object, "token", &tokenObj) ||
-        JSON_ERROR(tokenObj) || json_object_get_type(tokenObj) != json_type_int)
+    if (!jobject_get_exists(object, J_CSTR_TO_BUF("token"), &tokenObj) ||
+        tokenObj == NULL || !jis_number(tokenObj))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Invalid json");
         goto error;
     }
 
-    token = json_object_get_int(tokenObj);
+    (void)jnumber_get_i32(tokenObj, &token);/* TODO: handle appropriately */
 
     char *uniqueToken = g_strdup_printf("%s.%d", sender, token);
 
     _CatalogRemoveToken(catalog, uniqueToken, true);
 
     g_free(uniqueToken);
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
     return true;
 
 error:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
     return false;
 }
 
@@ -561,32 +565,38 @@ _CatalogGetSubList_unlocked(_Catalog *catalog, const char *key)
 static bool
 _subscriber_down(LSHandle *sh, LSMessage *message, void *ctx)
 {
-    bool connected;
-    const char *serviceName;
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
 
-    struct json_object *connectedObj = NULL;
-    struct json_object *serviceNameObj = NULL;
+    bool connected;
+    raw_buffer serviceName;
+
+    jvalue_ref connectedObj = NULL;
+    jvalue_ref serviceNameObj = NULL;
 
     LSMessageToken token = (LSMessageToken)ctx;
 
     const char *payload = LSMessageGetPayload(message);
-    struct json_object *object = json_tokener_parse(payload);
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
 
-    if (JSON_ERROR(object))
+    if (jis_null(object))
     {
         LOG_LS_ERROR(MSGID_LS_INVALID_JSON, 0, "%s: Invalid JSON: %s", __func__, payload);
         goto error;
     }
 
-    if (!json_object_object_get_ex(object, "connected", &connectedObj)) goto error;
-    if (!json_object_object_get_ex(object, "serviceName", &serviceNameObj)) goto error;
+    if (!jobject_get_exists(object, J_CSTR_TO_BUF("connected"),
+                            &connectedObj)) goto error;
+    if (!jobject_get_exists(object, J_CSTR_TO_BUF("serviceName"),
+                            &serviceNameObj)) goto error;
 
-    connected = json_object_get_boolean(connectedObj);
-    serviceName = json_object_get_string(serviceNameObj);
+    (void)jboolean_get(connectedObj, &connected);/* TODO: handle appropriately */
+    serviceName = jstring_get_fast(serviceNameObj);
 
     if (!connected)
     {
-        char *uniqueToken = g_strdup_printf("%s.%ld", serviceName, token);
+        char *uniqueToken = g_strdup_printf("%.*s.%ld", (int)serviceName.m_len, serviceName.m_str, token);
 
         _Subscription *subs = _SubscriptionAcquire(sh->catalog, uniqueToken);
         if (subs)
@@ -599,36 +609,36 @@ _subscriber_down(LSHandle *sh, LSMessage *message, void *ctx)
     }
 
 error:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
     return true;
 }
 
 bool
-_LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lserror)
+_LSSubscriptionGetJson(LSHandle *sh, jvalue_ref *ret_obj, LSError *lserror)
 {
     _Catalog *catalog = sh->catalog;
     const char *key = NULL;
     _SubList *sub_list = NULL;
     GHashTableIter iter;
 
-    struct json_object *true_obj = NULL;
-    struct json_object *array = NULL;
-    struct json_object *cur_obj = NULL;
-    struct json_object *sub_array = NULL;
-    struct json_object *key_name = NULL;
-    struct json_object *message_obj = NULL;
-    struct json_object *sub_array_item = NULL;
-    struct json_object *unique_name_obj = NULL;
-    struct json_object *service_name_obj = NULL;
+    jvalue_ref true_obj = NULL;
+    jvalue_ref array = NULL;
+    jvalue_ref cur_obj = NULL;
+    jvalue_ref sub_array = NULL;
+    jvalue_ref key_name = NULL;
+    jvalue_ref message_obj = NULL;
+    jvalue_ref sub_array_item = NULL;
+    jvalue_ref unique_name_obj = NULL;
+    jvalue_ref service_name_obj = NULL;
 
-    *ret_obj = json_object_new_object();
-    if (JSON_ERROR(ret_obj)) goto error;
+    *ret_obj = jobject_create();
+    if (*ret_obj == NULL) goto error;
 
-    true_obj = json_object_new_boolean(true);
-    if (JSON_ERROR(true_obj)) goto error;
+    true_obj = jboolean_create(true);
+    if (true_obj == NULL) goto error;
 
-    array = json_object_new_array();
-    if (JSON_ERROR(array)) goto error;
+    array = jarray_create(NULL);
+    if (array == NULL) goto error;
 
     /* returnValue: true,
      * subscriptions: [
@@ -642,14 +652,14 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
 
     while (g_hash_table_iter_next(&iter, (gpointer)&key, (gpointer)&sub_list))
     {
-        cur_obj = json_object_new_object();
-        if (JSON_ERROR(cur_obj)) goto error;
+        cur_obj = jobject_create();
+        if (cur_obj == NULL) goto error;
 
-        sub_array = json_object_new_array();
-        if (JSON_ERROR(sub_array)) goto error;
+        sub_array = jarray_create(NULL);
+        if (sub_array == NULL) goto error;
 
-        key_name = json_object_new_string(key);
-        if (JSON_ERROR(key_name)) goto error;
+        key_name = jstring_create_copy(j_cstr_to_buffer(key));
+        if (key_name == NULL) goto error;
 
         /* iterate over SubList */
         int i = 0;
@@ -671,25 +681,31 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
                 const char *message_body = LSMessageGetPayload(msg);
 
                 /* create subscribers item and add to sub_array */
-                sub_array_item = json_object_new_object();
-                if (JSON_ERROR(sub_array_item)) goto error;
+                sub_array_item = jobject_create();
+                if (sub_array_item == NULL) goto error;
 
-                unique_name_obj = unique_name ? json_object_new_string(unique_name)
-                                              : json_object_new_string("");
-                if (JSON_ERROR(unique_name_obj)) goto error;
+                unique_name_obj = unique_name ? jstring_create_copy(j_cstr_to_buffer(unique_name))
+                                              : jstring_empty();
+                if (unique_name_obj == NULL) goto error;
 
-                service_name_obj = service_name ? json_object_new_string(service_name)
-                                                : json_object_new_string("");
-                if (JSON_ERROR(service_name_obj)) goto error;
+                service_name_obj = service_name ? jstring_create_copy(j_cstr_to_buffer(service_name))
+                                                : jstring_empty();
+                if (service_name_obj == NULL) goto error;
 
-                message_obj = message_body ? json_object_new_string(message_body)
-                                                : json_object_new_string("");
-                if (JSON_ERROR(message_obj)) goto error;
+                message_obj = message_body ? jstring_create_copy(j_cstr_to_buffer(message_body))
+                                                : jstring_empty();
+                if (message_obj == NULL) goto error;
 
-                json_object_object_add(sub_array_item, "unique_name", unique_name_obj);
-                json_object_object_add(sub_array_item, "service_name", service_name_obj);
-                json_object_object_add(sub_array_item, "subscription_message", message_obj);
-                json_object_array_add(sub_array, sub_array_item);
+                jobject_put(sub_array_item,
+                            J_CSTR_TO_JVAL("unique_name"),
+                            unique_name_obj);
+                jobject_put(sub_array_item,
+                            J_CSTR_TO_JVAL("service_name"),
+                            service_name_obj);
+                jobject_put(sub_array_item,
+                            J_CSTR_TO_JVAL("subscription_message"),
+                            message_obj);
+                jarray_append(sub_array, sub_array_item);
 
                 sub_array_item = NULL;
                 unique_name_obj = NULL;
@@ -697,16 +713,22 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
                 message_obj = NULL;
             }
         }
-        json_object_object_add(cur_obj, "key", key_name);
-        json_object_object_add(cur_obj, "subscribers", sub_array);
-        json_object_array_add(array, cur_obj);
+        jobject_put(cur_obj, J_CSTR_TO_JVAL("key"),
+                    key_name);
+        jobject_put(cur_obj,
+                    J_CSTR_TO_JVAL("subscribers"),
+                    sub_array);
+        jarray_append(array, cur_obj);
         key_name = NULL;
         cur_obj = NULL;
         sub_array = NULL;
     }
 
-    json_object_object_add(*ret_obj, "returnValue", true_obj);
-    json_object_object_add(*ret_obj, "subscriptions", array);
+    jobject_put(*ret_obj,
+                J_CSTR_TO_JVAL("returnValue"),
+                true_obj);
+    jobject_put(*ret_obj,
+                J_CSTR_TO_JVAL("subscriptions"), array);
 
     _CatalogUnlock(catalog);
 
@@ -715,17 +737,17 @@ _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lser
 error:
     _CatalogUnlock(catalog);
 
-    if (!JSON_ERROR(*ret_obj)) json_object_put(*ret_obj);
-    if (!JSON_ERROR(true_obj)) json_object_put(true_obj);
-    if (!JSON_ERROR(array)) json_object_put(array);
+    j_release(ret_obj);
+    j_release(&true_obj);
+    j_release(&array);
 
-    if (!JSON_ERROR(cur_obj)) json_object_put(cur_obj);
-    if (!JSON_ERROR(sub_array)) json_object_put(sub_array);
-    if (!JSON_ERROR(key_name)) json_object_put(key_name);
+    j_release(&cur_obj);
+    j_release(&sub_array);
+    j_release(&key_name);
 
-    if (!JSON_ERROR(sub_array_item)) json_object_put(sub_array_item);
-    if (!JSON_ERROR(unique_name_obj)) json_object_put(unique_name_obj);
-    if (!JSON_ERROR(service_name_obj)) json_object_put(service_name_obj);
+    j_release(&sub_array_item);
+    j_release(&unique_name_obj);
+    j_release(&service_name_obj);
 
     return false;
 }
@@ -1002,21 +1024,25 @@ bool
 LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,
                         LSError *lserror)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     bool retVal = false;
     bool subscribePayload = false;
-    struct json_object *subObj = NULL;
+    jvalue_ref subObj = NULL;
 
     const char *payload = LSMessageGetPayload(message);
-    struct json_object *object = json_tokener_parse(payload);
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
 
-    if (JSON_ERROR(object))
+    if (jis_null(object))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Unable to parse JSON: %s", payload);
         goto exit;
     }
 
-    if (!json_object_object_get_ex(object, "subscribe", &subObj) ||
-        JSON_ERROR(subObj) || json_object_get_type(subObj) != json_type_boolean)
+    if (!jobject_get_exists(object, J_CSTR_TO_BUF("subscribe"), &subObj) ||
+        subObj == NULL || !jis_boolean(subObj))
     {
         subscribePayload = false;
         /* FIXME: I think retVal should be false, but I don't know if anyone
@@ -1026,7 +1052,7 @@ LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,
     }
     else
     {
-        subscribePayload = json_object_get_boolean(subObj);
+        (void)jboolean_get(subObj, &subscribePayload);/* TODO: handle appropriately */
         retVal = true;
     }
 
@@ -1046,7 +1072,7 @@ LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,
     }
 
 exit:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
 
     return retVal;
 }

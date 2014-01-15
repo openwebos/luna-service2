@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 #include <glib.h>
 #include <errno.h>
 #include <string.h>
-#include <cjson/json_object.h>
+#include <pbnjson.h>
 #include <luna-service2/lunaservice.h>
 #include <subscription.h>
 #include <base.h>
@@ -225,7 +225,7 @@ test_CatalogHandleCancel(TestData *fixture, gconstpointer user_data)
 static void
 test_LSSubscriptionGetJson(TestData *fixture, gconstpointer user_data)
 {
-    struct json_object *result = NULL;
+    jvalue_ref result = NULL;
 
     LSError error;
     LSErrorInit(&error);
@@ -243,17 +243,17 @@ test_LSSubscriptionGetJson(TestData *fixture, gconstpointer user_data)
     LSSubscriptionRemove(sub_iter);
     LSSubscriptionRelease(sub_iter);
 
-    const char *result_json = json_object_to_json_string(result);
+    const char *result_json = jvalue_tostring_simple(result);
     const char *expected_json =
-            "{ \"returnValue\": true, " \
-            "\"subscriptions\": [ { \"key\": \"a\\/b\", " \
-            "\"subscribers\": [ { \"unique_name\": \"com.name.server.unique\", \"service_name\": \"com.name.server\", \"subscription_message\": \"\" } ] " \
-            "} ] " \
+            "{\"returnValue\":true," \
+            "\"subscriptions\":[{\"key\":\"a/b\"," \
+            "\"subscribers\":[{\"service_name\":\"com.name.server\",\"unique_name\":\"com.name.server.unique\",\"subscription_message\":\"\"}]" \
+            "}]" \
             "}";
 
     g_assert_cmpstr(result_json, ==, expected_json);
 
-    json_object_put(result);
+    j_release(&result);
 }
 
 static void

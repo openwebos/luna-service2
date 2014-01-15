@@ -49,7 +49,7 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
         return true;
     }
 
-    struct json_object *ret_obj = NULL;
+    jvalue_ref ret_obj = NULL;
     bool json_ret = _LSSubscriptionGetJson(sh, &ret_obj, &lserror);
     if (!json_ret)
     {
@@ -58,14 +58,14 @@ _LSPrivateGetSubscriptions(LSHandle* sh, LSMessage *message, void *ctx)
         return true;
     }
 
-    bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
+    bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(ret_obj), &lserror);
     if (!reply_ret)
     {
         LOG_LSERROR(MSGID_LS_SUBSEND_FAILED, &lserror);
         LSErrorFree(&lserror);
     }
 
-    json_object_put(ret_obj);
+    j_release(&ret_obj);
 
     return true;
 
@@ -79,17 +79,17 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
     LSError lserror;
     LSErrorInit(&lserror);
 
-    struct json_object *ret_obj = NULL;
-    struct json_object *true_obj = NULL;
-    struct json_object *mallinfo_obj = NULL;
-    struct json_object *allocator_name_obj = NULL;
-    struct json_object *slot_a_obj = NULL;
-    struct json_object *slot_d_obj = NULL;
-    struct json_object *slot_e_obj = NULL;
-    struct json_object *slot_f_obj = NULL;
-    struct json_object *slot_h_obj = NULL;
-    struct json_object *slot_i_obj = NULL;
-    struct json_object *slot_j_obj = NULL;
+    jvalue_ref ret_obj = NULL;
+    jvalue_ref true_obj = NULL;
+    jvalue_ref mallinfo_obj = NULL;
+    jvalue_ref allocator_name_obj = NULL;
+    jvalue_ref slot_a_obj = NULL;
+    jvalue_ref slot_d_obj = NULL;
+    jvalue_ref slot_e_obj = NULL;
+    jvalue_ref slot_f_obj = NULL;
+    jvalue_ref slot_h_obj = NULL;
+    jvalue_ref slot_i_obj = NULL;
+    jvalue_ref slot_j_obj = NULL;
 
     const char *sender = LSMessageGetSenderServiceName(message);
 
@@ -104,14 +104,14 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
         return true;
     }
 
-    ret_obj = json_object_new_object();
-    if (JSON_ERROR(ret_obj)) goto error;
+    ret_obj = jobject_create();
+    if (ret_obj == NULL) goto error;
 
-    true_obj = json_object_new_boolean(true);
-    if (JSON_ERROR(true_obj)) goto error;
+    true_obj = jboolean_create(true);
+    if (true_obj == NULL) goto error;
 
-    mallinfo_obj = json_object_new_object();
-    if (JSON_ERROR(mallinfo_obj)) goto error;
+    mallinfo_obj = jobject_create();
+    if (mallinfo_obj == NULL) goto error;
 
     /* returnValue: true,
      * mallinfo: {key: int,...}
@@ -132,67 +132,86 @@ _LSPrivateGetMallinfo(LSHandle* sh, LSMessage *message, void *ctx)
         memset(&mi, '\0', sizeof(mi));
     }
 
-    allocator_name_obj = json_object_new_string("ptmalloc");
-    if (JSON_ERROR(allocator_name_obj)) goto error;
+    allocator_name_obj = J_CSTR_TO_JVAL("ptmalloc");
+    if (allocator_name_obj == NULL) goto error;
 
-    slot_a_obj = json_object_new_int(mi.arena);
-    if (JSON_ERROR(slot_a_obj)) goto error;
+    slot_a_obj = jnumber_create_i32(mi.arena);
+    if (slot_a_obj == NULL) goto error;
 
-    slot_d_obj = json_object_new_int(mi.hblks);
-    if (JSON_ERROR(slot_d_obj)) goto error;
+    slot_d_obj = jnumber_create_i32(mi.hblks);
+    if (slot_d_obj == NULL) goto error;
 
-    slot_e_obj = json_object_new_int(mi.hblkhd);
-    if (JSON_ERROR(slot_e_obj)) goto error;
+    slot_e_obj = jnumber_create_i32(mi.hblkhd);
+    if (slot_e_obj == NULL) goto error;
 
-    slot_f_obj = json_object_new_int(mi.usmblks);
-    if (JSON_ERROR(slot_f_obj)) goto error;
+    slot_f_obj = jnumber_create_i32(mi.usmblks);
+    if (slot_f_obj == NULL) goto error;
 
-    slot_h_obj = json_object_new_int(mi.uordblks);
-    if (JSON_ERROR(slot_h_obj)) goto error;
+    slot_h_obj = jnumber_create_i32(mi.uordblks);
+    if (slot_h_obj == NULL) goto error;
 
-    slot_i_obj = json_object_new_int(mi.fordblks);
-    if (JSON_ERROR(slot_i_obj)) goto error;
+    slot_i_obj = jnumber_create_i32(mi.fordblks);
+    if (slot_i_obj == NULL) goto error;
 
-    slot_j_obj = json_object_new_int(mi.keepcost);
-    if (JSON_ERROR(slot_j_obj)) goto error;
+    slot_j_obj = jnumber_create_i32(mi.keepcost);
+    if (slot_j_obj == NULL) goto error;
 
-    json_object_object_add(mallinfo_obj, "allocator", allocator_name_obj);
-    json_object_object_add(mallinfo_obj, "sbrk_bytes", slot_a_obj);
-    json_object_object_add(mallinfo_obj, "mmap_count", slot_d_obj);
-    json_object_object_add(mallinfo_obj, "mmap_bytes", slot_e_obj);
-    json_object_object_add(mallinfo_obj, "max_malloc_bytes", slot_f_obj);
-    json_object_object_add(mallinfo_obj, "malloc_bytes", slot_h_obj);
-    json_object_object_add(mallinfo_obj, "slack_bytes", slot_i_obj);
-    json_object_object_add(mallinfo_obj, "trimmable_slack_bytes", slot_j_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("allocator"),
+                allocator_name_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("sbrk_bytes"),
+                slot_a_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("mmap_count"),
+                slot_d_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("mmap_bytes"),
+                slot_e_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("max_malloc_bytes"),
+                slot_f_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("malloc_bytes"),
+                slot_h_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("slack_bytes"),
+                slot_i_obj);
+    jobject_put(mallinfo_obj,
+                J_CSTR_TO_JVAL("trimmable_slack_bytes"),
+                slot_j_obj);
 
-    json_object_object_add(ret_obj, "returnValue", true_obj);
-    json_object_object_add(ret_obj, "mallinfo", mallinfo_obj);
+    jobject_put(ret_obj,
+                J_CSTR_TO_JVAL("returnValue"),
+                true_obj);
+    jobject_put(ret_obj, J_CSTR_TO_JVAL("mallinfo"),
+                mallinfo_obj);
 
-    bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
+    bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(ret_obj), &lserror);
     if (!reply_ret)
     {
         LOG_LSERROR(MSGID_LS_MALLOC_SEND_FAILED, &lserror);
         LSErrorFree(&lserror);
     }
 
-    json_object_put(ret_obj);
+    j_release(&ret_obj);
 
     return true;
 
 error:
 
-    if (!JSON_ERROR(ret_obj)) json_object_put(ret_obj);
-    if (!JSON_ERROR(true_obj)) json_object_put(true_obj);
-    if (!JSON_ERROR(mallinfo_obj)) json_object_put(mallinfo_obj);
+    j_release(&ret_obj);
+    j_release(&true_obj);
+    j_release(&mallinfo_obj);
 
-    if (!JSON_ERROR(allocator_name_obj)) json_object_put(allocator_name_obj);
-    if (!JSON_ERROR(slot_a_obj)) json_object_put(slot_a_obj);
-    if (!JSON_ERROR(slot_d_obj)) json_object_put(slot_d_obj);
-    if (!JSON_ERROR(slot_e_obj)) json_object_put(slot_e_obj);
-    if (!JSON_ERROR(slot_f_obj)) json_object_put(slot_f_obj);
-    if (!JSON_ERROR(slot_h_obj)) json_object_put(slot_h_obj);
-    if (!JSON_ERROR(slot_i_obj)) json_object_put(slot_i_obj);
-    if (!JSON_ERROR(slot_j_obj)) json_object_put(slot_j_obj);
+    j_release(&allocator_name_obj);
+    j_release(&slot_a_obj);
+    j_release(&slot_d_obj);
+    j_release(&slot_e_obj);
+    j_release(&slot_f_obj);
+    j_release(&slot_h_obj);
+    j_release(&slot_i_obj);
+    j_release(&slot_j_obj);
 
     return true;
 }
@@ -203,15 +222,15 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
     LSError lserror;
     LSErrorInit(&lserror);
 
-    struct json_object *ret_obj = NULL;
-    struct json_object *true_obj = NULL;
-    struct json_object *malloc_trim_obj = NULL;
+    jvalue_ref ret_obj = NULL;
+    jvalue_ref true_obj = NULL;
+    jvalue_ref malloc_trim_obj = NULL;
 
-    ret_obj = json_object_new_object();
-    if (JSON_ERROR(ret_obj)) goto error;
+    ret_obj = jobject_create();
+    if (ret_obj == NULL) goto error;
 
-    true_obj = json_object_new_boolean(true);
-    if (JSON_ERROR(true_obj)) goto error;
+    true_obj = jboolean_create(true);
+    if (true_obj == NULL) goto error;
 
 
     /* returnValue: true,
@@ -234,28 +253,32 @@ _LSPrivateDoMallocTrim(LSHandle* sh, LSMessage *message, void *ctx)
         result = -1;
     }
 
-    malloc_trim_obj = json_object_new_int(result);
-    if (JSON_ERROR(malloc_trim_obj)) goto error;
+    malloc_trim_obj = jnumber_create_i32(result);
+    if (malloc_trim_obj == NULL) goto error;
 
-    json_object_object_add(ret_obj, "returnValue", true_obj);
-    json_object_object_add(ret_obj, "malloc_trim", malloc_trim_obj);
+    jobject_put(ret_obj,
+                J_CSTR_TO_JVAL("returnValue"),
+                true_obj);
+    jobject_put(ret_obj,
+                J_CSTR_TO_JVAL("malloc_trim"),
+                malloc_trim_obj);
 
-    bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
+    bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(ret_obj), &lserror);
     if (!reply_ret)
     {
         LOG_LSERROR(MSGID_LS_MALLOC_TRIM_SEND_FAILED, &lserror);
         LSErrorFree(&lserror);
     }
 
-    json_object_put(ret_obj);
+    j_release(&ret_obj);
 
     return true;
 
 error:
 
-    if (!JSON_ERROR(ret_obj)) json_object_put(ret_obj);
-    if (!JSON_ERROR(true_obj)) json_object_put(true_obj);
-    if (!JSON_ERROR(malloc_trim_obj)) json_object_put(malloc_trim_obj);
+    j_release(&ret_obj);
+    j_release(&true_obj);
+    j_release(&malloc_trim_obj);
 
     return true;
 }
@@ -272,11 +295,11 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
     gpointer name_category, table_category, name_element, callback;
     struct LSCategoryTable *pTable = NULL;
 
-    struct json_object *ret_obj = NULL;
-    struct json_object *category_obj = NULL;
-    struct json_object *element_obj = NULL;
+    jvalue_ref ret_obj = NULL;
+    jvalue_ref category_obj = NULL;
+    jvalue_ref element_obj = NULL;
 
-    ret_obj = json_object_new_object();
+    ret_obj = jobject_create();
 
     g_hash_table_iter_init(&iter_category, sh->tableHandlers);
     while (g_hash_table_iter_next(&iter_category, &name_category, &table_category))
@@ -286,28 +309,34 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
             continue;
 
         pTable = (struct LSCategoryTable *)table_category;
-        category_obj = json_object_new_object();
+        category_obj = jobject_create();
 
         // methods
         g_hash_table_iter_init(&iter_element, pTable->methods);
         while (g_hash_table_iter_next(&iter_element, &name_element, &callback))
         {
-            element_obj = json_object_new_string("METHOD");
-            json_object_object_add(category_obj, name_element, element_obj);
+            element_obj = J_CSTR_TO_JVAL("METHOD");
+            jobject_put(category_obj,
+                        jstring_create_copy(j_cstr_to_buffer(name_element)),
+                        element_obj);
         }
 
         // signals
         g_hash_table_iter_init(&iter_element, pTable->signals);
         while (g_hash_table_iter_next(&iter_element, &name_element, &callback))
         {
-            element_obj = json_object_new_string("SIGNAL");
-            json_object_object_add(category_obj, name_element, element_obj);
+            element_obj = J_CSTR_TO_JVAL("SIGNAL");
+            jobject_put(category_obj,
+                        jstring_create_copy(j_cstr_to_buffer(name_element)),
+                        element_obj);
         }
 
-        json_object_object_add(ret_obj, name_category, category_obj);
+        jobject_put(ret_obj,
+                    jstring_create_copy(j_cstr_to_buffer(name_category)),
+                    category_obj);
     }
 
-    bool reply_ret = LSMessageReply(sh, message, json_object_to_json_string(ret_obj), &lserror);
+    bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(ret_obj), &lserror);
     if (!reply_ret)
     {
         LOG_LSERROR(MSGID_LS_INTROS_SEND_FAILED, &lserror);
@@ -315,15 +344,15 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
         goto error;
     }
 
-    json_object_put(ret_obj);
+    j_release(&ret_obj);
 
     return true;
 
 error:
 
-    if (!JSON_ERROR(ret_obj)) json_object_put(ret_obj);
-    if (!JSON_ERROR(category_obj)) json_object_put(category_obj);
-    if (!JSON_ERROR(element_obj)) json_object_put(element_obj);
+    j_release(&ret_obj);
+    j_release(&category_obj);
+    j_release(&element_obj);
 
     return false;
 }

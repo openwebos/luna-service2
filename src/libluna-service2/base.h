@@ -24,7 +24,7 @@
 #include <glib.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
 
 #include "error.h"
 #include "signal.h"

@@ -29,7 +29,7 @@ void _CatalogFree(_Catalog *catalog);
 bool _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
                           LSError *lserror);
 
-bool _LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj,
+bool _LSSubscriptionGetJson(LSHandle *sh, jvalue_ref *ret_obj,
                             LSError *lserror);
 
 #endif // _SUBSCRIPTION_H_

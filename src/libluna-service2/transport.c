@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <cjson/json.h>
 
 #include "transport.h"
 #include "transport_priv.h"

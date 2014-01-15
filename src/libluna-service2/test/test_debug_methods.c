@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ test_LSPrivateGetSubscriptions(TestData *fixture, gconstpointer user_data)
     fixture->message_sender_service_name = MONITOR_NAME;
 
     g_assert(_LSPrivateGetSubscriptions(sh, msg, ctx));
-    g_assert_cmpstr(fixture->lsmessagereply_payload, ==, "{ \"returnValue\": true, \"subscriptions\": [ ] }");
+    g_assert_cmpstr(fixture->lsmessagereply_payload, ==, "{\"returnValue\":true,\"subscriptions\":[]}");
 
     // verify that no reply sent to non-monitor client
     if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
@@ -94,7 +94,7 @@ test_LSPrivateGetMallinfo(TestData *fixture, gconstpointer user_data)
     fixture->message_sender_service_name = MONITOR_NAME;
 
     g_assert(_LSPrivateGetMallinfo(sh, msg, ctx));
-    g_assert(g_str_has_prefix(fixture->lsmessagereply_payload, "{ \"returnValue\": true, \"mallinfo\": {"));
+    g_assert(g_str_has_prefix(fixture->lsmessagereply_payload, "{\"returnValue\":true,\"mallinfo\":{"));
 
     // verify that no reply sent to non-monitor client
     if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
@@ -119,20 +119,24 @@ test_LSPrivateDoMallocTrim(TestData *fixture, gconstpointer user_data)
     void *ctx = NULL;
 
     g_assert(_LSPrivateDoMallocTrim(sh, msg, ctx));
-    g_assert(g_str_has_prefix(fixture->lsmessagereply_payload, "{ \"returnValue\": true, \"malloc_trim\": 1 }") ||
-             g_str_has_prefix(fixture->lsmessagereply_payload, "{ \"returnValue\": true, \"malloc_trim\": 0 }"));
+    g_assert(g_str_has_prefix(fixture->lsmessagereply_payload, "{\"malloc_trim\":1,\"returnValue\":true}") ||
+             g_str_has_prefix(fixture->lsmessagereply_payload, "{\"malloc_trim\":0,\"returnValue\":true}"));
 }
 
 /* Mocks **********************************************************************/
 
 bool
-_LSSubscriptionGetJson(LSHandle *sh, struct json_object **ret_obj, LSError *lserror)
+_LSSubscriptionGetJson(LSHandle *sh, jvalue_ref *ret_obj, LSError *lserror)
 {
-    *ret_obj = json_object_new_object();
-    struct json_object *return_value = json_object_new_boolean(true);
-    struct json_object *subscriptions = json_object_new_array();
-    json_object_object_add(*ret_obj, "returnValue", return_value);
-    json_object_object_add(*ret_obj, "subscriptions", subscriptions);
+    *ret_obj = jobject_create();
+    jvalue_ref return_value = jboolean_create(true);
+    jvalue_ref subscriptions = jarray_create(NULL);
+    jobject_put(*ret_obj,
+                J_CSTR_TO_JVAL("returnValue"),
+                return_value);
+    jobject_put(*ret_obj,
+                J_CSTR_TO_JVAL("subscriptions"),
+                subscriptions);
     return true;
 }
 

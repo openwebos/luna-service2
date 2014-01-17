@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <glib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
 #include <luna-service2/lunaservice.h>
 
 #define JSON_ERROR(x) (!x || is_error(x))
@@ -117,6 +117,9 @@ g_log_filter(const gchar *log_domain,
 int
 main(int argc, char **argv)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     int optionCount = 0;
     int opt;
 
@@ -149,25 +152,28 @@ main(int argc, char **argv)
     const char * uri = argv[optionCount + 1];
     const char * msg = argv[optionCount + 2];
 
-    struct json_object * serviceJson = NULL;
+    jvalue_ref serviceJson = NULL;
     char* service = NULL;
 
-    struct json_object * msgJson = json_tokener_parse(msg);
-    g_return_val_if_fail(!JSON_ERROR(msgJson), -1);
+    jvalue_ref msgJson = jdom_parse(j_cstr_to_buffer(msg), DOMOPT_NOOPT,
+                                    &schemaInfo);
+    g_return_val_if_fail(!jis_null(msgJson), -1);
 
-    if (!json_object_object_get_ex(msgJson, "serviceName", &serviceJson))
+    if (!jobject_get_exists(msgJson, J_CSTR_TO_BUF("serviceName"),
+                            &serviceJson))
     {
         g_warning("No \"serviceName\" in JSON message");
         goto error;
     }
 
-    if (json_object_get_type(serviceJson) != json_type_string)
+    if (!jis_string(serviceJson))
     {
         g_warning("serviceName is not a string");
         goto error;
     }
 
-    service = json_object_get_string(serviceJson);
+    raw_buffer service_buf = jstring_get_fast(serviceJson);
+    service = strndup(service_buf.m_str, service_buf.m_len);
 
     g_log_set_default_handler(g_log_filter, NULL);
 
@@ -229,7 +235,8 @@ error:
         }
     }
 
-    if (!JSON_ERROR(msgJson)) json_object_put(msgJson);
+    j_release(&msgJson);
+    free(service);
 
     return 0;
 }

@@ -383,7 +383,7 @@ test_LSTransportMessageGetMonitorSerial(TestData *fixture, gconstpointer user_da
     fixture->msg->raw->header.type = _LSTransportMessageTypeMethodCall;
 
     const _LSTransportMonitorSerial monitor_serial = 1;
-    const int orig_msg_size = _LSTransportMessageGetBodySize(fixture->msg);
+    const int orig_msg_size = sizeof(_LSTransportHeader) + _LSTransportMessageGetBodySize(fixture->msg);
 
     unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, orig_msg_size);
 
@@ -391,7 +391,7 @@ test_LSTransportMessageGetMonitorSerial(TestData *fixture, gconstpointer user_da
     _LSTransportMessage *monitor_message = _LSTransportMessageNewRef(orig_msg_size + sizeof(monitor_serial) + padding_bytes);
     _LSTransportMessageCopy(monitor_message, fixture->msg);
 
-    char *body = monitor_message->raw->data + orig_msg_size;
+    char *body = monitor_message->raw->data + _LSTransportMessageGetBodySize(fixture->msg);
     memset(body, 0, padding_bytes);
     body += padding_bytes;
     memcpy(body, &monitor_serial, sizeof(monitor_serial));

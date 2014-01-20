@@ -22,7 +22,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
 #include <luna-service2/lunaservice.h>
 
 #if (defined(__APPLE__) && defined(__MACH__)) || defined(WIN32)
@@ -61,24 +61,20 @@ goodbye (gpointer data)
 
 #define INDENT_INCREMENT 4
 static void
-pretty_print(struct json_object * object, int first_indent, int indent)
+pretty_print(jvalue_ref object, int first_indent, int indent)
 {
 	if (!object) {
         printf("%*s<NULL>", first_indent, "");
 		return;
 	}
 
-    switch (json_object_get_type(object)) {
-    case json_type_null:
-    case json_type_boolean:
-    case json_type_int:
-    case json_type_double:
-    case json_type_string:
-        printf("%*s%s", first_indent, "", json_object_to_json_string(object));
-        break;
-    case json_type_array:
+    if (!jis_array(object) && !jis_object(object))
     {
-        int len = json_object_array_length(object);
+        printf("%*s%s", first_indent, "", jvalue_tostring_simple(object));
+    }
+    else if (jis_array(object))
+    {
+        int len = jarray_size(object);
         int i;
         printf("%*s[", first_indent, "");
         bool first = true;
@@ -89,18 +85,18 @@ pretty_print(struct json_object * object, int first_indent, int indent)
           } else {
             printf(",\n");
           }
-          pretty_print(json_object_array_get_idx(object, i), indent + INDENT_INCREMENT, indent + INDENT_INCREMENT);
+          pretty_print(jarray_get(object, i), indent + INDENT_INCREMENT, indent + INDENT_INCREMENT);
         }
         printf("\n%*s]", indent, "");
-        break;
     }
-    case json_type_object:
+    else if (jis_object(object))
     {
         printf("%*s{", first_indent, "");
         bool first = true;
-        struct json_object_iterator it = json_object_iter_begin(object);
-        struct json_object_iterator itEnd = json_object_iter_end(object);
-        while (!json_object_iter_equal(&it, &itEnd)) {
+        jobject_iter it;
+        (void)jobject_iter_init(&it, object);/* TODO: handle appropriately */
+        jobject_key_value keyval;
+        while (jobject_iter_next(&it, &keyval)) {
           if (first) {
             printf("\n");
             first = false;
@@ -108,22 +104,21 @@ pretty_print(struct json_object * object, int first_indent, int indent)
             printf(",\n");
           }
           // FIXME: contents of key are not being escaped
-          printf("%*s\"%s\": ", indent+INDENT_INCREMENT, "", json_object_iter_peek_name(&it));
-          pretty_print(json_object_iter_peek_value(&it), 0, indent + INDENT_INCREMENT);
-          json_object_iter_next(&it);
+          raw_buffer key = jstring_get_fast(keyval.key);
+          printf("%*s\"%.*s\": ", indent+INDENT_INCREMENT, "", (int)key.m_len, key.m_str);
+          pretty_print(keyval.value, 0, indent + INDENT_INCREMENT);
         }
         printf("\n%*s}", indent, "");
-        break;
     }
-	default:
-        printf("%*s<unknown cjson type %d>", first_indent, "", json_object_get_type(object));
-		break;
+    else
+    {
+        printf("%*s<unknown json type>", first_indent, "");
     }
 }
 
 // Apply JSON query, of a.b.c, or a.b[2].c[3][4], returning a refcount-incremented reference
 // to the sub-object which matches the query, or NULL.
-struct json_object * apply_query(struct json_object * obj, char * query)
+jvalue_ref apply_query(jvalue_ref obj, char * query)
 {
   char * pos = query;
   while (obj != NULL && pos != NULL && pos[0] != '\0') {
@@ -137,8 +132,8 @@ struct json_object * apply_query(struct json_object * obj, char * query)
         return NULL;
       if (end != sep)
         return NULL;
-      if (obj && json_object_is_type(obj, json_type_array))
-        obj = json_object_array_get_idx(obj, val);
+      if (obj && jis_array(obj))
+        obj = jarray_get(obj, val);
       else
         return NULL;
       pos = sep+1;
@@ -148,8 +143,8 @@ struct json_object * apply_query(struct json_object * obj, char * query)
       size_t len = strcspn(pos, "[.");
       char orig = pos[len];
       pos[len] = '\0';
-      if (obj && json_object_is_type(obj, json_type_object))
-        obj = json_object_object_get(obj, pos);
+      if (obj && jis_object(obj))
+        obj = jobject_get(obj, j_cstr_to_buffer(pos));
       else
         return NULL;
       pos[len] = orig;
@@ -160,7 +155,7 @@ struct json_object * apply_query(struct json_object * obj, char * query)
 
   if (obj) {
     // increment refcount of result, so it can be added to the new object
-    return json_object_get(obj);
+    return jvalue_copy(obj);
   } else {
     return NULL;
   }
@@ -169,6 +164,9 @@ struct json_object * apply_query(struct json_object * obj, char * query)
 static bool
 serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     LSError lserror;
     LSErrorInit(&lserror);
     LSMessageToken token;
@@ -188,31 +186,38 @@ serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
     if (query_list != NULL) {
       // Use set of queries to transform original object into reduced form that
       // only contains queried selections -- then pass that through normal formatting.
-      struct json_object *original = json_tokener_parse(payload);
-      struct json_object *new_object = json_object_new_object();
+      jvalue_ref original = jdom_parse(j_cstr_to_buffer(payload),
+                                       DOMOPT_NOOPT, &schemaInfo);
+      jvalue_ref new_object = jobject_create();
       GList * query = query_list;
-      if ( original && !is_error(original) ) {
+      if (!jis_null(original)) {
         while (query) {
           char * query_text = (char*)query->data;
-          struct json_object * result = apply_query(original, query_text);
-          json_object_object_add(new_object, query_text, result);
+          jvalue_ref result = apply_query(original, query_text);
+          jobject_put(new_object,
+                      jstring_create_copy(j_cstr_to_buffer(query_text)),
+                      result);
           query = query->next;
         }
-        payload = strdup(json_object_get_string(new_object));
+        {
+            raw_buffer string_buf = jstring_get_fast(new_object);
+            payload = strndup(string_buf.m_str, string_buf.m_len);
+        }
         free_payload = true;
-        json_object_put(new_object);
+        j_release(&new_object);
       }
     }
 
     if (format_response) {
-      struct json_object *object = json_tokener_parse(payload);
-      if ( !object || is_error(object) ) {
+      jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                     &schemaInfo);
+      if (jis_null(object)) {
         // fall back to plain print
         printf("%s\n", payload);
       } else {
         pretty_print(object, 0, line_number ? 4 /* expected characters in line numbers */ : 0);
         printf("\n");
-        json_object_put(object);
+        j_release(&object);
       }
     } else {
       printf("%s\n", payload);

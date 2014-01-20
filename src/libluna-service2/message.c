@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
 #include <luna-service2/lunaservice.h>
 
 #include "base.h"
@@ -380,24 +380,28 @@ LSMessageGetPayloadJSON(LSMessage  *message)
 bool
 LSMessageIsSubscription(LSMessage *message)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     bool ret = false;
-    struct json_object *sub_object = NULL;
+    jvalue_ref sub_object = NULL;
     const char *payload = LSMessageGetPayload(message);
 
-    struct json_object *object = json_tokener_parse(payload);
-    if (JSON_ERROR(object))
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
+    if (jis_null(object))
         goto exit;
 
-    if (!json_object_object_get_ex(object, "subscribe", &sub_object) || JSON_ERROR(sub_object))
+    if (!jobject_get_exists(object, J_CSTR_TO_BUF("subscribe"),
+                            &sub_object) || sub_object == NULL)
         goto exit;
 
-    _LSErrorIfFail(json_object_get_type(sub_object) == json_type_boolean, NULL, MSGID_LS_INVALID_JSON);
+    _LSErrorGotoIfFail(exit, jis_boolean(sub_object), NULL, MSGID_LS_INVALID_JSON, -1);
 
-    ret = json_object_get_boolean(sub_object);
+    (void)jboolean_get(sub_object, &ret); /* TODO: handle appropriately */
 
 exit:
-    if (!JSON_ERROR(object))
-        json_object_put(object);
+    j_release(&object);
     return ret;
 }
 

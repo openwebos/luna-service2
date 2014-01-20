@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -246,6 +246,12 @@ test_LSMessageIsSubscription(TestData *fixture, gconstpointer user_data)
 
     fixture->msg->payload = "{\"subscribe\":null}";
     g_assert(!LSMessageIsSubscription(fixture->msg));
+
+    fixture->msg->payload = "{\"subscribe\":666}";
+    g_assert(!LSMessageIsSubscription(fixture->msg));
+
+    fixture->msg->payload = "{\"subscribe\":\"bad\"}";
+    g_assert(!LSMessageIsSubscription(fixture->msg));
 }
 
 static void
@@ -383,6 +389,9 @@ int
 main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
+
+    // do not trap on LSError
+    g_log_set_always_fatal(0);
 
     LSTEST_ADD("/luna-service2/LSMessage", test_LSMessage);
     LSTEST_ADD("/luna-service2/LSMessageIsPublic", test_LSMessageIsPublic);

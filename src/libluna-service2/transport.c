@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
 
 #include "transport.h"
 #include "transport_priv.h"
@@ -506,30 +506,34 @@ _LSTransportClientShutdownDirty(_LSTransportClient *client)
 bool
 _LSTransportGetCancelToken(_LSTransportMessage *message, int *token)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     *token = 0;
     bool success = false;
-    struct json_object *tokenObj = NULL;
+    jvalue_ref tokenObj = NULL;
 
     LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeCancelMethodCall);
 
     const char *payload = _LSTransportMessageGetPayload(message);
 
-    struct json_object *object = json_tokener_parse(payload);
-    if (JSON_ERROR(object))
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
+    if (jis_null(object))
     {
         goto error;
     }
 
-    if (!json_object_object_get_ex(object, "token", &tokenObj))
+    if (!jobject_get_exists(object, J_CSTR_TO_BUF("token"), &tokenObj))
     {
         goto error;
     }
 
-    *token = json_object_get_int(tokenObj);
+    (void)jnumber_get_i32(tokenObj, token);/* TODO: handle appropriately */
 
     success = true;
 error:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
     return success;
 }
 

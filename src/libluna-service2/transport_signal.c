@@ -19,7 +19,7 @@
 
 #include <errno.h>
 #include <string.h>
-#include <cjson/json.h>
+#include <pbnjson.h>
 #include "transport_utils.h"
 #include "transport_priv.h"
 #include "transport_signal.h"
@@ -272,11 +272,14 @@ LSTransportSendSignal(_LSTransport *transport, const char *category, const char 
 char*
 LSTransportServiceStatusSignalGetServiceName(_LSTransportMessage *message)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeServiceDownSignal
               || _LSTransportMessageGetType(message) == _LSTransportMessageTypeServiceUpSignal);
 
     char *service_name = NULL;
-    struct json_object *service_name_obj = NULL;
+    jvalue_ref service_name_obj = NULL;
     const char *payload = _LSTransportMessageGetPayload(message);
 
     if (!payload)
@@ -286,20 +289,24 @@ LSTransportServiceStatusSignalGetServiceName(_LSTransportMessage *message)
     }
 
     /* get the serviceName part of the JSON object */
-    struct json_object *payload_json = json_tokener_parse(payload);
+    jvalue_ref payload_json = jdom_parse(j_cstr_to_buffer(payload),
+                                         DOMOPT_NOOPT, &schemaInfo);
 
-    bool ret = json_object_object_get_ex(payload_json, SERVICE_STATUS_SERVICE_NAME, &service_name_obj);
+    bool ret = jobject_get_exists(payload_json,
+                                  J_CSTR_TO_BUF(SERVICE_STATUS_SERVICE_NAME),
+                                  &service_name_obj);
 
     if (ret)
     {
-        service_name = g_strdup(json_object_get_string(service_name_obj));
+        raw_buffer service_name_buf = jstring_get_fast(service_name_obj);
+        service_name = g_strndup(service_name_buf.m_str, service_name_buf.m_len);
     }
     else
     {
         LOG_LS_ERROR(MSGID_LS_INVALID_JSON, 0, "Unable to get service name string from payload: %s", payload);
     }
 
-    json_object_put(payload_json);
+    j_release(&payload_json);
 
     return service_name;
 }

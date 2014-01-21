@@ -28,7 +28,7 @@
 #define ENOTCONN WSAENOTCONN
 #endif
 
-#include <cjson/json.h>
+#include <pbnjson.h>
 
 #include <luna-service2/lunaservice.h>
 
@@ -1372,17 +1372,13 @@ _LSHandleReply(LSHandle *sh, _LSTransportMessage *transport_msg)
     return ret;
 }
 
-static const char *
-_json_get_string(struct json_object *object, const char *label)
+static char *
+_json_get_string(jvalue_ref object, const char *label)
 {
-    struct json_object *label_obj = NULL;
-
-    if (!json_object_object_get_ex(object, label, &label_obj))
-    {
-        return NULL;
-    }
-
-    return json_object_get_string(label_obj);
+    raw_buffer string_buf = jstring_get_fast(
+        jobject_get(object, j_cstr_to_buffer(label))
+    );
+    return g_strndup(string_buf.m_str, string_buf.m_len);
 }
 
 /*
@@ -1398,20 +1394,27 @@ _send_match(LSHandle        *sh,
              _Call        **ret_call,
              LSError        *lserror)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     char *rule = NULL;
-    struct json_object *object = json_tokener_parse(payload);
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
     LSMessageToken token;
     bool retVal = false;
     char *key = NULL;
 
-    if (JSON_ERROR(object))
+    char *category = NULL;
+    char *method = NULL;
+
+    if (jis_null(object))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -EINVAL, "Invalid signal/addmatch payload");
         goto error;
     }
 
-    const char *category = _json_get_string(object, "category");
-    const char *method = _json_get_string(object, "method");
+    category = _json_get_string(object, "category");
+    method = _json_get_string(object, "method");
 
     retVal = LSTransportRegisterSignal(sh->transport, category, method, &token, lserror);
     if (!retVal) goto error;
@@ -1428,9 +1431,13 @@ _send_match(LSHandle        *sh,
     _Call *call = _CallNew(CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token, method);
 
     //call->rule = g_strdup(rule);
-    call->signal_method = g_strdup(method);
-    call->signal_category = g_strdup(category);
+    call->signal_category = category;
+    call->signal_method = method;
     call->match_key = g_strdup(key);
+
+    /* release ownership over method and category (moved to call structure) */
+    category = NULL;
+    method = NULL;
 
     if (ret_call)
     {
@@ -1438,10 +1445,12 @@ _send_match(LSHandle        *sh,
     }
 
 error:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
 
     g_free(key);
     g_free(rule);
+    g_free(category);
+    g_free(method);
     return retVal;
 }
 
@@ -1454,19 +1463,24 @@ _send_reg_server_status(LSHandle *sh,
              _Call        **ret_call,
              LSError *lserror)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     bool retVal = false;
     LSMessageToken token;
 
-    struct json_object *object = json_tokener_parse(payload);
-    if (is_error(object))
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
+    if (jis_null(object))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Malformed json.");
         goto error;
     }
 
-    struct json_object *child = json_object_object_get(object, "serviceName");
+    jvalue_ref child = jobject_get(object, J_CSTR_TO_BUF("serviceName"));
 
-    const char *serviceName = json_object_get_string(child);
+    raw_buffer child_buf = jstring_get_fast(child);
+    char *serviceName = g_strndup(child_buf.m_str, child_buf.m_len);
 
     if (!serviceName)
     {
@@ -1493,7 +1507,8 @@ _send_reg_server_status(LSHandle *sh,
     retVal = true;
 
 error:
-    if (!is_error(object)) json_object_put(object);
+    j_release(&object);
+    g_free(serviceName);
 
     return retVal;
 }
@@ -1971,36 +1986,43 @@ LSCallCancel(LSHandle *sh, LSMessageToken token, LSError *lserror)
 static bool
 _ServerStatusHelper(LSHandle *sh, LSMessage *message, void *ctx)
 {
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
     const char *payload = LSMessageGetPayload(message);
 
-    struct json_object *object = json_tokener_parse(payload);
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
 
     _ServerStatus *server_status = (_ServerStatus*)ctx;
     if (!server_status) goto error;
 
-    if (!JSON_ERROR(object))
+    if (!jis_null(object))
     {
-        const char *serviceName;
         bool connected;
 
-        struct json_object *serviceObj = NULL;
-        struct json_object *connectedObj = NULL;
+        jvalue_ref serviceObj = NULL;
+        jvalue_ref connectedObj = NULL;
 
-        if (!json_object_object_get_ex(object, "serviceName", &serviceObj)) goto error;
-        if (!json_object_object_get_ex(object, "connected", &connectedObj)) goto error;
+        if (!jobject_get_exists(object, J_CSTR_TO_BUF("serviceName"),
+                                &serviceObj)) goto error;
+        if (!jobject_get_exists(object, J_CSTR_TO_BUF("connected"),
+                                &connectedObj)) goto error;
 
-        serviceName = json_object_get_string(serviceObj);
-        connected = json_object_get_boolean(connectedObj);
+        (void)jboolean_get(connectedObj, &connected);/* TODO: handle appropriately */
 
         if (server_status->callback)
         {
+            raw_buffer serviceBuf = jstring_get_fast(serviceObj);
+            char *serviceName = g_strndup(serviceBuf.m_str, serviceBuf.m_len);
             server_status->callback
                 (sh, serviceName, connected, server_status->ctx);
+            g_free(serviceName);
         }
     }
 
 error:
-    if (!JSON_ERROR(object)) json_object_put(object);
+    j_release(&object);
     return true;
 }
 

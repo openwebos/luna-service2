@@ -34,11 +34,6 @@ pkg_check_modules(GLIB2 REQUIRED glib-2.0)
 include_directories(${GLIB2_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${GLIB2_CFLAGS_OTHER})
 
-# check if we have cjson
-pkg_check_modules(CJSON REQUIRED cjson)
-include_directories(${CJSON_INCLUDE_DIRS})
-webos_add_compiler_flags(ALL ${CJSON_CFLAGS_OTHER})
-
 # check for pbnjson c library
 pkg_check_modules(PBNJSON_C REQUIRED pbnjson_c>=2.5.0)
 include_directories(${PBNJSON_C_INCLUDE_DIRS})

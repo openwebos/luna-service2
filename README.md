@@ -26,7 +26,6 @@ _luna-service2_:
 * gcc 4.6.3
 * glib-2.0 2.32.1
 * make (any version)
-* openwebos/cjson 1.8.0
 * openwebos/cmake-modules-webos 1.0.0 RC4
 * openwebos/libpbnjson 2.5.0
 * openwebos/PmLogLib 3.0.2

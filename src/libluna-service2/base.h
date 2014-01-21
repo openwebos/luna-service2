@@ -36,8 +36,6 @@
  * @{
  */
 
-#define JSON_ERROR(x) (!x || is_error(x))
-
 extern bool _ls_enable_utf8_validation;
 
 void LSDebugLogIncoming(const char *where, _LSTransportMessage *message);

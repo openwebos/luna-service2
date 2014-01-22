@@ -97,36 +97,51 @@ ClockPrint(void)
     ClockPrintTime(&time);
 }
 
-
 /**
- * diff = a - b
+ * result = x - y
  */
-void
-ClockDiff(struct timespec *diff, struct timespec *a, struct timespec *b)
+bool
+ClockDiff(struct timespec *result, const struct timespec *x, const struct timespec *_y)
 {
-    diff->tv_sec = a->tv_sec - b->tv_sec;
-    diff->tv_nsec = a->tv_nsec - b->tv_nsec;
+    struct timespec y = *_y;
 
-    if (diff->tv_nsec < 0)
+    /* Perform the carry for the later subtraction by updating y. */
+    if (x->tv_nsec < y.tv_nsec)
     {
-        diff->tv_nsec += NSEC_PER_SEC;
-        diff->tv_sec--;
+        int sec = (y.tv_nsec - x->tv_nsec) / NSEC_PER_SEC + 1;
+        y.tv_nsec -= NSEC_PER_SEC * sec;
+        y.tv_sec += sec;
     }
+    else if (x->tv_nsec - y.tv_nsec > NSEC_PER_SEC)
+    {
+        int sec = (x->tv_nsec - y.tv_nsec) / NSEC_PER_SEC;
+        y.tv_nsec += NSEC_PER_SEC * sec;
+        y.tv_sec -= sec;
+    }
+
+    /* Compute the time remaining to wait.
+    tv_usec is certainly positive. */
+    result->tv_sec = x->tv_sec - y.tv_sec;
+    result->tv_nsec = x->tv_nsec - y.tv_nsec;
+
+    /* Return true if result is negative. */
+    return x->tv_sec < y.tv_sec;
 }
 
 /**
  * sum += b
  */
 void
-ClockAccum (struct timespec *sum, struct timespec *b)
+ClockAccum (struct timespec *sum, const struct timespec *b)
 {
-    sum->tv_nsec += b->tv_nsec;
-    while (sum->tv_nsec >= NSEC_PER_SEC)
-    {
-        sum->tv_nsec -= NSEC_PER_SEC;
-        sum->tv_sec++;
-    }
     sum->tv_sec += b->tv_sec;
+    sum->tv_nsec += b->tv_nsec;
+
+    if (sum->tv_nsec > NSEC_PER_SEC)
+    {
+        sum->tv_sec += sum->tv_nsec / NSEC_PER_SEC;
+        sum->tv_nsec %= NSEC_PER_SEC;
+    }
 }
 
 void
@@ -135,13 +150,13 @@ ClockAccumMs (struct timespec *sum, int duration_ms)
     int sec = duration_ms / 1000;
     int nsec = (duration_ms - (sec * 1000)) * NSEC_PER_MSEC;
 
-    sum->tv_nsec += nsec;
-    while (sum->tv_nsec >= NSEC_PER_SEC)
-    {
-        sum->tv_nsec -= NSEC_PER_SEC;
-        sum->tv_sec++;
-    }
     sum->tv_sec += sec;
+    sum->tv_nsec += nsec;
+    if (sum->tv_nsec > NSEC_PER_SEC)
+    {
+        sum->tv_sec += sum->tv_nsec / NSEC_PER_SEC;
+        sum->tv_nsec %= NSEC_PER_SEC;
+    }
 }
 
 long

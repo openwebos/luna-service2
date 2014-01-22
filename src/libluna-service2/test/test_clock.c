@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -174,100 +174,45 @@ test_ClockPrint(void)
     g_test_trap_assert_stderr("*s.*ms*");
 }
 
-static void
-test_ClockDiff_validate(long sec_a, long nsec_a, long sec_b, long nsec_b)
+struct timespec to_timespec(int sec, int nsec)
 {
-    struct timespec a;
-    struct timespec b;
-    struct timespec resulttime;
-
-    a.tv_sec = sec_a;
-    a.tv_nsec = nsec_a;
-    b.tv_sec = sec_b;
-    b.tv_nsec = nsec_b;
-
-    long long total_nsec_a = (sec_a * NSEC_PER_SEC) + nsec_a;
-    long long total_nsec_b = (sec_b * NSEC_PER_SEC) + nsec_b;
-    long long total_nsec = total_nsec_a - total_nsec_b;
-
-    ClockDiff(&resulttime, &a, &b);
-
-    long long total_result_nsec = (resulttime.tv_sec * NSEC_PER_SEC) + resulttime.tv_nsec;
-
-    g_assert(total_result_nsec == total_nsec);
+    struct timespec ret = {.tv_sec = sec, .tv_nsec = nsec};
+    return ret;
 }
 
-/* void ClockDiff(struct timespec *diff, struct timespec *a, struct timespec *b) */
+bool timespec_equal(struct timespec* a, struct timespec* b)
+{
+    return (a->tv_nsec == b->tv_nsec) && (a->tv_sec == b->tv_sec);
+}
+
+static void
+test_ClockDiff_validate(struct timespec diff, struct timespec a, struct timespec b, bool negative_result)
+{
+    struct timespec resulttime;
+    g_assert(ClockDiff(&resulttime, &a, &b) == negative_result);
+    g_assert(timespec_equal(&resulttime, &diff));
+}
+
 static void
 test_ClockDiff(void)
 {
-    /* INT_MIN/INT_MAX aren't corner cases, but are typical in writing errors. */
-    test_ClockDiff_validate(0, 0, 0, 0);
-    test_ClockDiff_validate(1, 0, 1, 0);
-    test_ClockDiff_validate(2, 0, 2, 0);
-    test_ClockDiff_validate(0, 1, 0, 1);
-    test_ClockDiff_validate(1, 1, 1, 1);
-    test_ClockDiff_validate(-1, 0, 1, 0);
-    test_ClockDiff_validate(1, 0, -1, 0);
-    test_ClockDiff_validate(-1, -1, 1, 1);
-    test_ClockDiff_validate(1, 0, -1, 0);
-    test_ClockDiff_validate(0, 0, 0, -1);
-    test_ClockDiff_validate(0, -1, 0, -1);
-    test_ClockDiff_validate(LONG_MAX, 0, 0, 0);
-    test_ClockDiff_validate(LONG_MIN, 0, 0, 0);
-    test_ClockDiff_validate(INT_MAX, 0, 0, 0);
-    test_ClockDiff_validate(INT_MIN, 0, 0, 0);
-    test_ClockDiff_validate(0, 0, LONG_MIN, 0);
-    test_ClockDiff_validate(0, 0, LONG_MAX, 0);
-    test_ClockDiff_validate(0, 0, INT_MIN, 0);
-    test_ClockDiff_validate(0, 0, INT_MAX, 0);
-    test_ClockDiff_validate(0, 0, 0, -NSEC_PER_SEC);
-    test_ClockDiff_validate(0, 0, 0, NSEC_PER_SEC);
-    test_ClockDiff_validate(0, 0, 0, INT_MIN);
-    test_ClockDiff_validate(0, 0, 0, INT_MAX);
-    test_ClockDiff_validate(LONG_MIN, 0, LONG_MIN, 0);
-    test_ClockDiff_validate(LONG_MAX, 0, LONG_MAX, 0);
-    test_ClockDiff_validate(LONG_MAX, 0, LONG_MIN, 0);
-    test_ClockDiff_validate(LONG_MIN, 0, LONG_MAX, 0);
-    test_ClockDiff_validate(LONG_MAX, 0, -1, 0);
-    test_ClockDiff_validate(LONG_MIN, 0, -1, 0);
-    test_ClockDiff_validate(LONG_MAX, 0, 0, -1);
-    test_ClockDiff_validate(LONG_MIN, 0, 0, -1);
-    test_ClockDiff_validate(-1, NSEC_PER_SEC, 0, 0);
-    test_ClockDiff_validate(-1, -NSEC_PER_SEC, 0, 0);
-    test_ClockDiff_validate(0, 0, -1, LONG_MAX);
-    test_ClockDiff_validate(0, 0, -1, LONG_MIN);
-    test_ClockDiff_validate(0, 0, LONG_MAX, 0);
-    test_ClockDiff_validate(0, 0, LONG_MIN, 0);
-    test_ClockDiff_validate(INT_MAX, -1, 0, 0);
-    test_ClockDiff_validate(INT_MIN, -1, 0, 0);
-    test_ClockDiff_validate(-1, INT_MAX, 0, 0);
-    test_ClockDiff_validate(-1, INT_MIN, 0, 0);
-    test_ClockDiff_validate(LONG_MAX, NSEC_PER_SEC, LONG_MAX, NSEC_PER_SEC);
-    test_ClockDiff_validate(LONG_MIN, -NSEC_PER_SEC, LONG_MIN, -NSEC_PER_SEC);
+    test_ClockDiff_validate(to_timespec(0, 0), to_timespec(0, 0), to_timespec(0, 0), false);
+    test_ClockDiff_validate(to_timespec(0, 0), to_timespec(1, 0), to_timespec(1, 0), false);
+    test_ClockDiff_validate(to_timespec(1, 0), to_timespec(2, 0), to_timespec(1, 0), false);
+    test_ClockDiff_validate(to_timespec(-1, 0), to_timespec(1, 0), to_timespec(2, 0), true);
+    test_ClockDiff_validate(to_timespec(0, 0), to_timespec(0, 1), to_timespec(0, 1), false);
+    test_ClockDiff_validate(to_timespec(0, 1), to_timespec(0, 2), to_timespec(0, 1), false);
+    test_ClockDiff_validate(to_timespec(-1, NSEC_PER_SEC-1), to_timespec(0, 1), to_timespec(0, 2), true);
+    test_ClockDiff_validate(to_timespec(-2, NSEC_PER_SEC-1), to_timespec(1, 1), to_timespec(2, 2), true);
 }
 
 static void
-test_ClockAccum_validate(long sec_a, long nsec_a, long sec_b, long nsec_b)
+test_ClockAccum_validate(struct timespec diff, struct timespec a, struct timespec b)
 {
-    struct timespec a;
-    struct timespec b;
-
-    a.tv_sec = sec_a;
-    a.tv_nsec = nsec_a;
-    b.tv_sec = sec_b;
-    b.tv_nsec = nsec_b;
-
-    long long total_nsec_a = (sec_a * NSEC_PER_SEC) + nsec_a;
-    long long total_nsec_b = (sec_b * NSEC_PER_SEC) + nsec_b;
-    long long total_nsec = total_nsec_a + total_nsec_b;
-
     /* a will contain the total sum a+b */
     ClockAccum(&a, &b);
 
-    long long total_result_nsec = (a.tv_sec * NSEC_PER_SEC) + a.tv_nsec;
-
-    g_assert(total_result_nsec == total_nsec);
+    g_assert(timespec_equal(&diff, &a));
 }
 
 /* void test_ClockAccum(struct timespec *sum, struct timespec *b) */
@@ -275,49 +220,13 @@ static void
 test_ClockAccum(void)
 {
     /* INT_MIN/INT_MAX aren't corner cases, but are typical in writing errors. */
-    test_ClockAccum_validate(0, 0, 0, 0);
-    test_ClockAccum_validate(1, 0, 1, 0);
-    test_ClockAccum_validate(2, 0, 2, 0);
-    test_ClockAccum_validate(0, 1, 0, 1);
-    test_ClockAccum_validate(1, 1, 1, 1);
-    test_ClockAccum_validate(-1, 0, 1, 0);
-    test_ClockAccum_validate(1, 0, -1, 0);
-    test_ClockAccum_validate(-1, -1, 1, 1);
-    test_ClockAccum_validate(1, 0, -1, 0);
-    test_ClockAccum_validate(0, 0, 0, -1);
-    test_ClockAccum_validate(0, -1, 0, -1);
-    test_ClockAccum_validate(LONG_MAX, 0, 0, 0);
-    test_ClockAccum_validate(LONG_MIN, 0, 0, 0);
-    test_ClockAccum_validate(INT_MAX, 0, 0, 0);
-    test_ClockAccum_validate(INT_MIN, 0, 0, 0);
-    test_ClockAccum_validate(0, 0, LONG_MIN, 0);
-    test_ClockAccum_validate(0, 0, LONG_MAX, 0);
-    test_ClockAccum_validate(0, 0, INT_MIN, 0);
-    test_ClockAccum_validate(0, 0, INT_MAX, 0);
-    test_ClockAccum_validate(0, 0, 0, -NSEC_PER_SEC);
-    test_ClockAccum_validate(0, 0, 0, NSEC_PER_SEC);
-    test_ClockAccum_validate(0, 0, 0, INT_MIN);
-    test_ClockAccum_validate(0, 0, 0, INT_MAX);
-    test_ClockAccum_validate(LONG_MIN, 0, LONG_MIN, 0);
-    test_ClockAccum_validate(LONG_MAX, 0, LONG_MAX, 0);
-    test_ClockAccum_validate(LONG_MAX, 0, LONG_MIN, 0);
-    test_ClockAccum_validate(LONG_MIN, 0, LONG_MAX, 0);
-    test_ClockAccum_validate(LONG_MAX, 0, -1, 0);
-    test_ClockAccum_validate(LONG_MIN, 0, -1, 0);
-    test_ClockAccum_validate(LONG_MAX, 0, 0, -1);
-    test_ClockAccum_validate(LONG_MIN, 0, 0, -1);
-    test_ClockAccum_validate(-1, NSEC_PER_SEC, 0, 0);
-    test_ClockAccum_validate(-1, -NSEC_PER_SEC, 0, 0);
-    test_ClockAccum_validate(0, 0, -1, LONG_MAX);
-    test_ClockAccum_validate(0, 0, -1, LONG_MIN);
-    test_ClockAccum_validate(0, 0, LONG_MAX, 0);
-    test_ClockAccum_validate(0, 0, LONG_MIN, 0);
-    test_ClockAccum_validate(INT_MAX, -1, 0, 0);
-    test_ClockAccum_validate(INT_MIN, -1, 0, 0);
-    test_ClockAccum_validate(-1, INT_MAX, 0, 0);
-    test_ClockAccum_validate(-1, INT_MIN, 0, 0);
-    test_ClockAccum_validate(LONG_MAX, NSEC_PER_SEC, LONG_MAX, NSEC_PER_SEC);
-    test_ClockAccum_validate(LONG_MIN, -NSEC_PER_SEC, LONG_MIN, -NSEC_PER_SEC);
+    test_ClockAccum_validate(to_timespec(0, 0), to_timespec(0, 0), to_timespec(0, 0));
+    test_ClockAccum_validate(to_timespec(1, 0), to_timespec(1, 0), to_timespec(0, 0));
+    test_ClockAccum_validate(to_timespec(2, 0), to_timespec(1, 0), to_timespec(1, 0));
+    test_ClockAccum_validate(to_timespec(0, 1), to_timespec(0, 1), to_timespec(0, 0));
+    test_ClockAccum_validate(to_timespec(0, 1), to_timespec(0, 0), to_timespec(0, 1));
+    test_ClockAccum_validate(to_timespec(0, 2), to_timespec(0, 1), to_timespec(0, 1));
+    test_ClockAccum_validate(to_timespec(1, 2*(NSEC_PER_SEC/2 + 1) - NSEC_PER_SEC) , to_timespec(0, NSEC_PER_SEC/2 + 1), to_timespec(0, NSEC_PER_SEC/2 + 1));
 }
 
 static void

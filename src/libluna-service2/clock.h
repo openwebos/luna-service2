@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ void ClockStr(GString *str, struct timespec *time);
 void ClockPrintTime(struct timespec *time);
 void ClockPrint(void);
 
-void ClockDiff(struct timespec *diff, struct timespec *a, struct timespec *b);
-void ClockAccum(struct timespec *sum, struct timespec *b);
+bool ClockDiff(struct timespec *diff, const struct timespec *a, const struct timespec *b);
+void ClockAccum(struct timespec *sum, const struct timespec *b);
 
 void ClockAccumMs (struct timespec *sum, int duration_ms);
 

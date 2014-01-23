@@ -23,6 +23,7 @@
 #include <string.h>
 #include <pbnjson.h>
 
+#include "simple_pbnjson.h"
 #include "lserror_pbnjson.h"
 
 #include "transport.h"
@@ -58,17 +59,6 @@
 
 static inline bool _LSTransportSupportsSecurityFeatures(const _LSTransport *transport);
 static inline bool _LSHubClientExePathMatches(const _LSTransportClient *client, const char *path);
-
-/* Handy macro to define local C-string from raw_buffer
- * @param name specifies which identifier to use for variable
- * @param buf says from which variable to get raw_buffer
- */
-#define LOCAL_CSTR_FROM_BUF(name, buf) \
-    char name[buf.m_len+1]; \
-    { \
-        (void) memcpy(name, buf.m_str, buf.m_len); \
-        name[buf.m_len] = '\0'; \
-    }
 
 /*
  * Handy function to obtain a string property from object
@@ -578,11 +568,11 @@ _LSHubRoleTypeStringToType(raw_buffer type)
 {
     LOG_LS_DEBUG("%s: type: \"%.*s\"\n", __func__, (int)type.m_len, type.m_str);
 
-    if (strlen(ROLE_TYPE_REGULAR) == type.m_len && memcmp(ROLE_TYPE_REGULAR, type.m_str, type.m_len) == 0)
+    if (buffer_eq_cstr(type, ROLE_TYPE_REGULAR))
     {
         return LSHubRoleTypeRegular;
     }
-    else if (strlen(ROLE_TYPE_PRIVILEGED) == type.m_len && memcmp(ROLE_TYPE_PRIVILEGED, type.m_str, type.m_len) == 0)
+    else if (buffer_eq_cstr(type, ROLE_TYPE_PRIVILEGED))
     {
         return LSHubRoleTypePrivileged;
     }

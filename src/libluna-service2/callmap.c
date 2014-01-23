@@ -32,6 +32,7 @@
 
 #include <luna-service2/lunaservice.h>
 
+#include "simple_pbnjson.h"
 //#include "callmap.h"
 #include "transport.h"
 #include "message.h"
@@ -1471,44 +1472,50 @@ _send_reg_server_status(LSHandle *sh,
 
     jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
                                    &schemaInfo);
-    if (jis_null(object))
-    {
-        _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Malformed json.");
-        goto error;
-    }
+    do {
+        if (jis_null(object))
+        {
+            _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Malformed json.");
+            break;
+        }
 
-    jvalue_ref child = jobject_get(object, J_CSTR_TO_BUF("serviceName"));
+        jvalue_ref child = jobject_get(object, J_CSTR_TO_BUF("serviceName"));
 
-    raw_buffer child_buf = jstring_get_fast(child);
-    char *serviceName = g_strndup(child_buf.m_str, child_buf.m_len);
+        raw_buffer serviceNameBuf = jstring_get_fast(child);
 
-    if (!serviceName)
-    {
-        _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1, "Invalid payload.");
-        goto error;
-    }
+        if (!serviceNameBuf.m_str)
+        {
+            _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1, "Invalid payload.");
+            break;
+        }
 
-    retVal = LSTransportSendQueryServiceStatus(sh->transport, serviceName,
-                                               &token, lserror);
-    if (!retVal)
-    {
-        _LSErrorSet(lserror, MSGID_LS_SEND_ERROR, -1, "Could not send QueryServiceStatus.");
-        goto error;
-    }
+        LOCAL_CSTR_FROM_BUF(serviceName, serviceNameBuf);
 
-    _Call *call = _CallNew(CALL_TYPE_SIGNAL_SERVER_STATUS,
-        serviceName, callback, ctx, token, luri ? luri->methodName : NULL);
+        retVal = LSTransportSendQueryServiceStatus(sh->transport, serviceName,
+                                                   &token, lserror);
+        if (!retVal)
+        {
+            _LSErrorSet(lserror, MSGID_LS_SEND_ERROR, -1, "Could not send QueryServiceStatus.");
+            break;
+        }
 
-    if (ret_call)
-    {
-        *ret_call = call;
-    }
+        _Call *call = _CallNew(CALL_TYPE_SIGNAL_SERVER_STATUS,
+            serviceName, callback, ctx, token, luri ? luri->methodName : NULL);
+        if (!call)
+        {
+            _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
+            break;
+        }
 
-    retVal = true;
+        if (ret_call)
+        {
+            *ret_call = call;
+        }
 
-error:
+        retVal = true;
+
+    } while(0);
     j_release(&object);
-    g_free(serviceName);
 
     return retVal;
 }
@@ -2013,11 +2020,9 @@ _ServerStatusHelper(LSHandle *sh, LSMessage *message, void *ctx)
 
         if (server_status->callback)
         {
-            raw_buffer serviceBuf = jstring_get_fast(serviceObj);
-            char *serviceName = g_strndup(serviceBuf.m_str, serviceBuf.m_len);
+            LOCAL_CSTR_FROM_BUF(serviceName, jstring_get_fast(serviceObj));
             server_status->callback
                 (sh, serviceName, connected, server_status->ctx);
-            g_free(serviceName);
         }
     }
 

@@ -22,7 +22,7 @@
 #include <pbnjson.h>
 #include <luna-service2/lunaservice.h>
 
-#define JSON_ERROR(x) (!x || is_error(x))
+#include "simple_pbnjson.h"
 
 static int sLogLevel = G_LOG_LEVEL_MESSAGE;
 
@@ -153,63 +153,65 @@ main(int argc, char **argv)
     const char * msg = argv[optionCount + 2];
 
     jvalue_ref serviceJson = NULL;
-    char* service = NULL;
 
     jvalue_ref msgJson = jdom_parse(j_cstr_to_buffer(msg), DOMOPT_NOOPT,
                                     &schemaInfo);
     g_return_val_if_fail(!jis_null(msgJson), -1);
 
-    if (!jobject_get_exists(msgJson, J_CSTR_TO_BUF("serviceName"),
-                            &serviceJson))
-    {
-        g_warning("No \"serviceName\" in JSON message");
-        goto error;
-    }
-
-    if (!jis_string(serviceJson))
-    {
-        g_warning("serviceName is not a string");
-        goto error;
-    }
-
-    raw_buffer service_buf = jstring_get_fast(serviceJson);
-    service = strndup(service_buf.m_str, service_buf.m_len);
-
-    g_log_set_default_handler(g_log_filter, NULL);
-
-    mainLoop = g_main_loop_new(NULL, FALSE);
-    if (NULL == mainLoop) goto error;
-
-    g_return_val_if_fail(mainLoop != NULL, -1);
-
-    bool serviceInit = LSRegister(NULL, &sh, &lserror);
-    if (!serviceInit) goto error;
-
-    bool gmainAttach = LSGmainAttach(sh, mainLoop, &lserror);
-    if (!gmainAttach) goto error;
-
-    //LSMessageToken sessionToken;
-    //bool retVal;
-
-    /* registerServerStatus for the service that we care about and then
-     * do the LSCall in the callback */
-    MessageInfo msg_info;
-    msg_info.uri = uri;
-    msg_info.msg = msg;
-    msg_info.loop = mainLoop;
-
-    g_message("Registering server status for: %s", service);
-
     void *server_status_cookie = NULL;
-    if (!LSRegisterServerStatusEx(sh, service, _service_status, &msg_info,
-                                  &server_status_cookie, &lserror))
+
+    do
     {
-        goto error;
-    }
+        if (!jobject_get_exists(msgJson, J_CSTR_TO_BUF("serviceName"),
+                                &serviceJson))
+        {
+            g_warning("No \"serviceName\" in JSON message");
+            break;
+        }
 
-    g_main_loop_run(mainLoop);
+        if (!jis_string(serviceJson))
+        {
+            g_warning("serviceName is not a string");
+            break;
+        }
 
-error:
+        g_log_set_default_handler(g_log_filter, NULL);
+
+        mainLoop = g_main_loop_new(NULL, FALSE);
+        if (NULL == mainLoop) break;
+
+        g_return_val_if_fail(mainLoop != NULL, -1);
+
+        bool serviceInit = LSRegister(NULL, &sh, &lserror);
+        if (!serviceInit) break;
+
+        bool gmainAttach = LSGmainAttach(sh, mainLoop, &lserror);
+        if (!gmainAttach) break;
+
+        //LSMessageToken sessionToken;
+        //bool retVal;
+
+        /* registerServerStatus for the service that we care about and then
+         * do the LSCall in the callback */
+        MessageInfo msg_info;
+        msg_info.uri = uri;
+        msg_info.msg = msg;
+        msg_info.loop = mainLoop;
+
+        LOCAL_CSTR_FROM_BUF(service, jstring_get_fast(serviceJson));
+
+        g_message("Registering server status for: %s", service);
+
+        if (!LSRegisterServerStatusEx(sh, service, _service_status, &msg_info,
+                                      &server_status_cookie, &lserror))
+        {
+            break;
+        }
+
+        g_main_loop_run(mainLoop);
+
+    } while(0);
+
     if (server_status_cookie &&
         !LSCancelServerStatus(sh, server_status_cookie, &lserror))
     {
@@ -236,7 +238,6 @@ error:
     }
 
     j_release(&msgJson);
-    free(service);
 
     return 0;
 }

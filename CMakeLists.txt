@@ -29,6 +29,7 @@ include(FindPkgConfig)
 
 include_directories(src/libluna-service2)
 include_directories(include/public)
+include_directories(include/private)
 
 pkg_check_modules(GLIB2 REQUIRED glib-2.0)
 include_directories(${GLIB2_INCLUDE_DIRS})

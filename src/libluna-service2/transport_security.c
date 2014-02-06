@@ -64,14 +64,11 @@ _LSTransportCredNew(void)
 {
     _LSTransportCred *ret = g_slice_new(_LSTransportCred);
 
-    if (ret)
-    {
-        ret->pid = LS_PID_INVALID;
-        ret->uid = LS_UID_INVALID;
-        ret->gid = LS_GID_INVALID;
-        ret->exe_path = NULL;
-        ret->cmd_line = NULL;
-    }
+    ret->pid = LS_PID_INVALID;
+    ret->uid = LS_UID_INVALID;
+    ret->gid = LS_GID_INVALID;
+    ret->exe_path = NULL;
+    ret->cmd_line = NULL;
 
     return ret;
 }
@@ -204,12 +201,6 @@ _LSTransportPidToExe(pid_t pid, LSError *lserror)
     char *proc_exe_path = g_strdup_printf("/proc/%d/exe", pid);
     char *proc_root_path = g_strdup_printf("/proc/%d/root",pid);
 
-    if (!proc_exe_path || !proc_root_path)
-    {
-        _LSErrorSetOOM(lserror);
-        goto cleanup;
-    }
-
     exe =  g_file_read_link(proc_exe_path, &error);
 
     if (!exe)
@@ -239,10 +230,10 @@ _LSTransportPidToExe(pid_t pid, LSError *lserror)
 
 
 cleanup:
-    if (proc_exe_path) g_free(proc_exe_path);
-    if (proc_root_path) g_free(proc_root_path);
-    if (exe) g_free(exe);
-    if (root) g_free(root);
+    g_free(proc_exe_path);
+    g_free(proc_root_path);
+    g_free(exe);
+    g_free(root);
 
     return ret;
 }
@@ -267,12 +258,6 @@ _LSTransportPidToCmdLine(pid_t pid, LSError *lserror)
     int i = 0;
     gsize len = 0;
     char *proc_cmd_line_path = g_strdup_printf("/proc/%d/cmdline", pid);
-
-    if (!proc_cmd_line_path)
-    {
-        _LSErrorSetOOM(lserror);
-        goto cleanup;
-    }
 
     bool ret = g_file_get_contents(proc_cmd_line_path, &cmd_line, &len, &error);
 
@@ -303,7 +288,7 @@ _LSTransportPidToCmdLine(pid_t pid, LSError *lserror)
     }
 
 cleanup:
-    if (proc_cmd_line_path) g_free(proc_cmd_line_path);
+    g_free(proc_cmd_line_path);
 
     return cmd_line;
 }

@@ -102,20 +102,7 @@ _LSTransportMessageNew(unsigned long payload_size)
 {
     _LSTransportMessage *ret = g_slice_new0(_LSTransportMessage);
 
-    if (!ret)
-    {
-        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM: Can not allocate memory slice");
-        return NULL;
-    }
-
     ret->raw = g_malloc(sizeof(_LSTransportMessageRaw) + payload_size);
-
-    if (!ret->raw)
-    {
-        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM: Memory allocation error");
-        g_free(ret);
-        return NULL;
-    }
 
     ret->raw->header.len = payload_size;
     ret->raw->header.token = LSMESSAGE_TOKEN_INVALID;
@@ -160,10 +147,8 @@ _LSTransportMessageNewRef(unsigned long payload_size)
 {
     _LSTransportMessage *ret = _LSTransportMessageNew(payload_size);
 
-    if (ret)
-    {
-        ret->ref = 1;
-    }
+    ret->ref = 1;
+
     return ret;
 }
 
@@ -219,26 +204,23 @@ _LSTransportMessageCopyNewRef(_LSTransportMessage *message)
     int body_size = _LSTransportMessageGetBodySize(message);
     _LSTransportMessage *ret = _LSTransportMessageNewRef(body_size);
 
-    if (ret)
+    /* NOTE: tx_bytes_remaining is set when we actually put the message
+     * on the queue with _LSTransportSendMessage */
+
+    if (message->app_id)
     {
-        /* NOTE: tx_bytes_remaining is set when we actually put the message
-         * on the queue with _LSTransportSendMessage */
-
-        if (message->app_id)
-        {
-            size_t offset = message->app_id - _LSTransportMessageGetBody(message);
-            ret->app_id = _LSTransportMessageGetBody(ret) + offset;
-        }
-        else
-        {
-            ret->app_id = NULL;
-        }
-
-        /* NOTE: does not copy timeout source id */
-        _LSTransportMessageSetType(ret, _LSTransportMessageGetType(message));
-        _LSTransportMessageSetToken(ret, _LSTransportMessageGetToken(message));
-        _LSTransportMessageSetBody(ret, _LSTransportMessageGetBody(message), body_size);
+        size_t offset = message->app_id - _LSTransportMessageGetBody(message);
+        ret->app_id = _LSTransportMessageGetBody(ret) + offset;
     }
+    else
+    {
+        ret->app_id = NULL;
+    }
+
+    /* NOTE: does not copy timeout source id */
+    _LSTransportMessageSetType(ret, _LSTransportMessageGetType(message));
+    _LSTransportMessageSetToken(ret, _LSTransportMessageGetToken(message));
+    _LSTransportMessageSetBody(ret, _LSTransportMessageGetBody(message), body_size);
 
     return ret;
 }
@@ -340,16 +322,13 @@ _LSTransportMessageFromVectorNewRef(const struct iovec *iov, int iovcnt, unsigne
 {
     _LSTransportMessage *message = _LSTransportMessageNewRef(total_len - sizeof(_LSTransportHeader));
 
-    if (message)
-    {
-        int i;
-        int offset = 0;
+    int i;
+    int offset = 0;
 
-        for (i = 0; i < iovcnt; i++)
-        {
-            memcpy((char*)message->raw + offset, iov[i].iov_base, iov[i].iov_len);
-            offset += iov[i].iov_len;
-        }
+    for (i = 0; i < iovcnt; i++)
+    {
+        memcpy((char*)message->raw + offset, iov[i].iov_base, iov[i].iov_len);
+        offset += iov[i].iov_len;
     }
 
     return message;

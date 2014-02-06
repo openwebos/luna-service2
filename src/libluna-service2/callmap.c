@@ -297,30 +297,13 @@ _UriParse(const char *uri, LSError *lserror)
     }
 
     luri = g_new0(_Uri, 1);
-    if (!luri)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "%s: OOM", __FUNCTION__);
-        goto error;
-    }
 
     service_name_len = first_slash - uri_p;
     luri->serviceName = g_strndup(uri_p, service_name_len);
     uri_p += service_name_len;
 
-    if (!luri->serviceName)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "%s: OOM", __FUNCTION__);
-        goto error;
-    }
-
     luri->objectPath = g_path_get_dirname(uri_p);
     luri->methodName = g_path_get_basename(uri_p);
-
-    if (!luri->objectPath || !luri->methodName)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "%s: OOM", __FUNCTION__);
-        goto error;
-    }
 
     if (!_validate_service_name(luri->serviceName))
     {
@@ -492,9 +475,8 @@ _CallNew(int type, const char *serviceName,
          LSMessageToken token, const char *methodName)
 {
     _Call *call = g_new0(_Call, 1);
-    if (!call) return NULL;
 
-    call->serviceName = g_strdup(serviceName); /* FIXME: could fail */
+    call->serviceName = g_strdup(serviceName);
     call->callback = callback;
     call->ctx = ctx;
     call->token = token;
@@ -561,7 +543,8 @@ static bool
 _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
             LSError *lserror)
 {
-    bool retVal = true;
+    // TODO: Remove default branch and add parameter checking with assertion,
+    // as far, as we have only one 'true' case.
     GHashTable *table = NULL;
     gpointer    key = NULL;
 
@@ -589,17 +572,9 @@ _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
     _TokenList *token_list = g_hash_table_lookup(table, key);
     if (_TokenListLen(token_list) == 0)
     {
-
         if (!token_list)
         {
             token_list = _TokenListNew();
-
-            if (!token_list)
-            {
-                _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM Could not allocate tokens list.");
-                retVal = false;
-                goto error;
-            }
 
             g_hash_table_replace(table, g_strdup(key), token_list);
         }
@@ -612,8 +587,7 @@ _CallInsert(LSHandle *sh, _CallMap *map, _Call *call, bool single,
 
     g_hash_table_replace(map->tokenMap, (gpointer)call->token, call);
 
-error:
-    return retVal;
+    return true;
 }
 
 static void
@@ -698,25 +672,14 @@ bool
 _CallMapInit(LSHandle *sh, _CallMap **ret_map, LSError *lserror)
 {
     _CallMap *map = g_new0(_CallMap, 1);
-    if (!map)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-        return false;
-    }
 
     map->tokenMap = g_hash_table_new_full(g_direct_hash, g_direct_equal,
                     NULL, (GDestroyNotify)_CallRelease);
-
     map->signalMap = g_hash_table_new_full(g_str_hash, g_str_equal,
                     (GDestroyNotify)g_free, (GDestroyNotify)_TokenListFree);
     map->serviceMap = g_hash_table_new_full(g_str_hash, g_str_equal,
                     (GDestroyNotify)g_free, (GDestroyNotify)_TokenListFree);
 
-    if (!map->tokenMap || !map->signalMap)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-        goto error;
-    }
     if (pthread_mutex_init(&map->lock, NULL))
     {
         _LSErrorSet(lserror, MSGID_LS_MUTEX_ERR, -1, "Could not initialize mutex.");
@@ -806,8 +769,6 @@ _LSMessageSetFromError(_LSTransportMessage *transport_msg, _Call *call, LSMessag
         reply->payload = reply->payloadAllocated;
 
         g_free(escaped);
-
-        if (!reply->payload) goto error;
     }
 
     return;
@@ -995,12 +956,6 @@ _handle_reply(LSHandle *sh, _TokenList *tokens, _LSTransportMessage *msg,
         if (call->callback)
         {
             LSMessage *reply = _LSMessageNewRef(msg, sh);
-            if (!reply)
-            {
-                ret = false;
-                _CallRelease(call);
-                break;
-            }
 
             // translate non-jsonized bus messages here...
             _LSMessageTranslateFromCall(call, reply, server_info);
@@ -1069,11 +1024,6 @@ _LSHandleMessageFailure(LSMessageToken global_token, _LSTransportMessageFailureT
     if (call->callback)
     {
         LSMessage *reply = _LSMessageNewRef(_LSTransportMessageEmpty(), sh);
-        if (!reply)
-        {
-            _CallRelease(call);
-            return;
-        }
 
         /* We will only be calling this on messages that are method calls */
         LS_ASSERT(call->type == CALL_TYPE_METHOD_CALL);
@@ -1199,11 +1149,6 @@ void _send_not_running(LSHandle *sh, _TokenList *tokens)
             if (call->callback)
             {
                 LSMessage *reply = _LSMessageNewRef(_LSTransportMessageEmpty(), sh);
-                if (!reply)
-                {
-                    _CallRelease(call);
-                    break;
-                }
 
                 reply->responseToken = call->token;
 
@@ -1422,7 +1367,7 @@ _LSHandleReply(LSHandle *sh, _LSTransportMessage *transport_msg)
 
     /* serviceName may have been allocated in _MessageFindTokens's call to
      * _parse_name_owner_changed */
-    if (server_info.serviceName) g_free(server_info.serviceName);
+    g_free(server_info.serviceName);
 
     return ret;
 }
@@ -1480,31 +1425,12 @@ _send_match(LSHandle        *sh,
         key = g_strdup_printf("%s", category);
     }
 
-    if (!key)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM could not allocate signal key.");
-        retVal = false;
-        goto error;
-    }
-
     _Call *call = _CallNew(CALL_TYPE_SIGNAL, luri->serviceName, callback, ctx, token, method);
-    if (!call)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM could not allocate call.");
-        retVal = false;
-        goto error;
-    }
 
     //call->rule = g_strdup(rule);
     call->signal_method = g_strdup(method);
     call->signal_category = g_strdup(category);
     call->match_key = g_strdup(key);
-    if ((method && !call->signal_method) || !call->signal_category || !call->match_key)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM could not alloc signal_method | signal_category | match_key.");
-        retVal = false;
-        goto error;
-    }
 
     if (ret_call)
     {
@@ -1558,11 +1484,6 @@ _send_reg_server_status(LSHandle *sh,
 
     _Call *call = _CallNew(CALL_TYPE_SIGNAL_SERVER_STATUS,
         serviceName, callback, ctx, token, luri ? luri->methodName : NULL);
-    if (!call)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        goto error;
-    }
 
     if (ret_call)
     {
@@ -1603,11 +1524,6 @@ _send_method_call(LSHandle *sh,
     if (callback)
     {
         _Call *call = _CallNew(CALL_TYPE_METHOD_CALL, luri->serviceName, callback, ctx, token, luri->methodName);
-        if (!call)
-        {
-            _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM: Could not send message");
-            goto error;
-        }
 
         if (ret_call)
         {
@@ -2137,20 +2053,9 @@ bool LSRegisterServerStatusEx(LSHandle *sh, const char *serviceName,
     LSHANDLE_VALIDATE(sh);
 
     payload = g_strdup_printf("{\"serviceName\":\"%s\"}", serviceName);
-    if (!payload)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        return false;
-    }
 
     _ServerStatus *server_status;
     server_status = g_new0(_ServerStatus, 1);
-    if (!server_status)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        g_free(payload);
-        return false;
-    }
 
     server_status->callback = func;
     server_status->ctx = ctx;
@@ -2258,12 +2163,6 @@ LSSignalCall(LSHandle *sh,
         return false;
     }
 
-    if (!payload)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM: Could not allocate payload for message");
-        return false;
-    }
-
     retVal = LSCall(sh, "palm://com.palm.bus/signal/addmatch", payload,
                     filterFunc, ctx, responseToken, lserror);
 
@@ -2366,13 +2265,15 @@ static _FetchMessageQueue*
 _FetchMessageQueueAlloc()
 {
     _FetchMessageQueue *queue = g_new0(_FetchMessageQueue, 1);
-    if (queue)
-    {
-        int ret = pthread_mutex_init(&queue->lock, NULL);
-        if (ret) goto error;
 
-        queue->tokens = _TokenListNew();
+    if (pthread_mutex_init(&queue->lock, NULL))
+    {
+        LOG_LS_ERROR(MSGID_LS_MUTEX_ERR, 0, "Could not initialize mutex.");
+        goto error;
     }
+
+    queue->tokens = _TokenListNew();
+
     return queue;
 
 error:
@@ -2438,7 +2339,7 @@ _FetchMessageQueueGet(LSHandle *sh, LSMessage **ret_message, LSError *lserror)
 
     if (!sh->fetch_message_queue)
     {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
+        _LSErrorSet(lserror, MSGID_LS_QUEUE_ERROR, -1, "Could not create message queue.");
         return false;
     }
 
@@ -2468,12 +2369,6 @@ _FetchMessageQueueGet(LSHandle *sh, LSMessage **ret_message, LSError *lserror)
     }
 
     LSMessage *reply = _LSMessageNewRef(queue->message, sh);
-    if (!reply)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "ENOMEM");
-        retVal = false;
-        goto done_empty;
-    }
 
     if (queue->tokens->len > 0)
     {

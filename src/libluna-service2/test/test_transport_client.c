@@ -139,26 +139,10 @@ test_LSTransportClientNewFreeErrorHandling(void)
 
     /* Test creation of new client in error situations */
 
-    /* case: creating credentials fails. */
-    mvar_transport_cred_ptr = NULL;
-    mvar_incoming_free_count = 0;
-    mvar_outgoing_free_count = 0;
-    _LSTransportClient* client = _LSTransportClientNewRef(
-        &mvar_transport,
-        mvar_fd,
-        mvar_service_name,
-        mvar_unique_name,
-        mvar_outqueue,
-        mvar_initiator);
-    g_assert_cmphex(GPOINTER_TO_INT(client),
-                     ==,
-                     0);
-    g_assert_cmpint(mvar_incoming_free_count, ==, 0);
-    g_assert_cmpint(mvar_outgoing_free_count, ==, 0);
     /* case: getting transport credentials fails. */
     mvar_transport_cred_ptr = (_LSTransportCred*)0x9494;
     mvar_getcredentials_succeeds = false;
-    client = _LSTransportClientNewRef(
+    _LSTransportClient *client = _LSTransportClientNewRef(
         &mvar_transport,
         mvar_fd,
         mvar_service_name,

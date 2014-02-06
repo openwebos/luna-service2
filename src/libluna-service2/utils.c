@@ -90,12 +90,6 @@ LSIsRunning(const char *pid_dir, const char *pid_file_name)
 
     lock_file = g_strconcat(pid_dir, "/", pid_file_name, NULL);
 
-    if (!lock_file)
-    {
-        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM when constructing pid path");
-        exit(EXIT_FAILURE);
-    }
-
     fd = open(lock_file, O_RDWR | O_CREAT, 0644);
 
     if (fd == -1)

@@ -56,12 +56,6 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
 {
     _LSTransportClient *new_client = g_slice_new0(_LSTransportClient);
 
-    if (!new_client)
-    {
-        LOG_LS_CRITICAL(MSGID_LS_OOM_ERR, 0, "OOM when attempting to add new incoming connection");
-        return NULL;
-    }
-
     //new_client->sh = sh;
     new_client->service_name = g_strdup(service_name);
     new_client->unique_name = g_strdup(unique_name);
@@ -74,10 +68,6 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
     _LSTransportChannelInit(transport, &new_client->channel, fd, transport->source_priority);
 
     new_client->cred = _LSTransportCredNew();
-    if (!new_client->cred)
-    {
-        goto error;
-    }
 
     /* Get pid, gid, and uid of client if we're local. It won't work for obvious
      * reasons if it's a TCP/IP connection */
@@ -102,6 +92,7 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
         new_client->outgoing = _LSTransportOutgoingNew();
         if (!new_client->outgoing)
         {
+            LOG_LS_ERROR(MSGID_LS_TRANSPORT_INIT_ERR, 0, "Could not allocate outgoing queue");
             goto error;
         }
     }
@@ -109,6 +100,7 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
     new_client->incoming = _LSTransportIncomingNew();
     if (!new_client->incoming)
     {
+        LOG_LS_ERROR(MSGID_LS_TRANSPORT_INIT_ERR, 0, "Could not allocate incoming queue");
         goto error;
     }
 
@@ -116,8 +108,8 @@ _LSTransportClientNew(_LSTransport* transport, int fd, const char *service_name,
 
 error:
 
-    if (new_client->service_name) g_free(new_client->service_name);
-    if (new_client->unique_name) g_free(new_client->unique_name);
+    g_free(new_client->service_name);
+    g_free(new_client->unique_name);
 
     if (new_client->outgoing && !outgoing)
     {
@@ -127,10 +119,7 @@ error:
     {
         _LSTransportIncomingFree(new_client->incoming);
     }
-    if (new_client)
-    {
-        g_slice_free(_LSTransportClient, new_client);
-    }
+    g_slice_free(_LSTransportClient, new_client);
 
     return NULL;
 }
@@ -145,8 +134,8 @@ error:
 void
 _LSTransportClientFree(_LSTransportClient* client)
 {
-    if (client->unique_name) g_free(client->unique_name);
-    if (client->service_name) g_free(client->service_name);
+    g_free(client->unique_name);
+    g_free(client->service_name);
     _LSTransportCredFree(client->cred);
     _LSTransportOutgoingFree(client->outgoing);
     _LSTransportIncomingFree(client->incoming);

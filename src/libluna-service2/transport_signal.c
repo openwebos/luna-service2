@@ -68,12 +68,6 @@ _LSTransportSignalRegistration(_LSTransport *transport, bool reg, const char *ca
 
     _LSTransportMessage *message = _LSTransportMessageNewRef(category_len + method_len);
 
-    if (!message)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-        return false;
-    }
-
     if (reg)
     {
         _LSTransportMessageSetType(message, _LSTransportMessageTypeSignalRegister);
@@ -218,21 +212,18 @@ LSTransportMessageSignalNewRef(const char *category, const char *method, const c
 
     _LSTransportMessage *message = _LSTransportMessageNewRef(category_len + method_len + payload_len);
 
-    if (message)
-    {
-        _LSTransportMessageSetType(message, _LSTransportMessageTypeSignal);
+    _LSTransportMessageSetType(message, _LSTransportMessageTypeSignal);
 
-        char *message_body = _LSTransportMessageGetBody(message);
+    char *message_body = _LSTransportMessageGetBody(message);
 
-        memcpy(message_body, category, category_len);
-        message_body += category_len;
-        memcpy(message_body, method, method_len);
-        message_body += method_len;
-        memcpy(message_body, payload, payload_len);
+    memcpy(message_body, category, category_len);
+    message_body += category_len;
+    memcpy(message_body, method, method_len);
+    message_body += method_len;
+    memcpy(message_body, payload, payload_len);
 
-        /* TODO: original code also appended the service_name of the sender (or "")
-         * if there was no name (sh->name) */
-    }
+    /* TODO: original code also appended the service_name of the sender (or "")
+     * if there was no name (sh->name) */
 
     return message;
 }
@@ -257,12 +248,6 @@ LSTransportSendSignal(_LSTransport *transport, const char *category, const char 
     bool ret = true;
 
     _LSTransportMessage *message = LSTransportMessageSignalNewRef(category, method, payload);
-
-    if (!message)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-        return false;
-    }
 
     LS_ASSERT(transport->hub != NULL);
 

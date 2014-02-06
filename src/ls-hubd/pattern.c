@@ -38,23 +38,10 @@ _LSHubPatternSpec* _LSHubPatternSpecNew(const char *pattern)
 
     _LSHubPatternSpec *ret = g_slice_new0(_LSHubPatternSpec);
 
-    if (ret)
-    {
-        ret->pattern_str = g_strdup(pattern);
-
-        if (!ret->pattern_str) goto error;
-
-        ret->pattern_spec = g_pattern_spec_new(pattern);
-
-        if (!ret->pattern_spec) goto error;
-    }
+    ret->pattern_str = g_strdup(pattern);
+    ret->pattern_spec = g_pattern_spec_new(pattern);
 
     return ret;
-
-error:
-    if (ret->pattern_str) g_free((char*)ret->pattern_str);
-    if (ret->pattern_spec) g_pattern_spec_free(ret->pattern_spec);
-    return NULL;
 }
 
 _LSHubPatternSpec* _LSHubPatternSpecNewRef(const char *pattern)
@@ -63,10 +50,7 @@ _LSHubPatternSpec* _LSHubPatternSpecNewRef(const char *pattern)
 
     _LSHubPatternSpec *ret = _LSHubPatternSpecNew(pattern);
 
-    if (ret)
-    {
-        ret->ref = 1;
-    }
+    ret->ref = 1;
 
     return ret;
 }

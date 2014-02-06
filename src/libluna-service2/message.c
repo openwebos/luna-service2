@@ -45,14 +45,13 @@ LSMessage *
 _LSMessageNewRef(_LSTransportMessage *transport_msg, LSHandle *sh)
 {
     LSMessage *message = g_new0(LSMessage, 1);
-    if (message)
-    {
-        if (transport_msg)
-            message->transport_msg = _LSTransportMessageRef(transport_msg);
 
-        message->sh  = sh;
-        message->ref = 1;
-    }
+    if (transport_msg)
+        message->transport_msg = _LSTransportMessageRef(transport_msg);
+
+    message->sh  = sh;
+    message->ref = 1;
+
     return message;
 }
 

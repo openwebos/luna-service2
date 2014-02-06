@@ -297,51 +297,40 @@ _Service*
 _ServiceNew(const char *service_names[], int num_services, char *exec_path, bool is_dynamic,
             char *service_file_dir, char *service_file_name)
 {
+    LS_ASSERT(exec_path != NULL);
+
     int i = 0;
 
     _Service *ret = g_new0(_Service, 1);
-    if (ret)
+
+    ret->uses_launch_helper = false;
+    ret->service_names = g_new0(char*, num_services);
+
+    for (i = 0; i < num_services; i++)
     {
-        ret->uses_launch_helper = false;
-
-        ret->service_names = g_new0(char*, num_services);
-
-        if (!ret->service_names)
+        ret->service_names[i] = g_strdup(service_names[i]);
+        if (!ret->service_names[i])
         {
+            LOG_LS_ERROR(MSGID_LSHUB_SERVICE_ADD_ERR, 0, "Empty service name");
             goto error;
         }
-
-        for (i = 0; i < num_services; i++)
-        {
-            ret->service_names[i] = g_strdup(service_names[i]);
-
-            if (!ret->service_names[i])
-            {
-                goto error;
-            }
-        }
-        ret->num_services = num_services;
-        ret->exec_path = g_strdup(exec_path);
-
-        if (!ret->exec_path)
-        {
-            goto error;
-        }
-
-        ret->state = _DynamicServiceStateInvalid;
-
-        /* LEGACY: check whether we're launching with luna-helper */
-        if (strstr(ret->exec_path, LUNA_HELPER_NAME))
-        {
-            ret->uses_launch_helper = true;
-        }
-
-        ret->is_dynamic = is_dynamic;
-
-        ret->service_file_dir = g_strdup(service_file_dir);
-        ret->service_file_name = g_strdup(service_file_name);
-
     }
+    ret->num_services = num_services;
+    ret->exec_path = g_strdup(exec_path);
+
+    ret->state = _DynamicServiceStateInvalid;
+
+    /* LEGACY: check whether we're launching with luna-helper */
+    if (strstr(ret->exec_path, LUNA_HELPER_NAME))
+    {
+        ret->uses_launch_helper = true;
+    }
+
+    ret->is_dynamic = is_dynamic;
+
+    ret->service_file_dir = g_strdup(service_file_dir);
+    ret->service_file_name = g_strdup(service_file_name);
+
     return ret;
 
 error:
@@ -349,17 +338,14 @@ error:
     {
         for (i = 0; i < num_services; i++)
         {
-            if (ret->service_names[i])
-            {
-                g_free(ret->service_names[i]);
-            }
+            g_free(ret->service_names[i]);
         }
         g_free(ret->service_names);
     }
-    if (ret->exec_path) g_free(ret->exec_path);
-    if (ret->service_file_dir) g_free(ret->service_file_dir);
-    if (ret->service_file_name) g_free(ret->service_file_name);
-    if (ret) g_free(ret);
+    g_free(ret->exec_path);
+    g_free(ret->service_file_dir);
+    g_free(ret->service_file_name);
+    g_free(ret);
     return NULL;
 }
 
@@ -432,10 +418,10 @@ _ServiceFree(_Service *service)
         }
         g_free(service->service_names);
     }
-    if (service->exec_path) g_free(service->exec_path);
+    g_free(service->exec_path);
 
-    if (service->service_file_dir) g_free(service->service_file_dir);
-    if (service->service_file_name) g_free(service->service_file_name);
+    g_free(service->service_file_dir);
+    g_free(service->service_file_name);
 
 #ifdef MEMCHECK
     memset(service, 0xFF, sizeof(_Service));
@@ -823,11 +809,11 @@ _DynamicServiceLaunch(_Service *service, LSError *lserror)
 
 error:
     if (gerror) g_error_free(gerror);
-    if (new_env) g_free(new_env);
-    if (service_names_str) g_free(service_names_str);
-    if (service_names_env) g_free(service_names_env);
-    if (service_file_name_env) g_free(service_file_name_env);
-    if (argv) g_strfreev(argv);
+    g_free(new_env);
+    g_free(service_names_str);
+    g_free(service_names_env);
+    g_free(service_file_name_env);
+    g_strfreev(argv);
     return ret;
 }
 
@@ -952,12 +938,6 @@ _ServiceInitMap(GHashTable **service_map, LSError *lserror)
     /* create the new map */
     *service_map = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)_ServiceUnref);
 
-    if (!*service_map)
-    {
-        _LSErrorSetOOM(lserror);
-        return false;
-    }
-
     return true;
 }
 
@@ -1047,7 +1027,7 @@ ServiceInitMap(LSError *lserror, bool volatile_dirs)
                                             (GDestroyNotify) _LSHubPatternSpecUnref, (GDestroyNotify) _ServiceUnref);
         if (!wildcard_services)
         {
-            _LSErrorSetOOM(lserror);
+            LOG_LS_ERROR(MSGID_LSHUB_ARGUMENT_ERR, 0, "Invalid compare function for Glib tree");
             return false;
         }
     }
@@ -1060,12 +1040,6 @@ ServiceInitMap(LSError *lserror, bool volatile_dirs)
     {
         /* create the new map */
         all_services = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, (GDestroyNotify)_ServiceUnref);
-
-        if (!all_services)
-        {
-            _LSErrorSetOOM(lserror);
-            return false;
-        }
     }
     else
     {
@@ -1131,12 +1105,6 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
     LOG_LS_DEBUG("%s: parsing file: \"%s\"\n", __func__, path);
 
     key_file = g_key_file_new();
-
-    if (!key_file)
-    {
-        _LSErrorSet(lserror, MSGID_LSHUB_MEMORY_ERR, -1, "OOM: Could not create key file");
-        goto error;
-    }
 
     if (!g_key_file_load_from_file(key_file, path, G_KEY_FILE_NONE, &gerror))
     {
@@ -1261,21 +1229,15 @@ _ParseServiceFile(const char *service_file_dir, const char *service_file_name, L
 
     new_service = _ServiceNewRef((const char**)provided_services, provided_services_len, exec_str_with_prefix, is_dynamic, (char*)service_file_dir, (char*)service_file_name);
 
-    if (!new_service)
-    {
-        _LSErrorSet(lserror, MSGID_LSHUB_MEMORY_ERR, -1, "OOM: Could not create new Service");
-        goto error;
-    }
-
 error:
     /* free up memory */
-    if (path) g_free(path);
+    g_free(path);
     if (key_file) g_key_file_free(key_file);
-    if (groups) g_strfreev(groups);
-    if (provided_services) g_strfreev(provided_services);
-    if (exec_str) g_free(exec_str);
-    if (exec_str_with_prefix) g_free(exec_str_with_prefix);
-    if (type_str) g_free(type_str);
+    g_strfreev(groups);
+    g_strfreev(provided_services);
+    g_free(exec_str);
+    g_free(exec_str_with_prefix);
+    g_free(type_str);
     if (gerror) g_error_free(gerror);
 
     return new_service;
@@ -1363,17 +1325,9 @@ LSHubSendConfScanCompleteSignal(void)
 
     _LSTransportMessage *message = LSTransportMessageSignalNewRef(HUB_CONTROL_CATEGORY, HUB_CONF_SCAN_COMPLETE_METHOD, payload);
 
-    if (message)
-    {
-        _LSHubHandleSignal(message, true);
-        _LSTransportMessageUnref(message);
-        return true;
-    }
-    else
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 0, "Unable to send config scan complete signal");
-        return false;
-    }
+    _LSHubHandleSignal(message, true);
+    _LSTransportMessageUnref(message);
+    return true;
 }
 
 
@@ -1410,33 +1364,20 @@ _LSHubSendServiceUpDownSignal(const char *service_name, const char *unique_name,
         payload = g_strdup_printf(SERVICE_STATUS_DOWN_PAYLOAD, service_name, unique_name);
     }
 
-    if (!payload)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to send client up/down signal");
-        return;
-    }
-
     _LSTransportMessage *message = LSTransportMessageSignalNewRef(SERVICE_STATUS_CATEGORY, service_name, payload);
 
-    if (message)
+    /* send out this "special" status signal to registered clients */
+    if (up)
     {
-        /* send out this "special" status signal to registered clients */
-        if (up)
-        {
-            _LSTransportMessageSetType(message, _LSTransportMessageTypeServiceUpSignal);
-        }
-        else
-        {
-            _LSTransportMessageSetType(message, _LSTransportMessageTypeServiceDownSignal);
-        }
-
-        _LSHubHandleSignal(message, true);
-        _LSTransportMessageUnref(message);
+        _LSTransportMessageSetType(message, _LSTransportMessageTypeServiceUpSignal);
     }
     else
     {
-        LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 0, "Unable to send client up/down signal");
+        _LSTransportMessageSetType(message, _LSTransportMessageTypeServiceDownSignal);
     }
+
+    _LSHubHandleSignal(message, true);
+    _LSTransportMessageUnref(message);
 
     g_free(payload);
 }
@@ -1622,11 +1563,6 @@ _LSHubClientIdLocalNew(const char *service_name, const char *unique_name, _LSTra
 {
     _ClientId *id = g_new0(_ClientId, 1);
 
-    if (!id)
-    {
-        return NULL;
-    }
-
     /* TODO: handle errors */
     id->service_name = g_strdup(service_name);
     id->local.name = g_strdup(unique_name);
@@ -1650,8 +1586,8 @@ _LSHubClientIdLocalFree(_ClientId *id)
     LS_ASSERT(id != NULL);
     LS_ASSERT(id->ref == 0);
 
-    if (id->service_name) g_free(id->service_name);
-    if (id->local.name) g_free(id->local.name);
+    g_free(id->service_name);
+    g_free(id->local.name);
     _LSTransportClientUnref(id->client);
 
 #ifdef MEMCHECK
@@ -1678,10 +1614,7 @@ _LSHubClientIdLocalNewRef(const char *service_name, const char *unique_name, _LS
 {
     _ClientId *id = _LSHubClientIdLocalNew(service_name, unique_name, client);
 
-    if (id)
-    {
-        id->ref = 1;
-    }
+    id->ref = 1;
 
     return id;
 }
@@ -1758,8 +1691,6 @@ _LSHubConstructRequestNameReply(_LSTransportMessage *message,
     _LSTransportMessageIter iter;
 
     _LSTransportMessage *reply_message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
-
-    if (!reply_message) goto error;
 
     _LSTransportMessageSetType(reply_message, type);
 
@@ -1956,12 +1887,6 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         /* generate a unique name */
         unique_name = g_strdup_printf("%s/XXXXXX", *local_socket_path);
 
-        if (!unique_name)
-        {
-            LOG_LS_ERROR(MSGID_LSHUB_UNAME_ERROR, 0, "OOM: Unable to create unique name");
-            goto error;
-        }
-
         int temp_fd = mkstemp(unique_name);
 
         if (temp_fd < 0)
@@ -1998,23 +1923,11 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
         char inet_buf[INET_ADDRSTRLEN];
         unique_name = g_strdup_printf("%s:%"PRId32, inet_ntop(AF_INET, &addr.sin_addr, inet_buf, sizeof(inet_buf)), port);
-
-        if (unique_name == NULL)
-        {
-            LOG_LS_ERROR(MSGID_LSHUB_NAME_DUP_ERR, 0, "OOM: Failed to duplicate unique name");
-            goto error;
-        }
     }
     LOG_LS_DEBUG("%s: unique_name: \"%s\"\n", __func__, unique_name);
 
     /* add client id to client lookup (refs client) */
     _ClientId *id = _LSHubClientIdLocalNewRef(service_name, unique_name, client);
-
-    if (!id)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_CID_ERR, 0, "OOM: unable to create client id");
-        goto error;
-    }
 
     /* add unique name to pending hash if they are registering a service name */
     if (id->service_name)
@@ -2043,7 +1956,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
     }
 
 error:
-    if (unique_name) g_free(unique_name);
+    g_free(unique_name);
 }
 
 static void
@@ -2221,8 +2134,6 @@ _LSHubSendQueryNameReply(const _LSTransportMessage *message, long err_code,
     }
 
     _LSTransportMessage *reply_message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
-
-    if (!reply_message) goto error;
 
     _LSTransportMessageSetType(reply_message, _LSTransportMessageTypeQueryNameReply);
 
@@ -2888,15 +2799,8 @@ _LSTransportClientMapNew(void)
 {
     _LSTransportClientMap *ret = g_new0(_LSTransportClientMap, 1);
 
-    if (ret)
-    {
-        ret->map = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
-        if (!ret->map)
-        {
-            g_free(ret);
-            return NULL;
-        }
-    }
+    ret->map = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
+
     return ret;
 }
 
@@ -3072,34 +2976,27 @@ _LSHubSendSignal(_LSTransportClient *client, void *dummy, _LSTransportMessage *m
 
     _LSTransportMessage *msg_copy = _LSTransportMessageCopyNewRef(message);
 
-    if (msg_copy)
+    if (!_LSTransportSendMessage(msg_copy, client, &token, &lserror))
     {
-        if (!_LSTransportSendMessage(msg_copy, client, &token, &lserror))
-        {
-            LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
-            LSErrorFree(&lserror);
-        }
+        LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
+        LSErrorFree(&lserror);
+    }
 
 #if 0
-        _LSTransportMessageType type = _LSTransportMessageGetType(message);
-        if (type == _LSTransportMessageTypeServiceUpSignal ||
-            type == _LSTransportMessageTypeServiceDownSignal)
-        {
-            LOG_LS_DEBUG("%s: sent \"service %s\" signal to client: %p (unique_name: \"%s\", service_name: \"%s\") "
-                         "with token: %d, category: \"%s\", method: \"%s\", payload: \"%s\"",
-                         __func__, type == _LSTransportMessageTypeServiceUpSignal  ? "up" : "down",
-                         client, client->unique_name, client->service_name,
-                         (int)token, _LSTransportMessageGetCategory(message),
-                         _LSTransportMessageGetMethod(message), _LSTransportMessageGetPayload(message));
-        }
+    _LSTransportMessageType type = _LSTransportMessageGetType(message);
+    if (type == _LSTransportMessageTypeServiceUpSignal ||
+        type == _LSTransportMessageTypeServiceDownSignal)
+    {
+        LOG_LS_DEBUG("%s: sent \"service %s\" signal to client: %p (unique_name: \"%s\", service_name: \"%s\") "
+                     "with token: %d, category: \"%s\", method: \"%s\", payload: \"%s\"",
+                     __func__, type == _LSTransportMessageTypeServiceUpSignal  ? "up" : "down",
+                     client, client->unique_name, client->service_name,
+                     (int)token, _LSTransportMessageGetCategory(message),
+                     _LSTransportMessageGetMethod(message), _LSTransportMessageGetPayload(message));
+    }
 #endif
 
-        _LSTransportMessageUnref(msg_copy);
-    }
-    else
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "%s: unable to allocate message", __func__);
-    }
+    _LSTransportMessageUnref(msg_copy);
 }
 
 /**
@@ -3117,11 +3014,9 @@ _SignalMapNew(void)
 {
     _SignalMap *ret = g_new0(_SignalMap, 1);
 
-    if (ret)
-    {
-        ret->category_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)_LSTransportClientMapFree);
-        ret->method_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)_LSTransportClientMapFree);
-    }
+    ret->category_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)_LSTransportClientMapFree);
+    ret->method_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)_LSTransportClientMapFree);
+
     return ret;
 }
 
@@ -3256,39 +3151,31 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
     {
         char *full_path = g_strdup_printf("%s/%s", category, method);
 
-        if (full_path)
-        {
-
 #if 0
-            /* SIGNAL debug */
-            if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0)
-            {
-                const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-                LOG_LS_DEBUG("Unregistering server status of [\"%s\"] by client: %p "
-                             "(service_name: \"%s\", unique_name: \"%s\", pid: "LS_PID_PRINTF_FORMAT
-                             ", exe: \"%s\")",
-                             method, client, client->service_name, client->unique_name,
-                             LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
-                             _LSTransportCredGetExePath(cred));
-            }
+        /* SIGNAL debug */
+        if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0)
+        {
+            const _LSTransportCred *cred = _LSTransportClientGetCred(client);
+            LOG_LS_DEBUG("Unregistering server status of [\"%s\"] by client: %p "
+                         "(service_name: \"%s\", unique_name: \"%s\", pid: "LS_PID_PRINTF_FORMAT
+                         ", exe: \"%s\")",
+                         method, client, client->service_name, client->unique_name,
+                         LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
+                         _LSTransportCredGetExePath(cred));
+        }
 #endif
 
-            if (!_LSHubRemoveSignal(signal_map->method_map, full_path, client))
-            {
-                const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-                LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 4,
-                             PMLOGKS("PATH", full_path),
-                             PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                             PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
-                             PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                             "Unable to remove signal");
-            }
-            g_free(full_path);
-        }
-        else
+        if (!_LSHubRemoveSignal(signal_map->method_map, full_path, client))
         {
-            LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to remove signal: %s/%s", category, method);
+            const _LSTransportCred *cred = _LSTransportClientGetCred(client);
+            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 4,
+                         PMLOGKS("PATH", full_path),
+                         PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
+                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
+                         PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
+                         "Unable to remove signal");
         }
+        g_free(full_path);
     }
     else
     {
@@ -3323,29 +3210,19 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
 static bool
 _LSHubAddSignal(GHashTable *map, const char *path, _LSTransportClient *client)
 {
+    LS_ASSERT(map != NULL);
+    LS_ASSERT(path != NULL);
+    LS_ASSERT(client != NULL);
+
     _LSTransportClientMap *client_map = g_hash_table_lookup(map, path);
 
     if (!client_map)
     {
         client_map = _LSTransportClientMapNew();
 
-        if (!client_map)
-        {
-            LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to allocate client_map");
-            return false;
-        }
-
         char *path_copy = g_strdup(path);
-        if (path_copy)
-        {
-            g_hash_table_replace(map, (gpointer)path_copy, client_map);
-        }
-        else
-        {
-            _LSTransportClientMapFree(client_map);
-            LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to allocate path_copy");
-            return false;
-        }
+
+        g_hash_table_replace(map, (gpointer)path_copy, client_map);
     }
 
     _LSTransportClientMapAddRefClient(client_map, client);
@@ -3449,50 +3326,36 @@ _LSHubHandleSignalRegister(_LSTransportMessage* message)
         /* method is optional for registration */
         char *full_path = g_strdup_printf("%s/%s", category, method);
 
-        if (full_path)
-        {
 #if 0
-            /* SIGNAL DEBUG */
-            if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0)
-            {
-                const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-                LOG_LS_DEBUG("Registering server status of [\"%s\"] by client: %p "
-                             "(service_name: \"%s\", unique_name: \"%s\", pid: "LS_PID_PRINTF_FORMAT
-                             ", exe: \"%s\")",
-                             method, client, client->service_name, client->unique_name,
-                             LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
-                             _LSTransportCredGetExePath(cred));
-            }
+        /* SIGNAL DEBUG */
+        if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0)
+        {
+            const _LSTransportCred *cred = _LSTransportClientGetCred(client);
+            LOG_LS_DEBUG("Registering server status of [\"%s\"] by client: %p "
+                         "(service_name: \"%s\", unique_name: \"%s\", pid: "LS_PID_PRINTF_FORMAT
+                         ", exe: \"%s\")",
+                         method, client, client->service_name, client->unique_name,
+                         LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred)),
+                         _LSTransportCredGetExePath(cred));
+        }
 #endif
 
-            _LSHubAddSignal(signal_map->method_map, full_path, client);
-            g_free(full_path);
-        }
-        else
-        {
-            LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to add signal: %s/%s", category, method);
-        }
+        _LSHubAddSignal(signal_map->method_map, full_path, client);
+        g_free(full_path);
     }
     else
     {
         char *path = g_strdup(category);
 
-        if (path)
-        {
 #if 0
-            if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0)
-            {
-                LOG_LS_DEBUG("Registering server status of \"%s\" for client: %p (service_name: \"%s\", unique_name: \"%s\")",
-                             method, client, client->service_name, client->unique_name);
-            }
-#endif
-            _LSHubAddSignal(signal_map->category_map, path, client);
-            g_free(path);
-        }
-        else
+        if (strcmp(category, SERVICE_STATUS_CATEGORY) == 0)
         {
-            LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to add signal: \"%s\"", category);
+            LOG_LS_DEBUG("Registering server status of \"%s\" for client: %p (service_name: \"%s\", unique_name: \"%s\")",
+                         method, client, client->service_name, client->unique_name);
         }
+#endif
+        _LSHubAddSignal(signal_map->category_map, path, client);
+        g_free(path);
     }
 
     /* FIXME: we need to create a new "signal reply" function, so that we can
@@ -3551,31 +3414,24 @@ _LSHubHandleSignal(_LSTransportMessage *message, bool generated_by_hub)
     }
 
     /* look up all clients that handle this category */
-    _LSTransportClientMap *client_map = g_hash_table_lookup(signal_map->category_map, category);
+    _LSTransportClientMap *category_client_map = g_hash_table_lookup(signal_map->category_map, category);
 
-    if (client_map)
+    if (category_client_map)
     {
-        _LSTransportClientMapForEach(client_map, (GHFunc)_LSHubSendSignal, message);
+        _LSTransportClientMapForEach(category_client_map, (GHFunc)_LSHubSendSignal, message);
     }
 
     /* look up all clients that handle this category/method */
     char *category_method = g_strdup_printf("%s/%s", category, method);
 
-    if (category_method)
-    {
-        _LSTransportClientMap *client_map = g_hash_table_lookup(signal_map->method_map, category_method);
+    _LSTransportClientMap *method_client_map = g_hash_table_lookup(signal_map->method_map, category_method);
 
-        if (client_map)
-        {
-            _LSTransportClientMapForEach(client_map, (GHFunc)_LSHubSendSignal, message);
-        }
-
-        g_free(category_method);
-    }
-    else
+    if (method_client_map)
     {
-        LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to send signal");
+        _LSTransportClientMapForEach(method_client_map, (GHFunc)_LSHubSendSignal, message);
     }
+
+    g_free(category_method);
 }
 
 /**
@@ -3612,8 +3468,6 @@ _LSHubSendMonitorMessage(int ignored_fd, _ClientId *id, const char *unique_name)
 
     /* get the unique name for the client and add send it as part of the message */
     _LSTransportMessage *monitor_message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
-
-    if (!monitor_message) goto error;
 
     if (monitor_is_connected)
     {
@@ -3816,12 +3670,6 @@ _LSHubHandleQueryServiceStatus(const _LSTransportMessage *message)
     /* construct the reply -- reply_serial + available val */
     _LSTransportMessage *reply = _LSTransportMessageNewRef(sizeof(LSMessageToken) + sizeof(available));
 
-    if (!reply)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_MEMORY_ERR, 0, "OOM: Unable to allocate message");
-        return;
-    }
-
     _LSTransportMessageSetType(reply, _LSTransportMessageTypeQueryServiceStatusReply);
 
     LSMessageToken msg_serial = _LSTransportMessageGetToken(message);
@@ -3867,8 +3715,6 @@ _LSHubHandleListClients(const _LSTransportMessage *message)
     _LSTransportClient *reply_client = _LSTransportMessageGetClient(message);
 
     _LSTransportMessage *reply = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
-
-    if (!reply) goto error;
 
     _LSTransportMessageSetType(reply, _LSTransportMessageTypeListClientsReply);
 
@@ -3971,8 +3817,6 @@ _LSHubHandlePushRole(_LSTransportMessage *message)
     _LSTransportClient *reply_client = _LSTransportMessageGetClient(message);
 
     _LSTransportMessage *reply = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
-
-    if (!reply) goto error;
 
     _LSTransportMessageSetType(reply, _LSTransportMessageTypePushRoleReply);
 
@@ -4297,39 +4141,12 @@ int main(int argc, char *argv[])
 
     /* init data structures */
     pending = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
-
-    if (!pending)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_CANT_CREATE_HASH_TABLE, 0, "Unable to create hash table");
-    }
-
     available_services = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
 
-    if (!available_services)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_CANT_CREATE_HASH_TABLE, 0, "Unable to create hash table");
-    }
-
     connected_clients.by_fd = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, _LSHubClientIdLocalUnrefVoid);
-
-    if (!connected_clients.by_fd)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_CANT_CREATE_HASH_TABLE, 0, "Unable to create hash table");
-    }
-
     connected_clients.by_unique_name = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _LSHubClientIdLocalUnrefVoid);
 
-    if (!connected_clients.by_unique_name)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_CANT_CREATE_HASH_TABLE, 0, "Unable to create hash table");
-    }
-
     signal_map = _SignalMapNew();
-
-    if (!signal_map)
-    {
-        LOG_LS_ERROR(MSGID_LSHUB_CANT_CREATE_HASH_TABLE, 0, "Unable to create hash table");
-    }
 
     _LSHubHandler.msg_handler = _LSHubHandleMessage;
     _LSHubHandler.msg_context = NULL;
@@ -4437,7 +4254,7 @@ int main(int argc, char *argv[])
                 fclose(boot_file);
             }
         }
-        if (tmp) g_free(tmp);
+        g_free(tmp);
     }
 
     if (!SetupWatchdog(&lserror))

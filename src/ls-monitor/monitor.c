@@ -372,12 +372,6 @@ _ListServiceSubscriptions(LSHandle *sh, LSFilterFunc callback, GSList *monitor_l
 
     _SubscriptionReplyData *data = g_malloc(sizeof(_SubscriptionReplyData));
 
-    if (!data)
-    {
-        g_critical("Out of memory when allocating reply data");
-        exit(EXIT_FAILURE);
-    }
-
     /* NOTE: we only allocate one of these items and pass it as the data to all the callbacks */
     data->reply_list = reply_list;
     data->total_replies = total_services;
@@ -458,12 +452,6 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
     while (_LSTransportMessageIterHasNext(&iter))
     {
         _LSMonitorListInfo *info = g_malloc(sizeof(_LSMonitorListInfo));
-
-        if (!info)
-        {
-            g_critical("Out of memory when allocating list info");
-            exit(EXIT_FAILURE);
-        }
 
         iter_ret = _LSTransportMessageGetString(&iter, &unique_name);
         if (!iter_ret) break;
@@ -805,7 +793,6 @@ main(int argc, char *argv[])
     }
 
     dup_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-    LS_ASSERT(dup_hash_table);
 
     g_main_loop_run(mainloop);
     g_main_loop_unref(mainloop);

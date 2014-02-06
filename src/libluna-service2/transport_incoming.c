@@ -45,17 +45,19 @@ _LSTransportIncoming* _LSTransportIncomingNew(void)
 {
     _LSTransportIncoming *incoming = g_slice_new0(_LSTransportIncoming);
 
-    if (incoming)
+    /* This cannot fail when using eglibc (2.15) */
+    if (pthread_mutex_init(&incoming->lock, NULL))
     {
-        /* This cannot fail when using eglibc (2.15) */
-        if (pthread_mutex_init(&incoming->lock, NULL)) {
-            g_slice_free(_LSTransportIncoming, incoming);
-            return NULL;
-        }
-        incoming->complete_messages = g_queue_new();
-        LS_ASSERT(incoming->complete_messages != NULL);
+        LOG_LS_ERROR(MSGID_LS_MUTEX_ERR, 0, "Could not initialize mutex");
+        goto error;
     }
+    incoming->complete_messages = g_queue_new();
+
     return incoming;
+
+error:
+    _LSTransportIncomingFree(incoming);
+    return NULL;
 }
 
 /**

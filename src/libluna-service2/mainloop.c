@@ -253,13 +253,18 @@ LSCustomMessageQueueNew(void)
 {
     LSCustomMessageQueue *ret = g_new0(LSCustomMessageQueue, 1);
 
-    if (ret)
+    if (pthread_mutex_init(&ret->lock, NULL))
     {
-        pthread_mutex_init(&ret->lock, NULL);
-        ret->queue = g_queue_new();
+        LOG_LS_ERROR(MSGID_LS_MUTEX_ERR, 0, "Could not initialize mutex.");
+        goto error;
     }
+    ret->queue = g_queue_new();
 
     return ret;
+
+error:
+    LSCustomMessageQueueFree(ret);
+    return NULL;
 }
 
 void
@@ -361,12 +366,6 @@ LSCustomWaitForMessage(LSHandle *sh, LSMessage **message,
 
         sh->transport->mainloop_context = g_main_context_new();
 
-        if (!sh->transport->mainloop_context)
-        {
-            _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-            return false;
-        }
-
         _LSTransportAddInitialWatches(sh->transport, sh->transport->mainloop_context);
     }
 
@@ -390,11 +389,7 @@ LSFetchQueueNew(LSFetchQueue **ret_fetch_queue)
     if (!ret_fetch_queue) return false;
 
     *ret_fetch_queue = g_new0(LSFetchQueue, 1);
-
-    if (*ret_fetch_queue)
-    {
-        (*ret_fetch_queue)->main_context = g_main_context_new();
-    }
+    (*ret_fetch_queue)->main_context = g_main_context_new();
 
     return true;
 }

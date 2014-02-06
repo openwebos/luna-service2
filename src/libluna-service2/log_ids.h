@@ -95,7 +95,8 @@
 #define MSGID_LS_CANC_WATCH_ERROR               "LS_CANCEL_WATCH"       /** Can not cancel watch status*/
 #define MSGID_LS_CANT_PING                      "LS_CANT_PING"          /** Sending ping failed */
 #define MSGID_LS_CANT_CANCEL_METH               "LS_CANC_METH"          /** Can't cancel method */
-#define MSGID_LS_CATEGORY_REGISTERED            "LS_CAT_REG"            /** Category is already registered */
+#define MSGID_LS_CATALOG_ERR                    "LS_CATALOG_REG"        /** Error in subscription catalog */
+#define MSGID_LS_CATEGORY_REGISTERED            "LS_CATEG_REG"          /** Category is already registered */
 #define MSGID_LS_CHANNEL_ERR                    "LS_CHAN"               /** Channel error */
 #define MSGID_LS_CLOCK_ERROR                    "LS_CLOCK"              /** Monotonic clock error */
 #define MSGID_LS_CONN_ERROR                     "LS_CONN"               /** Failed to connect */
@@ -145,6 +146,7 @@
 #define MSGID_LS_REPLY_TOK                      "LS_REPLY_TOK"          /** Getting reply token for message type */
 #define MSGID_LS_REQUEST_NAME                   "LS_REQ_NAME"           /** Error during name request */
 #define MSGID_LS_SEND_ERROR                     "LS_SEND"               /** Sending error */
+#define MSGID_LS_SERIAL_ERROR                   "LS_SERIAL"             /** Serial map error */
 #define MSGID_LS_SHARED_MEMORY_ERR              "LS_SHM"                /** Shared memory error*/
 #define MSGID_LS_SIGNAL_NOT_REGISTERED          "LS_SIG_NREG"           /** Signal not registered */
 #define MSGID_LS_SOCK_ERROR                     "LS_SOCK"               /** Socket error */
@@ -153,6 +155,7 @@
 #define MSGID_LS_TIMER_NO_CALLBACK              "LS_TIMER_NO_CBCK"      /** Timeout source dispatched without callback */
 #define MSGID_LS_TIMER_NO_CONTEXT               "LS_TIMER_NO_CTX"       /** Cannot get context for timer_source */
 #define MSGID_LS_TOKEN_ERR                      "LS_TOK_INV"            /** Token error */
+#define MSGID_LS_TRANSPORT_INIT_ERR             "LS_TRANS_INIT"         /** Error during transport creation */
 #define MSGID_LS_TRANSPORT_CONNECT_ERR          "LS_TRANS"              /** Transport connection error */
 #define MSGID_LS_TRANSPORT_NETWORK_ERR          "LS_TRANS_NET"          /** Transport network error */
 #define MSGID_LS_UNHANDLED_MSG                  "LS_UNHANDLD_MSG"       /** Unhandled message */

@@ -1015,12 +1015,6 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
 
     key_file = g_key_file_new();
 
-    if (!key_file)
-    {
-        _LSErrorSetOOM(lserror);
-        goto error;
-    }
-
     if (!g_key_file_load_from_file(key_file, path, G_KEY_FILE_NONE, &gerror))
     {
         _LSErrorSet(lserror, MSGID_LSHUB_KEYFILE_ERR, -1, "Error loading key file: \"%s\"\n", gerror->message);
@@ -1057,7 +1051,7 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
 error:
     /* free up memory */
     if (key_file) g_key_file_free(key_file);
-    if (groups) g_strfreev(groups);
+    g_strfreev(groups);
     if (gerror) g_error_free(gerror);
 
     return ret;
@@ -1079,31 +1073,13 @@ ConfigParseFile(const char *path, LSError *lserror)
 {
     LS_ASSERT(path != NULL);
 
-    if (path && !config_file_path)
+    if (!config_file_path)
     {
         config_file_path = g_strdup(path);
-
-        if (!config_file_path)
-        {
-            _LSErrorSetOOM(lserror);
-            goto error;
-        }
-
         config_file_name = g_path_get_basename(path);
-
-        if (!config_file_name)
-        {
-            _LSErrorSetOOM(lserror);
-            goto error;
-        }
     }
 
     return _ConfigParseFile(path, &conf_file_dom, lserror);
-
-error:
-    if (config_file_path) g_free(config_file_path);
-    if (config_file_name) g_free(config_file_name);
-    return false;
 }
 
 void

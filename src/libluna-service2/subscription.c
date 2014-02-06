@@ -189,19 +189,15 @@ _SubscriptionNew(LSHandle *sh, LSMessage *message)
     bool retVal;
 
     subs = g_new0(_Subscription,1);
-    if (!subs) goto error;
 
     subs->ref = 1;
-
     subs->keys = g_ptr_array_new();
-    if (!subs->keys) goto error;
 
     LSMessageRef(message);
     subs->message = message;
 
     char *payload = g_strdup_printf("{\"serviceName\":\"%s\"}",
             LSMessageGetSender(message));
-    if (!payload) goto error;
 
     LSError lserror;
     LSErrorInit(&lserror);
@@ -366,27 +362,24 @@ _Catalog *
 _CatalogNew(LSHandle *sh)
 {
     _Catalog *catalog = g_new0(_Catalog, 1);
-    if (!catalog) goto error_before_mutex;
 
-    pthread_mutex_init(&catalog->lock, NULL);
+    if (pthread_mutex_init(&catalog->lock, NULL))
+    {
+        LOG_LS_ERROR(MSGID_LS_MUTEX_ERR, 0, "Could not initialize mutex.");
+        goto error;
+    }
 
     catalog->token_map = g_hash_table_new_full(
             g_str_hash, g_str_equal, g_free, NULL);
-    if (!catalog->token_map) goto error;
 
     catalog->subscription_lists = g_hash_table_new_full(
             g_str_hash, g_str_equal, g_free, (GDestroyNotify)_SubListFree);
-    if (!catalog->subscription_lists) goto error;
 
     catalog->sh = sh;
 
     return catalog;
 
 error:
-    pthread_mutex_destroy(&catalog->lock);
-
-error_before_mutex:
-
     _CatalogFree(catalog);
     return NULL;
 }
@@ -430,7 +423,7 @@ _CatalogAdd(_Catalog *catalog, const char *key,
     const char *token = LSMessageGetUniqueToken(message);
     if (!token)
     {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
+        _LSErrorSet(lserror, MSGID_LS_TOKEN_ERR, -1, "Could not get unique token");
         return false;
     }
 
@@ -443,12 +436,6 @@ _CatalogAdd(_Catalog *catalog, const char *key,
         list = _SubListNew();
         g_hash_table_replace(catalog->subscription_lists,
                              g_strdup(key), list);
-    }
-
-    if (!list)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        goto cleanup;
     }
 
     _Subscription *subs = g_hash_table_lookup(catalog->token_map, token);
@@ -550,11 +537,6 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
     token = json_object_get_int(tokenObj);
 
     char *uniqueToken = g_strdup_printf("%s.%d", sender, token);
-    if (!uniqueToken)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        goto error;
-    }
 
     _CatalogRemoveToken(catalog, uniqueToken, true);
 
@@ -606,14 +588,11 @@ _subscriber_down(LSHandle *sh, LSMessage *message, void *ctx)
     {
         char *uniqueToken = g_strdup_printf("%s.%ld", serviceName, token);
 
-        if (uniqueToken)
+        _Subscription *subs = _SubscriptionAcquire(sh->catalog, uniqueToken);
+        if (subs)
         {
-            _Subscription *subs = _SubscriptionAcquire(sh->catalog, uniqueToken);
-            if (subs)
-            {
-                _CatalogRemoveToken(sh->catalog, uniqueToken, true);
-                _SubscriptionRelease(sh->catalog, subs);
-            }
+            _CatalogRemoveToken(sh->catalog, uniqueToken, true);
+            _SubscriptionRelease(sh->catalog, subs);
         }
 
         g_free(uniqueToken);
@@ -821,11 +800,6 @@ LSSubscriptionAcquire(LSHandle *sh, const char *key,
 
     _Catalog *catalog = sh->catalog;
     LSSubscriptionIter *iter = g_new0(LSSubscriptionIter, 1);
-    if (!iter)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        return false;
-    }
 
     _CatalogLock(catalog);
     _SubList *tokens = _CatalogGetSubList_unlocked(catalog, key);
@@ -1101,11 +1075,6 @@ LSSubscriptionPost(LSHandle *sh, const char *category,
 
     bool retVal = false;
     char *key = _LSMessageGetKindHelper(category, method);
-    if (!key)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "Out of memory");
-        return false;
-    }
 
     retVal = LSSubscriptionReply(sh, key, payload, lserror);
 

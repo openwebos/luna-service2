@@ -164,7 +164,11 @@ _LSTransportShmInitOnce(bool public_bus, LSError *lserror)
         pthread_mutexattr_init(&attr);
         pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
 
-        pthread_mutex_init(&map->lock, &attr);
+        if (pthread_mutex_init(&map->lock, &attr))
+        {
+            LOG_LS_ERROR(MSGID_LS_MUTEX_ERR, 0, "Could not initialize mutex.");
+            goto error;
+        }
         map->serial = MONITOR_SERIAL_INVALID;
         map->front_fence = FENCE_VAL;
         map->back_fence = FENCE_VAL;
@@ -199,12 +203,6 @@ _LSTransportShmInit(_LSTransportShm** shm, bool public_bus, LSError* lserror)
 {
     _LSTransportShm* ret_shm = g_new0(_LSTransportShm, 1);
 
-    if (!ret_shm)
-    {
-        _LSErrorSetOOM(lserror);
-        goto error;
-    }
-
     ret_shm->data = _LSTransportShmInitOnce(public_bus, lserror);
 
     if (ret_shm->data == MAP_FAILED)
@@ -217,7 +215,7 @@ _LSTransportShmInit(_LSTransportShm** shm, bool public_bus, LSError* lserror)
     return true;
 
 error:
-    if (ret_shm) g_free(ret_shm);
+    g_free(ret_shm);
     return false;
 }
 

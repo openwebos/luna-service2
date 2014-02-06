@@ -38,11 +38,10 @@ _LSMonitorQueue*
 _LSMonitorQueueNew(bool public_bus)
 {
     _LSMonitorQueue *queue = g_new0(_LSMonitorQueue, 1);
-    if (queue)
-    {
-        queue->public = public_bus;
-        queue->queue = g_queue_new();
-    }
+
+    queue->public = public_bus;
+    queue->queue = g_queue_new();
+
     return queue;
 }
 

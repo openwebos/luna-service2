@@ -244,6 +244,7 @@ _LSTransportMessage*
 _LSTransportMessageNewRef(unsigned long payload_size)
 {
     calls_to_messagenewref++;
+
     _LSTransportMessage *message = g_slice_new0(_LSTransportMessage);
     message->raw = g_malloc(sizeof(_LSTransportMessageRaw) + payload_size);
     message->raw->header.len = payload_size;
@@ -744,10 +745,6 @@ test_LSTransportSendMessageMonitorRequest()
 void
 test_LSTransportCancelMethodCall_execute(char *service_name, int number_of_clients, int number_of_pending, gboolean expected_success)
 {
-    /*TODO Test for failure in LSTransportMessageNewRef or g_strdup_printf.
-    It will cause the tested function to enter error branch, where it should free all
-    allocated resources. */
-
     clear_counters();
 
     expected_calls_to_messagesettype = 2;

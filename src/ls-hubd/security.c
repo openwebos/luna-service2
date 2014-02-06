@@ -112,10 +112,7 @@ _LSHubPatternQueueNew(void)
 {
     _LSHubPatternQueue *q = g_slice_new0(_LSHubPatternQueue);
 
-    if (q)
-    {
-        q->q = g_queue_new();
-    }
+    q->q = g_queue_new();
 
     return q;
 }
@@ -125,10 +122,7 @@ _LSHubPatternQueueNewRef(void)
 {
     _LSHubPatternQueue *q = _LSHubPatternQueueNew();
 
-    if (q)
-    {
-        q->ref = 1;
-    }
+    q->ref = 1;
 
     return q;
 }
@@ -254,7 +248,7 @@ _LSHubPatternQueueHasMatch(const _LSHubPatternQueue *q, const char *str)
     ret = false;
 
 Exit:
-    if (rev_str) g_free(rev_str);
+    g_free(rev_str);
 
     return ret;
 }
@@ -304,36 +298,16 @@ LSHubGetActiveRoleMap(void)
 LSHubRole*
 LSHubRoleNew(const char *exe_path, LSHubRoleType type)
 {
+    LS_ASSERT(exe_path != NULL);
+
     LOG_LS_DEBUG("%s: exe_path: \"%s\", type: %d\n", __func__, exe_path, type);
     LSHubRole *role = g_slice_new0(LSHubRole);
 
-    if (role)
-    {
-        role->exe_path = g_strdup(exe_path);
+    role->exe_path = g_strdup(exe_path);
+    role->type = type;
+    role->allowed_names = _LSHubPatternQueueNewRef();
 
-        if (!role->exe_path)
-        {
-            goto error;
-        }
-
-        role->type = type;
-
-        role->allowed_names = _LSHubPatternQueueNewRef();
-
-        if (!role->allowed_names)
-        {
-            goto error;
-        }
-    }
     return role;
-
-error:
-    if (role->exe_path) g_free((char*)role->exe_path);
-
-    if (role->allowed_names) _LSHubPatternQueueUnref(role->allowed_names);
-    if (role) g_slice_free(LSHubRole, role);
-
-    return NULL;
 }
 
 void
@@ -359,10 +333,7 @@ LSHubRoleNewRef(const char *exe_path, LSHubRoleType type)
     LOG_LS_DEBUG("%s: exe_path: \"%s\", type: %d\n", __func__, exe_path, type);
     LSHubRole *role = LSHubRoleNew(exe_path, type);
 
-    if (role)
-    {
-        role->ref = 1;
-    }
+    role->ref = 1;
 
     return role;
 }
@@ -404,16 +375,13 @@ LSHubRoleCopyRef(const LSHubRole *role)
 
     LSHubRole *new_role = LSHubRoleNew(role->exe_path, role->type);
 
-    if (new_role)
-    {
-        new_role->ref = 1;
+    new_role->ref = 1;
 
-        /* Unref the queue allocated in LSHubRoleNew */
-        _LSHubPatternQueueUnref(new_role->allowed_names);
+    /* Unref the queue allocated in LSHubRoleNew */
+    _LSHubPatternQueueUnref(new_role->allowed_names);
 
-        /* shallow copy */
-        new_role->allowed_names = _LSHubPatternQueueCopyRef(role->allowed_names);
-    }
+    /* shallow copy */
+    new_role->allowed_names = _LSHubPatternQueueCopyRef(role->allowed_names);
 
     return new_role;
 }
@@ -518,14 +486,9 @@ LSHubRoleAddAllowedName(LSHubRole *role, const char *name, LSError *lserror)
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    if (pattern)
-    {
-        _LSHubPatternQueuePushTail(role->allowed_names, pattern); /* increments ref count */
-        _LSHubPatternSpecUnref(pattern);
-        return true;
-    }
-
-    return false;
+    _LSHubPatternQueuePushTail(role->allowed_names, pattern); /* increments ref count */
+    _LSHubPatternSpecUnref(pattern);
+    return true;
 }
 
 static LSHubRoleType
@@ -550,34 +513,17 @@ _LSHubRoleTypeStringToType(const char *type)
 LSHubPermission*
 LSHubPermissionNew(const char *service_name)
 {
+    LS_ASSERT(service_name != NULL);
+
     LOG_LS_DEBUG("%s\n", __func__);
 
     LSHubPermission *perm = g_slice_new0(LSHubPermission);
 
-    if (perm)
-    {
-        perm->service_name = g_strdup(service_name);
-
-        if (!perm->service_name) goto error;
-
-        perm->inbound = _LSHubPatternQueueNewRef();
-
-        if (!perm->inbound) goto error;
-
-        perm->outbound = _LSHubPatternQueueNewRef();
-
-        if (!perm->outbound) goto error;
-    }
+    perm->service_name = g_strdup(service_name);
+    perm->inbound = _LSHubPatternQueueNewRef();
+    perm->outbound = _LSHubPatternQueueNewRef();
 
     return perm;
-
-error:
-    if (perm->service_name) g_free((char*)perm->service_name);
-    if (perm->inbound) _LSHubPatternQueueUnref(perm->inbound);
-    if (perm->outbound) _LSHubPatternQueueUnref(perm->outbound);
-    if (perm) g_slice_free(LSHubPermission, perm);
-
-    return NULL;
 }
 
 LSHubPermission*
@@ -651,14 +597,9 @@ LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSErro
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    if (pattern)
-    {
-        _LSHubPatternQueuePushTail(perm->inbound, pattern); /* increments ref count */
-        _LSHubPatternSpecUnref(pattern);
-        return true;
-    }
-
-    return false;
+    _LSHubPatternQueuePushTail(perm->inbound, pattern); /* increments ref count */
+    _LSHubPatternSpecUnref(pattern);
+    return true;
 }
 
 bool
@@ -671,14 +612,9 @@ LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSErr
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    if (pattern)
-    {
-        _LSHubPatternQueuePushTail(perm->outbound, pattern); /* increments ref count */
-        _LSHubPatternSpecUnref(pattern);
-        return true;
-    }
-
-    return false;
+    _LSHubPatternQueuePushTail(perm->outbound, pattern); /* increments ref count */
+    _LSHubPatternSpecUnref(pattern);
+    return true;
 }
 
 
@@ -881,11 +817,6 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
     else
     {
         _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(perm->service_name);
-        if (!pattern)
-        {
-            _LSErrorSetOOM(lserror);
-            return false;
-        }
 
         LSHubPermissionRef(perm);
         g_tree_insert(LSHubGetPermissionWildcardMap(), pattern, perm);
@@ -1020,7 +951,7 @@ exit:
 
     /* unref and close */
     if (file_channel) g_io_channel_unref(file_channel);
-    if (file_text) g_free(file_text);
+    g_free(file_text);
 
     if (!ret)
     {
@@ -1083,12 +1014,6 @@ ParseJSONGetRole(struct json_object *json, const char *json_file_path, LSHubRole
     LOG_LS_DEBUG("%s: creating new role with exe_name: \"%s\", type: %d\n", __func__, exe_name, type);
 
     ret_role = LSHubRoleNewRef(exe_name, type);
-
-    if (!ret_role)
-    {
-        _LSErrorSetOOM(lserror);
-        goto exit;
-    }
 
     /* allowedNames */
     for (i = 0; i < allowed_names_arr_len; i++)
@@ -1758,9 +1683,7 @@ _LSHubPrintSignalPermissionsMessage(const _LSTransportClient *client)
 static inline char*
 _LSHubAppIdStripPidAndDup(const char *app_id)
 {
-    char *modified_app_id = NULL;
-
-    modified_app_id = g_strdup(app_id);
+    char *modified_app_id = g_strdup(app_id);
 
     if (modified_app_id)
     {
@@ -1873,7 +1796,7 @@ _LSHubIsClientAllowedOutbound(_LSTransportClient *client, const char *dest_servi
     }
 
 Exit:
-    if (modified_app_id) g_free(modified_app_id);
+    g_free(modified_app_id);
 
     return ret;
 }
@@ -1944,7 +1867,7 @@ _LSHubIsClientAllowedInbound(const _LSTransportClient *client, const char *dest_
     }
 
 Exit:
-    if (modified_app_id) g_free(modified_app_id);
+    g_free(modified_app_id);
 
     return ret;
 }
@@ -2009,12 +1932,6 @@ PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
     else
     {
         role_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify) LSHubRoleUnref);
-
-        if (!role_map)
-        {
-            _LSErrorSetOOM(lserror);
-            return false;
-        }
     }
 
     if (!active_role_map)
@@ -2022,12 +1939,6 @@ PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
         /* NOTE: Don't set the value destroy function to unref or it will break
          * the ref counting scheme used */
         active_role_map = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
-
-        if (!active_role_map)
-        {
-            _LSErrorSetOOM(lserror);
-            return false;
-        }
     }
 
     if (permission_map)
@@ -2041,12 +1952,6 @@ PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
     else
     {
         permission_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify) LSHubPermissionUnref);
-
-        if (!permission_map)
-        {
-            _LSErrorSetOOM(lserror);
-            return false;
-        }
     }
 
     if (permission_wildcard_map)
@@ -2060,7 +1965,7 @@ PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir)
                                                   (GDestroyNotify) LSHubPermissionUnref);
         if (!permission_wildcard_map)
         {
-            _LSErrorSetOOM(lserror);
+            LOG_LS_ERROR(MSGID_LSHUB_ARGUMENT_ERR, 0, "Invalid cannot create Glib tree");
             return false;
         }
     }

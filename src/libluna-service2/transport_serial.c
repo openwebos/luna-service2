@@ -51,11 +51,10 @@ _LSTransportSerialMapEntry*
 _LSTransportSerialMapEntryNew(LSMessageToken serial, GList *list_item)
 {
     _LSTransportSerialMapEntry* entry = g_slice_new0(_LSTransportSerialMapEntry);
-    if (entry)
-    {
-        entry->serial = serial;
-        entry->serial_list_item = list_item;
-    }
+
+    entry->serial = serial;
+    entry->serial_list_item = list_item;
+
     return entry;
 }
 
@@ -93,12 +92,10 @@ _LSTransportSerialListItemNew(LSMessageToken serial, _LSTransportMessage *messag
 {
     _LSTransportSerialListItem *item = g_slice_new0(_LSTransportSerialListItem);
 
-    if (item)
-    {
-        item->serial = serial;
-        _LSTransportMessageRef(message);
-        item->message = message;
-    }
+    item->serial = serial;
+    _LSTransportMessageRef(message);
+    item->message = message;
+
     return item;
 }
 
@@ -136,16 +133,23 @@ _LSTransportSerialNew(void)
 {
     _LSTransportSerial *serial_info = g_slice_new0(_LSTransportSerial);
 
-    if (serial_info)
+    if (pthread_mutex_init(&serial_info->lock, NULL))
     {
-        pthread_mutex_init(&serial_info->lock, NULL);
-        serial_info->queue = g_queue_new();
-
-        /* TODO: make custom 64-bit int hash function since we may need to
-         * increase the size of LSMessageToken */
-        serial_info->map = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, (GDestroyNotify)_LSTransportSerialMapEntryFree);
+        LOG_LS_ERROR(MSGID_LS_MUTEX_ERR, 0, "Could not initialize mutex");
+        goto error;
     }
+
+    serial_info->queue = g_queue_new();
+
+    /* TODO: make custom 64-bit int hash function since we may need to
+     * increase the size of LSMessageToken */
+    serial_info->map = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, (GDestroyNotify)_LSTransportSerialMapEntryFree);
+
     return serial_info;
+
+error:
+    _LSTransportSerialFree(serial_info);
+    return NULL;
 }
 
 /**
@@ -199,11 +203,6 @@ _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *mes
 {
     LSMessageToken serial = _LSTransportMessageGetToken(message);
     _LSTransportSerialListItem *item = _LSTransportSerialListItemNew(serial, message);
-    if (!item)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-        goto error;
-    }
 
     SERIAL_INFO_LOCK(&serial_info->lock);
 
@@ -213,12 +212,6 @@ _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *mes
     LS_ASSERT(list != NULL);
 
     _LSTransportSerialMapEntry *map_entry = _LSTransportSerialMapEntryNew(serial, list);
-    if (!map_entry)
-    {
-        _LSErrorSet(lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
-        SERIAL_INFO_UNLOCK(&serial_info->lock);
-        goto error;
-    }
 
     LS_ASSERT(NULL == g_hash_table_lookup(serial_info->map, &map_entry->serial));
 
@@ -227,13 +220,6 @@ _LSTransportSerialSave(_LSTransportSerial *serial_info, _LSTransportMessage *mes
     SERIAL_INFO_UNLOCK(&serial_info->lock);
 
     return true;
-
-error:
-    if (item)
-    {
-        _LSTransportSerialListItemFree(item);
-    }
-    return false;
 }
 
 /**

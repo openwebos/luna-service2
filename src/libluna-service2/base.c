@@ -699,11 +699,6 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
     pthread_once(&state.key_once, _LSInit);
 
     LSHandle *sh = g_new0(LSHandle, 1);
-    if (!sh)
-    {
-        _LSErrorSetOOM(lserror);
-        goto error;
-    }
 
     /* For backward compatibility, convert empty string to NULL */
     if (name && name[0] == '\0')
@@ -716,18 +711,11 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
 
     LSHANDLE_SET_VALID(sh, call_ret_addr);
 
-    if (name && !sh->name)
-    {
-        _LSErrorSetOOM(lserror);
-        goto error;
-    }
-
     /* custom message queue */
     sh->custom_message_queue = LSCustomMessageQueueNew();
-
     if (!sh->custom_message_queue)
     {
-        _LSErrorSetOOM(lserror);
+        LOG_LS_ERROR(MSGID_LS_QUEUE_ERROR, 0, "Failed to create new message queue");
         goto error;
     }
 
@@ -764,6 +752,7 @@ _LSRegisterCommon(const char *name, LSHandle **ret_sh,
     sh->catalog = _CatalogNew(sh);
     if (!sh->catalog)
     {
+        LOG_LS_ERROR(MSGID_LS_CATALOG_ERR, 0, "Failed to create new subscription catalog");
         goto error;
     }
 
@@ -1000,7 +989,6 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
     if (!table)
     {
         table = g_new0(LSCategoryTable, 1);
-        _LSErrorGotoIfFail(fail, table != NULL, lserror, MSGID_LS_OOM_ERR, -ENOMEM, "OOM");
 
         table->sh = sh;
         table->methods    = g_hash_table_new(g_str_hash, g_str_equal);
@@ -1043,9 +1031,6 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
     }
 
     return true;
-
-fail:
-    return false;
 }
 
 /**

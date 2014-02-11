@@ -100,8 +100,6 @@ _LSTransportMessageEmpty()
 INLINE _LSTransportMessage*
 _LSTransportMessageNew(unsigned long payload_size)
 {
-    LS_ASSERT(payload_size >= 0);
-
     _LSTransportMessage *ret = g_slice_new0(_LSTransportMessage);
 
     if (!ret)
@@ -160,8 +158,6 @@ _LSTransportMessageReset(_LSTransportMessage *message)
 INLINE _LSTransportMessage*
 _LSTransportMessageNewRef(unsigned long payload_size)
 {
-    LS_ASSERT(payload_size >= 0);
-
     _LSTransportMessage *ret = _LSTransportMessageNew(payload_size);
 
     if (ret)
@@ -2595,10 +2591,8 @@ _LSTransportMessageGetBool(_LSTransportMessageIter *iter, bool *ret)
     LS_ASSERT(ret != NULL);
 
     int32_t int_ret;
-    bool success = false;
 
-    success = _LSTransportMessageGetInt32(iter, &int_ret);
-    if (success)
+    if (_LSTransportMessageGetInt32(iter, &int_ret))
     {
         *ret = int_ret ? true : false;
         return true;

@@ -284,7 +284,7 @@ LSCustomMessageQueueFree(LSCustomMessageQueue *q)
 bool
 LSCustomMessageQueueIsEmpty(LSCustomMessageQueue *q)
 {
-    bool ret = true;
+    bool ret;
 
     pthread_mutex_lock(&q->lock);
     ret = g_queue_is_empty(q->queue);
@@ -468,7 +468,6 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
 
     GSList *iter;
     //int nfd = -1;
-    bool retVal;
     bool do_iteration = true;
 
     /* If we have already pending data we don't want to block on the iteration
@@ -517,8 +516,7 @@ LSFetchQueueWaitForMessage(LSFetchQueue *fq, LSMessage **ret_message,
         LSHandle *sh = (LSHandle*)fq->dispatch_iter->data;
 
         /* Fetch 1 message off incoming queue. */
-        retVal = LSCustomFetchMessage(sh, &message, lserror);
-        if (!retVal)
+        if (!LSCustomFetchMessage(sh, &message, lserror))
         {
             LOG_LS_WARNING(MSGID_LS_MSG_ERR, 0, "LSCustomFetchMessage returned false.");
             return false;

@@ -1492,8 +1492,6 @@ LSHubIsClientAllowedToRequestName(const _LSTransportClient *client, const char *
     LSError lserror;
     LSErrorInit(&lserror);
 
-    const char *exe_path = NULL;
-
     if (!_LSTransportSupportsSecurityFeatures(_LSTransportClientGetTransport(client)))
     {
         return true;
@@ -1522,7 +1520,7 @@ LSHubIsClientAllowedToRequestName(const _LSTransportClient *client, const char *
     {
         /* Check the role map from disk based on exe path */
 
-        exe_path = _LSTransportCredGetExePath(cred);
+        const char *exe_path = _LSTransportCredGetExePath(cred);
 
         if (!exe_path)
         {

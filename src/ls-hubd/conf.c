@@ -387,7 +387,6 @@ gboolean
 ConfigInotifyCallback(GIOChannel *channel, GIOCondition condition, gpointer data)
 {
     GError *error = NULL;
-    struct inotify_event *event = NULL;
 
     gsize bytes_read;
     gchar event_buf[256];
@@ -408,7 +407,7 @@ ConfigInotifyCallback(GIOChannel *channel, GIOCondition condition, gpointer data
 
     while (offset < bytes_read)
     {
-        event = (struct inotify_event*)&event_buf[offset];
+        struct inotify_event *event = (struct inotify_event*)&event_buf[offset];
 
         LOG_LS_DEBUG("%s: event: wd: %d, mask: %08X, cookie: %d, len: %d, name: \"%s\"\n",
                     __func__, event->wd, event->mask,

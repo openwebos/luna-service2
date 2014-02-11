@@ -252,10 +252,9 @@ _LSMonitorMessageHandlerPublic(_LSTransportMessage *message, void *context)
 static void
 _PrintMonitorListInfo(const GSList *info_list)
 {
-    _LSMonitorListInfo *cur = NULL;
     for (; info_list != NULL; info_list = g_slist_next(info_list))
     {
-        cur = info_list->data;
+        const _LSMonitorListInfo *cur = info_list->data;
         fprintf(stdout, "%-10d\t%-30s\t%-35s\t%-20s\t%-20s\n",
                 cur->pid, cur->service_name, cur->exe_path, cur->service_type, cur->unique_name);
     }
@@ -367,7 +366,6 @@ _ListServiceSubscriptions(LSHandle *sh, LSFilterFunc callback, GSList *monitor_l
     LSError lserror;
     LSErrorInit(&lserror);
 
-    _LSMonitorListInfo *cur = NULL;
     bool retVal = false;
 
     _SubscriptionReplyData *data = g_malloc(sizeof(_SubscriptionReplyData));
@@ -384,7 +382,7 @@ _ListServiceSubscriptions(LSHandle *sh, LSFilterFunc callback, GSList *monitor_l
 
     for (; monitor_list != NULL; monitor_list = g_slist_next(monitor_list))
     {
-        cur = monitor_list->data;
+        _LSMonitorListInfo *cur = monitor_list->data;
 
         /* skip any non-services and the monitor itself */
         if (!_CanGetSubscriptionInfo(cur))

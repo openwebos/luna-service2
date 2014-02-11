@@ -123,8 +123,6 @@ _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, 
     struct timespec now;
     _LSMonitorGetTime(&now);
 
-    double time_diff = 0.0;
-
     /* Get all messages older than msecs and save in a new queue */
     GQueue *orig_queue = queue->queue;
     GQueue *print_queue = g_queue_new();
@@ -132,7 +130,7 @@ _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, 
 
     while ((item = g_queue_peek_head(orig_queue)) != NULL)
     {
-        time_diff = _LSMonitorTimeDiff(&now, &item->timestamp);
+        double time_diff = _LSMonitorTimeDiff(&now, &item->timestamp);
 
         if (time_diff * 1000.0 >= msecs)
         {

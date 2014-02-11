@@ -1855,7 +1855,6 @@ _LSTransportSendFd(int fd, int fd_to_send, bool *retry, LSError *lserror)
 {
     char cmsg_buf[FD_CMSG_SPACE];
     struct msghdr fdmsg;
-    struct cmsghdr *cmsg = NULL;
     struct iovec iov[1];
     char iov_buf[1] = {0};
     int ret = 0;
@@ -1879,6 +1878,8 @@ _LSTransportSendFd(int fd, int fd_to_send, bool *retry, LSError *lserror)
     }
     else
     {
+        struct cmsghdr *cmsg = NULL;
+
         fdmsg.msg_control = cmsg_buf;
         fdmsg.msg_controllen = sizeof(cmsg_buf);
 
@@ -3469,7 +3470,6 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
     while (1)
     {
         char* buf = (char*)&incoming->tmp_header;
-        int ret = 0;
 
         if (incoming->tmp_msg)
         {
@@ -3489,7 +3489,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
 
         if (num_bytes_to_read > 0)
         {
-            ret = recv(client->channel.fd, buf + offset, num_bytes_to_read, MSG_DONTWAIT);
+            int ret = recv(client->channel.fd, buf + offset, num_bytes_to_read, MSG_DONTWAIT);
 
             /* If there was an error or we would block, we're done reading in data */
             if (ret <= 0)
@@ -3574,7 +3574,7 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
         }
         else
         {
-            LS_ASSERT(incoming->tmp_header_offset >= 0 && incoming->tmp_header_offset <= sizeof(_LSTransportHeader));
+            LS_ASSERT(incoming->tmp_header_offset <= sizeof(_LSTransportHeader));
 
             if (incoming->tmp_header_offset == sizeof(incoming->tmp_header))
             {
@@ -4852,7 +4852,6 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
     struct iovec iov[5];
     char nul = '\0';
     unsigned long app_id_offset = 0;
-    char *app_id_in_raw_msg = NULL;
 
     unsigned long category_len = strlen(category) + 1;
     unsigned long method_len = strlen(method) + 1;
@@ -4912,7 +4911,7 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             return false;
         }
 
-        app_id_in_raw_msg = _LSTransportMessageGetBody(message) + app_id_offset;
+        const char *app_id_in_raw_msg = _LSTransportMessageGetBody(message) + app_id_offset;
         _LSTransportMessageSetAppId(message, app_id_in_raw_msg);
 
         /* ref's the message */
@@ -4966,9 +4965,6 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
              * knows the source since it receives it directly from the
              * source (i.e., not through the hub)
              */
-            char *padding = alloca(16);
-            memset(padding, 0, 16);
-
             struct iovec iov_monitor[ARRAY_SIZE(iov) + 4];
             memcpy(iov_monitor, iov, sizeof(iov));
 
@@ -4982,6 +4978,8 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             unsigned long monitor_total_size = total_size + dest_service_name_len + dest_unique_name_len;
 
             unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, monitor_total_size);
+            char padding[padding_bytes];
+            memset(padding, 0, padding_bytes);
 
             monitor_total_size += padding_bytes + monitor_serial_size;
 

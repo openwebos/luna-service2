@@ -521,11 +521,11 @@ test_LSSignalSend(TestData *fixture, gconstpointer user_data)
     LSError error;
     LSErrorInit(&error);
 
-    const char *uri = "palm://com.name.service/activated";
-    const char *payload = "{}";
-
     if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
     {
+        const char *uri = "palm://com.name.service/activated";
+        const char *payload = "{}";
+
         g_assert(LSSignalSend(&fixture->sh, uri, payload, &error));
         g_assert_cmpint(fixture->transport_send_signal_called, ==, 1);
         exit(0);

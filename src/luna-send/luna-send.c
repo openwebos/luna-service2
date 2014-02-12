@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -45,6 +45,11 @@ static GList * query_list = NULL;
 static gchar *url = NULL;
 static gchar *message = NULL;
 static gchar *appId = NULL;
+
+// Default value to use (in ms) for a timeout on exit
+//
+// Can be overridden by the -w option
+static guint exit_timeout = 300;
 
 static gboolean
 goodbye (gpointer data)
@@ -226,7 +231,7 @@ serviceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
             LSErrorPrint (&lserror, stderr);
             LSErrorFree (&lserror);
         }
-        g_timeout_add (300, goodbye, ctx);
+        g_timeout_add (exit_timeout, goodbye, ctx);
         return true;
     }
 
@@ -280,7 +285,7 @@ timingServiceResponse(LSHandle *sh, LSMessage *reply, void *ctx)
             LSErrorPrint (&lserror, stderr);
             LSErrorFree (&lserror);
         }
-        g_timeout_add (300, goodbye, ctx);
+        g_timeout_add (exit_timeout, goodbye, ctx);
         return true;
     }
 
@@ -305,7 +310,8 @@ PrintUsage(const char* progname)
            " -l number responses\n"
            " -f format JSON responses usefully\n"
            " -q apply specific query to responses (multiple queries may be supplied), e.g.:\n"
-           "        -q 'returnValue' -q 'queues[0]'\n");
+           "        -q 'returnValue' -q 'queues[0]'\n"
+           " -w x Set exit timeout value to be 'x' milliseconds\n");
 }
 
 void
@@ -345,7 +351,7 @@ main(int argc, char **argv)
     int optionCount = 0;
     int opt;
 
-    while ((opt = getopt(argc, argv, "hdisrlfn:t:m:a:q:"
+    while ((opt = getopt(argc, argv, "hdisrlfn:t:m:a:q:w:"
 #ifndef PUBLIC_HUB_ONLY
                                      "P"
 #endif // PUBLIC_HUB_ONLY
@@ -399,6 +405,10 @@ main(int argc, char **argv)
     case 'q':
         query_list = g_list_append(query_list, g_strdup(optarg));
         optionCount+=2;
+        break;
+    case 'w':
+        exit_timeout = atoi(optarg);
+        optionCount += 2;
         break;
     case 'h':
     default:

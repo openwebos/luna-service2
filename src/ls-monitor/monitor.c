@@ -212,6 +212,7 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
             fprintf(stdout, public_bus?"\t[PUB]\t":"\t[PRV]\t");
             LSTransportMessagePrint(message, stdout);
         }
+        fflush(stdout);
     }
 }
 
@@ -315,6 +316,7 @@ _PrintSubscriptionResultsList(GSList *sub_list)
         LSMessageUnref(msg);
     }
     fprintf(stdout, "\n");
+    fflush(stdout);
 }
 
 static void
@@ -799,6 +801,7 @@ main(int argc, char *argv[])
         {
             fprintf(stdout, "Time\t\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
         }
+        fflush(stdout);
     }
 
     dup_hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);

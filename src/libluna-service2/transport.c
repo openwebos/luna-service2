@@ -4788,7 +4788,10 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
     /* Look up destination and connect to it if we haven't already */
     TRANSPORT_LOCK(&transport->lock);
     _LSTransportClient *client = g_hash_table_lookup(transport->clients, service_name);
-
+    if (client)
+    {
+        _LSTransportClientRef(client);
+    }
     TRANSPORT_UNLOCK(&transport->lock);
 
     if (!client)
@@ -4838,6 +4841,7 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
         message = _LSTransportSendVectorRet(iov, ARRAY_SIZE(iov), total_size, app_id_offset, client, lserror);
         if (!message)
         {
+            _LSTransportClientUnref(client);
             return false;
         }
 
@@ -4897,6 +4901,8 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
              * monitor goes down */
             (void)_LSTransportSendVector(iov_monitor, ARRAY_SIZE(iov_monitor), monitor_total_size, app_id_offset, transport->monitor, lserror);
         }
+
+        _LSTransportClientUnref(client);
     }
     _LSTransportMessageUnref(message);
 

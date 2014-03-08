@@ -27,8 +27,8 @@ static _LSTransport mvar_transport;
 static const int mvar_fd = 5;
 static const char mvar_service_name[] = "stest_test";
 static const char mvar_unique_name[] = "utest_test";
-static _LSTransportOutgoing* mvar_outqueue = (_LSTransportOutgoing*)0x2345;
-static _LSTransportIncoming* mvar_inqueue = (_LSTransportIncoming*)0x8484;
+static _LSTransportOutgoing* mvar_outqueue;
+static _LSTransportIncoming* mvar_inqueue;
 static bool mvar_initiator = true;
 static const int mvar_source_priority = 4;
 static _LSTransportCred* mvar_transport_cred_ptr = (_LSTransportCred*)0x9494;
@@ -283,6 +283,9 @@ int
 main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
+
+    mvar_outqueue = g_new0(_LSTransportOutgoing, 1);
+    mvar_inqueue = g_new0(_LSTransportIncoming, 1);
 
     g_test_add_func("/luna-service2/LSTransportClientNewFree",
                      test_LSTransportClientNewFree);

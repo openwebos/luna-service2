@@ -1,0 +1,9 @@
+{
+    "id": "resources://luna-service2/service",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "description": "schema for consolidated view of all categories exposed by service",
+    "additionalProperties": {
+        "$ref": "category"
+    }
+}

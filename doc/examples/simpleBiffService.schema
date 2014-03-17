@@ -1,0 +1,70 @@
+{
+    // probably the easiest way is to load whole json and use specific parts
+    // for specific categories
+    "/" : {
+        "definitions": {
+            "sender": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "organization": { "type": "string" }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+            },
+            "messageInfo": {
+                "type": "object",
+                "properties": {
+                    "id": "integer",
+                    "sender": { "$ref": "#/definitions/sender" },
+                    "subject": { "type": "string" }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+            }
+        },
+        "methods": {
+            "leaveMessage" : {
+                "call" : {
+                    "type": "object",
+                    "properties": {
+                        "sender": { "$ref": "#/definitions/sender" },
+                        "subject": { "type": "string" },
+                        "body": { "type": "string" }
+                    },
+                    "additionalProperties": false
+                },
+                "reply": { // since "firstReply" ommited "reply" used for all answers
+                    "type": "integer",
+                    "description": "message id"
+                }
+            },
+            "unreadMessages" : {
+                "call": {
+                    "type": "object",
+                    "properties": {
+                        "lastId": {
+                            "type": "integer",
+                            "description": "last read message id (0 if none)",
+                            "default": 0
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "firstReply": { // first reply consist of bunch of messages since last request
+                    "type": "object",
+                    "properties": {
+                        "unread": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/messageInfo" }
+                        },
+                        "lastId": { "type": "integer" }
+                    }
+                },
+                // further subscription replies are simply messageInfo's
+                "reply": { "$ref": "#/definitions/messageInfo" },
+            }
+        }
+    }
+}

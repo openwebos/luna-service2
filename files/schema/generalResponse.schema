@@ -1,0 +1,39 @@
+{
+    "id": "resources://luna-service2/generalResponse",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "general response schema",
+    "oneOf": [
+        {
+            "type": "object",
+            "description": "general successful response schema",
+            "properties": {
+                "returnValue": {
+                    "type": "boolean",
+                    "description": "call successful result indicator",
+                    "enum": [true]
+                }
+            },
+            "required": ["returnValue"]
+        },
+        {
+            "type": "object",
+            "description": "general error response schema",
+            "properties": {
+                "returnValue": {
+                    "type": "boolean",
+                    "description": "call unsuccessful result indicator",
+                    "enum": [false]
+                },
+                "errorCode": {
+                    "type": "integer",
+                    "description": "type of error indicator for client service"
+                },
+                "errorText": {
+                    "type": "string",
+                    "description": "human-readable error description"
+                }
+            },
+            "required": ["returnValue"]
+        }
+    ]
+}

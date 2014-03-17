@@ -1,0 +1,73 @@
+{
+    "id": "resources://luna-sevice2/category",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "description": "luna-service2 category description schema",
+    "properties": {
+        "definitions": {
+            "description": "schemas for local referencing",
+            "additionalProperties": { "$ref": "http://json-schema.org/draft-04/schema#" },
+            "default": {}
+        },
+        "methods": {
+            "type": "object",
+            "description": "dictionary of category methods",
+            "additionalProperties": {
+                "type": "object",
+                "description": "method meta-information",
+                "properties": {
+                    "call": {
+                        "description": "schema for params passed to service call",
+                        "allOf": [{ "$ref": "http://json-schema.org/draft-04/schema#" }],
+                        "default": {}
+                    },
+                    "firstReply": {
+                        "description": "schema for content of first service reply on call (omitted means all responses are the same)",
+                        "allOf": [{ "$ref": "http://json-schema.org/draft-04/schema#" }]
+                    },
+                    "reply": {
+                        "type": "object",
+                        "description": "schema for content of service replies on call (subsequent only if firstReply present)",
+                        "allOf": [{ "$ref": "http://json-schema.org/draft-04/schema#" }],
+                        "default": {
+                            "description": "general response schema",
+                            "oneOf": [
+                                {
+                                    "type": "object",
+                                    "description": "general successful response schema",
+                                    "properties": {
+                                        "returnValue": {
+                                            "description": "call successful result indicator",
+                                            "enum": [true]
+                                        }
+                                    },
+                                    "required": ["returnValue"]
+                                },
+                                {
+                                    "type": "object",
+                                    "description": "general error response schema",
+                                    "properties": {
+                                        "returnValue": {
+                                            "description": "call unsuccessful result indicator",
+                                            "enum": [false]
+                                        },
+                                        "errorCode": {
+                                            "type": "integer",
+                                            "description": "type of error indicator for client service"
+                                        },
+                                        "errorText": {
+                                            "type": "string",
+                                            "description": "human-readable error description"
+                                        }
+                                    },
+                                    "required": ["returnValue"]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+    }
+}

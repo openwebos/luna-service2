@@ -142,7 +142,7 @@ _LSTransportClientFree(_LSTransportClient* client)
     void *message_failure_context = client->transport->message_failure_context;
     _LSTransportSerial *serial = client->outgoing->serial;
 
-    if (message_failure_handler)
+    if (message_failure_handler && client->initiator && client->is_dynamic && client->service_name)
     {
         _LSTransportMessage *serial_message = NULL;
         while ((serial_message = _LSTransportSerialPopHead(serial)) != NULL)

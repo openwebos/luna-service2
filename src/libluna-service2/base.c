@@ -525,7 +525,7 @@ LSErrorInit(LSError *lserror)
 * @retval true if the LSError contains an error code/message.
 */
 bool
-LSErrorIsSet(LSError *lserror)
+LSErrorIsSet(const LSError *lserror)
 {
     LSERROR_CHECK_MAGIC(lserror);
 
@@ -539,7 +539,7 @@ LSErrorIsSet(LSError *lserror)
 * @param  out
 */
 void
-LSErrorPrint(LSError *lserror, FILE *out)
+LSErrorPrint(const LSError *lserror, FILE *out)
 {
     LSERROR_CHECK_MAGIC(lserror);
 

@@ -46,3 +46,4 @@ foreach (TEST ${UNIT_TEST_SOURCES})
     add_test(${TEST} ${TEST})
 endforeach ()
 
+add_subdirectory(cxx)

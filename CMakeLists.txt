@@ -17,7 +17,7 @@
 # LICENSE@@@
 
 cmake_minimum_required(VERSION 2.8.7)
-project(luna-service2 C)
+project(luna-service2)
 
 include(webOS/webOS)
 include(CTest)
@@ -90,6 +90,10 @@ endif()
 IF(NOT DEFINED WEBOS_LS2_SECURE)
 	SET(WEBOS_LS2_SECURE True)
 ENDIF(NOT DEFINED WEBOS_LS2_SECURE)
+
+
+set(WITH_GTEST_SRC "/usr/src/gtest" CACHE PATH "Path to Google Test source code")
+
 
 # Debug definitions
 webos_add_compiler_flags(ALL -DMEMCHECK -DLSHANDLE_CHECK)

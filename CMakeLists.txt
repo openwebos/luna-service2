@@ -145,4 +145,4 @@ install(PROGRAMS ${LS-CONTROL} DESTINATION ${WEBOS_INSTALL_SBINDIR} ${LS2_PERMS}
 install(DIRECTORY DESTINATION ${WEBOS_INSTALL_SYSBUS_PRVSERVICESDIR})
 install(DIRECTORY DESTINATION ${WEBOS_INSTALL_SYSBUS_PUBSERVICESDIR})
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -E 'test_clock|test_timersource')
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -E 'integration|test_clock|test_timersource')

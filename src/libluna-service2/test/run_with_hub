@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# @@@LICENSE
+#
+#      Copyright (c) 2014 LG Electronics, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# LICENSE@@@
+
+usage()
+{
+	cat <<EOF
+Usage: `basename $0` <BUILD_DIR> <TEST_TO_RUN>
+EOF
+}
+
+die()
+{
+	echo >&2 $*
+	exit 1
+}
+
+if [[ $# != 2 ]]; then
+	usage
+	exit 1
+fi
+
+build_dir=$1
+test_file=$2
+
+conf_root=`mktemp -d /tmp/ls-hubd-conf.XXXXXXXX` || die "Failed to allocate temp directory"
+
+cleanup()
+{
+	kill ${spawned_pids[@]}
+	rm -rf $conf_root || echo >&2 "Failed to remove the temp directory"
+}
+
+trap cleanup EXIT
+
+mkdir -p $conf_root/var/palm/ls2/{roles,services}/{prv,pub}
+mkdir -p $conf_root/usr/share/ls2/roles/{prv,pub}
+mkdir -p $conf_root/usr/share/dbus-1/{system-,}services
+
+spawn_hubd()
+{
+	pubpriv=$1
+
+	old_conf=$build_dir/Configured/files/conf/ls-${pubpriv}.conf
+	conf=$conf_root/etc/luna-service2/ls-${pubpriv}.conf && mkdir -p `dirname $conf`
+
+	old_root=`perl -ne '$_ =~ m|PidDirectory=(.*)/var/run/ls2| and print "$1\n";' $old_conf` \
+		|| die "Failed to detect old root"
+
+	sed -e "s|$old_root|$conf_root|g" \
+		-e "s|Enabled=true|Enabled=false|g" \
+		$old_conf > $conf \
+		|| die "Failed to prepare ls-${pubpriv}.conf"
+
+	[[ $pubpriv == public ]] && pub_opt=-p
+
+	$build_dir/src/ls-hubd/ls-hubd -c $conf $pub_opt &
+	[[ $? -eq 0 ]] || die "Failed to launch $pubpriv ls-hubd"
+	spawned_pids+=($!)
+}
+
+spawn_hubd private
+spawn_hubd public
+
+while [[ ! -S /tmp/com.palm.private_hub || ! -S /tmp/com.palm.public_hub ]]; do
+	sleep 0.1
+done
+
+$test_file || die "Failed to execute $test_file"

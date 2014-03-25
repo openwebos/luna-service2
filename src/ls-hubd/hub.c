@@ -1865,22 +1865,15 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
     LOG_LS_DEBUG("%s: service_name: \"%s\"\n", __func__, service_name);
 
-    if (NULL == IsMediaService(service_name))
+    /* Check security permissions */
+    if (!LSHubIsClientAllowedToRequestName(client, service_name))
     {
-        /* Check security permissions */
-        if (!LSHubIsClientAllowedToRequestName(client, service_name))
+        if (!_LSHubSendRequestNameReply(message, transport_type, LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED, NULL, &lserror))
         {
-            if (!_LSHubSendRequestNameReply(message, transport_type, LS_TRANSPORT_REQUEST_NAME_PERMISSION_DENIED, NULL, &lserror))
-            {
-                LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
-                LSErrorFree(&lserror);
-            }
-            return FALSE;
+            LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
+            LSErrorFree(&lserror);
         }
-    }
-    else
-    {
-        LOG_LS_DEBUG("%s: \"%s\" is a media service -- skipping client permissions check\n", __func__, service_name);
+        return FALSE;
     }
 
     if (NULL != service_name)
@@ -2700,7 +2693,7 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
 
     /* Check to see if the service exists */
     _Service *service = ServiceMapLookup(service_name);
-    if (!service && !IsMediaService(service_name))
+    if (!service)
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(_LSTransportMessageGetClient(message));
         LOG_LS_ERROR(MSGID_LSHUB_SERVICE_NOT_LISTED, 4,

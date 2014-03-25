@@ -941,19 +941,6 @@ LSHubPermissionMapLookup(const char *service_name)
         {
             _LSHubPatternSpec key = _LSHubPatternSpecNoPattern(service_name);
             perm = g_tree_lookup(LSHubGetPermissionWildcardMap(), &key);
-
-            if (!perm)
-            {
-                /* FIXME - unfortunate hack since mediaserver dynamically registers
-                 * names on the bus */
-                const char *media_service_name = IsMediaService(service_name);
-
-                if (media_service_name)
-                {
-                    perm = g_hash_table_lookup(LSHubGetPermissionMap(), media_service_name);
-                }
-            }
-
         }
     }
 
@@ -2233,47 +2220,3 @@ void RolesCleanup()
 {
     _PermissionsAndRolesDeinit();
 }
-
-/**< FIXME: workaround for non-conformant media service */
-static char *media_service_names[] = {
-    "com.palm.mediad",
-    "com.palm.media",
-    "com.palm.umediapipeline",
-    "com.palm.umediaserver",
-    "com.palm.umediapipelinectrl"
-};
-
-/**
- *******************************************************************************
- * @brief Returns true if the service_name is for the media service, which
- * behaves differently than all other static and dynamic services and does
- * not have a static service file.
- *
- * @param  service_name
- *
- * @retval  media service_name pointer if a media service
- * @retval  null pointer otherwise
- *******************************************************************************
- */
-inline const char*
-IsMediaService(const char *service_name)
-{
-    if (NULL == service_name)
-    {
-        return NULL;
-    }
-
-    int i = 0;
-    for (i = 0; i < ARRAY_SIZE(media_service_names); i++)
-    {
-        /* match just the part of the name that doesn't change
-         * ( i.e., same as com.palm.mediad.* and com.palm.umediapipeline* ) */
-        if (strncmp(media_service_names[i], service_name, strlen(media_service_names[i])) == 0)
-        {
-            return media_service_names[i];
-        }
-    }
-
-    return NULL;
-}
-

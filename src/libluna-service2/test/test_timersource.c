@@ -44,32 +44,26 @@ PmLogErr _PmLogMsgKV(PmLogContext context, PmLogLevel level, unsigned int flags,
 /* Test utils *****************************************************************/
 
 static gboolean
-test_quit_mainloop(gpointer user_data)
+test_on_timeout(gpointer user_data)
 {
     g_assert(NULL != user_data);
 
-    GMainLoop *main_loop = (GMainLoop*)user_data;
-    g_main_loop_quit(main_loop);
+    gboolean *flag = (gboolean *)user_data;
+    *flag = TRUE;
 
     return true;
 }
 
 static void
-test_fork_timer_process(GTimerSource *source, guint64 usec_fork_timeout, GSourceFunc callback)
+test_iterate_main_loop(int ms)
 {
-    if (g_test_trap_fork(usec_fork_timeout, G_TEST_TRAP_SILENCE_STDOUT))
+    g_test_timer_start();
+    while (true)
     {
-        GMainLoop *main_loop = g_main_loop_new(NULL, false);
-
-        g_source_set_callback ((GSource*)source, callback, main_loop, NULL);
-        g_source_attach ((GSource*)source, NULL);
-
-        g_main_loop_run(main_loop);
-        g_main_loop_unref(main_loop);
-
-        g_source_unref((GSource*)source);
-
-        exit(0);
+        g_main_context_iteration(NULL, FALSE);
+        if (g_test_timer_elapsed() * 1000 > ms)
+            break;
+        g_usleep(500);
     }
 }
 
@@ -78,45 +72,29 @@ test_fork_timer_process(GTimerSource *source, guint64 usec_fork_timeout, GSource
 static void
 test_timer_source_new()
 {
-    GTimerSource *source = NULL;
+    gboolean fired = FALSE;
 
-    // test timer of 1000ms in fork process with 2000ms timeout
-    // (timer expires, fork does not reach timeout)
-    source = g_timer_source_new(1000, 1);
+    GMainLoop *main_loop = g_main_loop_new(NULL, false);
+    GTimerSource *source = g_timer_source_new(100, 1);
     g_assert(NULL != source);
-    test_fork_timer_process(source, 2000000, test_quit_mainloop);
-    g_source_unref((GSource*)source);
-    g_assert(!g_test_trap_reached_timeout());
 
-    // test timer of 1000ms in fork process with 500ms timeout
-    // (timer does not expire, fork reaches timeout)
-    source = g_timer_source_new(1000, 1);
-    g_assert(NULL != source);
-    test_fork_timer_process(source, 500000, test_quit_mainloop);
-    g_source_unref((GSource*)source);
-    g_assert(g_test_trap_reached_timeout());
-}
+    g_source_set_callback ((GSource*)source, test_on_timeout, &fired, NULL);
+    g_source_attach ((GSource*)source, NULL);
 
-static void
-test_timer_source_new_seconds()
-{
-    GTimerSource *source = NULL;
+    // test timer of 100ms in fork process with 200ms timeout
+    test_iterate_main_loop(200);
+    g_assert(fired);
 
-    // test timer of 1000ms in fork process with 2000ms timeout
-    // (timer expires, fork does not reach timeout)
-    source = g_timer_source_new_seconds(1);
-    g_assert(NULL != source);
-    test_fork_timer_process(source, 2000000, test_quit_mainloop);
-    g_source_unref((GSource*)source);
-    g_assert(!g_test_trap_reached_timeout());
+    // test timer of 100ms in fork process with 50ms timeout
+    fired = FALSE;
+    test_iterate_main_loop(50);
 
-    // test timer of 1000ms in fork process with 500ms timeout
-    // (timer does not expire, fork reaches timeout)
-    source = g_timer_source_new_seconds(1);
-    g_assert(NULL != source);
-    test_fork_timer_process(source, 500000, test_quit_mainloop);
+    g_assert(!fired);
+    test_iterate_main_loop(75);
+    g_assert(fired);
+
     g_source_unref((GSource*)source);
-    g_assert(g_test_trap_reached_timeout());
+    g_main_loop_unref(main_loop);
 }
 
 static void
@@ -182,7 +160,6 @@ main(int argc, char *argv[])
     g_log_set_fatal_mask ("LunaService", G_LOG_LEVEL_ERROR);
 
     g_test_add_func("/luna-service2/g_timer_source_new", test_timer_source_new);
-    g_test_add_func("/luna-service2/g_timer_source_new_seconds", test_timer_source_new_seconds);
     g_test_add_func("/luna-service2/g_timer_source_set_interval", test_timer_source_set_interval);
     g_test_add_func("/luna-service2/g_timer_source_set_interval_seconds", test_timer_source_set_interval_seconds);
 

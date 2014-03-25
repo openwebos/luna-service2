@@ -289,8 +289,8 @@ _CanGetSubscriptionInfo(_LSMonitorListInfo *info)
     /* Needs to have a valid service name and be dynamic
      * or static (i.e., not a client)
      */
-    if (info->service_name && ((strcmp(info->service_type, DYNAMIC_SERVICE_STR) == 0)
-                           || (strcmp(info->service_type, STATIC_SERVICE_STR) == 0)))
+    if (info->service_name && ((g_strcmp0(info->service_type, DYNAMIC_SERVICE_STR) == 0)
+                           || (g_strcmp0(info->service_type, STATIC_SERVICE_STR) == 0)))
     {
         return true;
     }

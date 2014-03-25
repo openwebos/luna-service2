@@ -813,7 +813,7 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
         switch (call->type)
         {
             case CALL_TYPE_SIGNAL:
-                if (strcmp(_LSTransportMessageGetPayload(msg), "{\"returnValue\":true}") == 0)
+                if (g_strcmp0(_LSTransportMessageGetPayload(msg), "{\"returnValue\":true}") == 0)
                 {
                     reply->category = LUNABUS_SIGNAL_CATEGORY;
                     reply->method = LUNABUS_SIGNAL_REGISTERED;
@@ -1628,7 +1628,7 @@ _LSSignalSendCommon(LSHandle *sh, const char *uri, const char *payload,
         }
     }
 
-    if (unlikely(strcmp(payload, "") == 0))
+    if (unlikely(!payload || (strcmp(payload, "") == 0)))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -EINVAL, "Empty payload is not valid JSON. Use {}");
         return false;
@@ -1826,7 +1826,7 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
         }
     }
 
-    if (unlikely(strcmp(payload, "") == 0))
+    if (unlikely(!payload || (strcmp(payload, "") == 0)))
     {
         _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -EINVAL, "Empty payload is not valid JSON. Use {}");
         return false;

@@ -1243,8 +1243,8 @@ ParseRoleDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
                  * Similarly, don't add the role for a mojo app, since they
                  * do not register for a service name (sysmgr just sets the
                  * appId and we do the check on that */
-                if (strcmp(role->exe_path, g_conf_triton_service_exe_path) != 0 &&
-                    strcmp(role->exe_path, g_conf_mojo_app_exe_path) != 0)
+                if (g_strcmp0(role->exe_path, g_conf_triton_service_exe_path) != 0 &&
+                    g_strcmp0(role->exe_path, g_conf_mojo_app_exe_path) != 0)
                 {
                     if (!LSHubRoleMapAddRef(role, lserror))
                     {

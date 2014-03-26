@@ -32,16 +32,12 @@
 
 /** use these for key-value pair printing */
 #define LOG_LS_TRACE(...)                    PMLOG_TRACE(__VA_ARGS__)
-#define LOG_LS_DEBUG(...)                    PmLogDebug(LSLogGetContext(), ##__VA_ARGS__)
-#define LOG_LS_INFO(...)                     PmLogInfo(LSLogGetContext(), msgid, kvcount, ##__VA_ARGS__)
-#define LOG_LS_WARNING(msgid, kvcount, ...)  PmLogWarning(LSLogGetContext(), msgid, kvcount, ##__VA_ARGS__)
-#define LOG_LS_ERROR(msgid, kvcount, ...)    PmLogError(LSLogGetContext(), msgid, kvcount, ##__VA_ARGS__)
-#define LOG_LS_CRITICAL(msgid, kvcount, ...) PmLogCritical(LSLogGetContext(), msgid, kvcount, ##__VA_ARGS__)
+#define LOG_LS_DEBUG(...)                    PmLogDebug(PmLogGetLibContext(), ##__VA_ARGS__)
+#define LOG_LS_INFO(...)                     PmLogInfo(PmLogGetLibContext(), msgid, kvcount, ##__VA_ARGS__)
+#define LOG_LS_WARNING(msgid, kvcount, ...)  PmLogWarning(PmLogGetLibContext(), msgid, kvcount, ##__VA_ARGS__)
+#define LOG_LS_ERROR(msgid, kvcount, ...)    PmLogError(PmLogGetLibContext(), msgid, kvcount, ##__VA_ARGS__)
+#define LOG_LS_CRITICAL(msgid, kvcount, ...) PmLogCritical(PmLogGetLibContext(), msgid, kvcount, ##__VA_ARGS__)
 
-#define LOG_LSERROR(...)     LSErrorLog(LSLogGetContext(), ##__VA_ARGS__)
-
-void LSLogSetContext(const char*);
-PmLogContext LSLogGetContext(void);
-void LSLogSetDebugLevel(bool);
+#define LOG_LSERROR(...)     LSErrorLog(PmLogGetLibContext(), ##__VA_ARGS__)
 
 #endif  /* _LOG_H */

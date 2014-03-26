@@ -137,9 +137,6 @@ bool _LSHandleReply(LSHandle *sh, _LSTransportMessage *transport_msg);
  * @brief    The internals of LunaService.
  */
 
-/** log context name */
-#define LUNA_LOG_CONTEXT "luna-service"
-
 /** Enable UTF8 validation on the payload */
 bool _ls_enable_utf8_validation = false;
 
@@ -251,14 +248,13 @@ _LSInit(void)
         g_thread_init(NULL);
     }
 
-    LSLogSetContext(LUNA_LOG_CONTEXT);
     char *ls_debug = getenv("LS_DEBUG");
     if (ls_debug)
     {
         _ls_debug_tracing = atoi(ls_debug);
         if (_ls_debug_tracing > 1)
         {
-            LSLogSetDebugLevel(true);
+            PmLogSetContextLevel(PmLogGetLibContext(), kPmLogLevel_Debug);
             LOG_LS_DEBUG("Log mode enabled to level %d", _ls_debug_tracing);
         }
     }

@@ -21,7 +21,6 @@ set(SOURCE
     callmap.c
     clock.c
     debug_methods.c
-    log.c
     mainloop.c
     message.c
     subscription.c

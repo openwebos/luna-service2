@@ -247,6 +247,8 @@ test_LSDebugLogIncoming(TestData *fixture, gconstpointer user_data)
 
     setenv("G_MESSAGES_DEBUG", "all", 1);
 
+    PmLogSetContextLevel(PmLogGetLibContext(), kPmLogLevel_Debug);
+
     if (g_test_trap_fork(0, G_TEST_TRAP_SILENCE_STDERR))
     {
         LSDebugLogIncoming("where", GINT_TO_POINTER(1));

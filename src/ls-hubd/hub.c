@@ -77,6 +77,8 @@
 #define HUB_DEBUG_LOG_CONTEXT_PREFIX    "ls-hubd.debug."
 #define HUB_DISTINCT_LOG_CONTEXT_PREFIX "ls-hubd.distinct."
 
+static PmLogContext pm_log_context;
+
 char **pid_dir = NULL;                  /**< pid file directory */
 
 char *conf_file =  NULL;
@@ -4056,24 +4058,24 @@ int main(int argc, char *argv[])
 
     g_option_context_free(opt_context);
 
-    char *log_context = NULL;
+    char *log_context_name = NULL;
 
     if (use_distinct_log_file)
     {
-        log_context = HUB_DISTINCT_LOG_CONTEXT_PREFIX;
+        log_context_name = HUB_DISTINCT_LOG_CONTEXT_PREFIX;
     }
     else if (debug)
     {
-        log_context = HUB_DEBUG_LOG_CONTEXT_PREFIX;
+        log_context_name = HUB_DEBUG_LOG_CONTEXT_PREFIX;
     }
     else
     {
-        log_context = HUB_LOG_CONTEXT_PREFIX;
+        log_context_name = HUB_LOG_CONTEXT_PREFIX;
     }
-    log_context = g_strconcat(log_context, public ? "public" : "private", NULL);
+    log_context_name = g_strconcat(log_context_name, public ? "public" : "private", NULL);
 
-    LSLogSetContext(log_context);
-    g_free(log_context);
+    PmLogGetContext(log_context_name, &pm_log_context);
+    g_free(log_context_name);
 
     if (NULL == conf_file)
     {

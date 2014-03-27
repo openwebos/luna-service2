@@ -22,7 +22,7 @@ project(luna-service2)
 include(webOS/webOS)
 include(CTest)
 
-webos_modules_init(1 0 0 QUALIFIER RC4)
+webos_modules_init(1 0 0 QUALIFIER RC7)
 webos_component(3 7 0)
 
 include(FindPkgConfig)
@@ -90,9 +90,6 @@ endif()
 IF(NOT DEFINED WEBOS_LS2_SECURE)
 	SET(WEBOS_LS2_SECURE True)
 ENDIF(NOT DEFINED WEBOS_LS2_SECURE)
-
-
-set(WITH_GTEST_SRC "/usr/src/gtest" CACHE PATH "Path to Google Test source code")
 
 
 # Debug definitions

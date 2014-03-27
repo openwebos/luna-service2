@@ -18,11 +18,7 @@
 
 webos_add_compiler_flags(ALL -Wall "-std=gnu++0x")
 
-# Google Test setup
-add_subdirectory(${WITH_GTEST_SRC} ${CMAKE_BINARY_DIR}/gtest)
-include_directories(${WITH_GTEST_SRC}/include)
-
-set(GTEST_LIBRARIES gtest gtest_main)
+webos_use_gtest()
 
 set(UNIT_TEST_SOURCES
     test_error
@@ -30,7 +26,7 @@ set(UNIT_TEST_SOURCES
 
 foreach(TEST ${UNIT_TEST_SOURCES})
     add_executable(${TEST} ${TEST}.cpp)
-    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${GTEST_LIBRARIES})
+    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES})
     add_test(${TEST} ${TEST})
 endforeach()
 
@@ -40,7 +36,7 @@ set(INTEGRATION_TEST_SOURCES
 
 foreach(TEST ${INTEGRATION_TEST_SOURCES})
     add_executable(${TEST} ${TEST}.cpp)
-    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${GTEST_LIBRARIES})
+    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES})
     add_test(
         NAME integration.${TEST}
         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../run_with_hub

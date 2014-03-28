@@ -65,12 +65,12 @@ public:
 
     bool isSet() const
     {
-        return LSErrorIsSet(&_error);
+        return LSErrorIsSet(const_cast<LSError *>(&_error));
     }
 
     void print(FILE *out) const
     {
-        LSErrorPrint(&_error, out);
+        LSErrorPrint(const_cast<LSError *>(&_error), out);
     }
 
     void log(PmLogContext context, const char *message_id)

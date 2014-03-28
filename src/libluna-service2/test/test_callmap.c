@@ -607,7 +607,7 @@ bool LSErrorInit(LSError *error)
     return true;
 }
 
-bool LSErrorIsSet(const LSError *lserror)
+bool LSErrorIsSet(LSError *lserror)
 {
     return false;
 }

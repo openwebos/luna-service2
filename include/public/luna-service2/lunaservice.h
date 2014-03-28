@@ -384,9 +384,9 @@ typedef struct {
 bool LSErrorInit(LSError *error);
 void LSErrorFree(LSError *error);
 
-bool LSErrorIsSet(const LSError *lserror);
+bool LSErrorIsSet(LSError *lserror);
 
-void LSErrorPrint(const LSError *lserror, FILE *out);
+void LSErrorPrint(LSError *lserror, FILE *out);
 void LSErrorLog(PmLogContext context, const char *message_id, LSError *lserror);
 
 /* @} END OF LunaServiceError */

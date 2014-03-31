@@ -1761,13 +1761,17 @@ LSTransportMessagePrintCompactHeader(_LSTransportMessage *message, FILE *file)
         break;
     }
 
-    if (caller_service_name)
+    if (!caller_service_name || strlen(caller_service_name) == 0)
     {
-        return LSTransportMessagePrintCompactHeaderCommon(caller_service_name, callee_service_name,
-                                                          directions, appId, category, method, messageToken,
-                                                          file);
+        caller_service_name = "(null)";
     }
-    return 0;
+    if (!callee_service_name || strlen(callee_service_name) == 0)
+    {
+        callee_service_name = "(null)";
+    }
+    return LSTransportMessagePrintCompactHeaderCommon(caller_service_name, callee_service_name,
+                                                      directions, appId, category, method, messageToken,
+                                                      file);
 }
 
 /**

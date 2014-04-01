@@ -697,7 +697,7 @@ test_LSTransportMessagePrintCompactSignalHeader(TestData *fixture, gconstpointer
                                              fixture->transport_client_service_name,
                                              fixture->msg->raw->header.token,
                                              (_LST_DIRECTION_ALIGN - 3), ">*",
-                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN +2)), "",
+                                             (_LST_DATA_ALIGN - (_LST_DIRECTION_ALIGN +2)), "(null)",
                                              category,
                                              method);
     char buffer[strlen(expected_output)+10];

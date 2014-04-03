@@ -582,12 +582,12 @@ test_serviceDefaultMethods(TestData *fixture, gconstpointer user_data)
     g_assert(NULL != table);
     g_assert(NULL != table->methods);
     g_assert_cmpint(g_hash_table_size(table->methods), ==, 6);
-    LSMethod *cancel = g_hash_table_lookup(table->methods, "cancel");
-    LSMethod *ping = g_hash_table_lookup(table->methods, "ping");
-    LSMethod *subscriptions = g_hash_table_lookup(table->methods, "subscriptions");
-    LSMethod *mallinfo = g_hash_table_lookup(table->methods, "mallinfo");
-    LSMethod *malloc_trim = g_hash_table_lookup(table->methods, "malloc_trim");
-    LSMethod *introspection = g_hash_table_lookup(table->methods, "introspection");
+    LSMethodEntry *cancel = g_hash_table_lookup(table->methods, "cancel");
+    LSMethodEntry *ping = g_hash_table_lookup(table->methods, "ping");
+    LSMethodEntry *subscriptions = g_hash_table_lookup(table->methods, "subscriptions");
+    LSMethodEntry *mallinfo = g_hash_table_lookup(table->methods, "mallinfo");
+    LSMethodEntry *malloc_trim = g_hash_table_lookup(table->methods, "malloc_trim");
+    LSMethodEntry *introspection = g_hash_table_lookup(table->methods, "introspection");
     g_assert(NULL != cancel);
     g_assert(NULL != ping);
     g_assert(NULL != subscriptions);

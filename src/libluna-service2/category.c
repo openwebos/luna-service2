@@ -89,6 +89,25 @@ _category_exists(LSHandle *sh, const char *category)
     return exists;
 }
 
+static LSMethodEntry *LSMethodEntryCreate(LSMethod *method)
+{
+    LS_ASSERT(method);
+    LS_ASSERT(method->function);
+
+    LSMethodEntry *entry = g_slice_new(LSMethodEntry);
+    entry->function = method->function;
+    entry->flags = method->flags;
+
+    return entry;
+}
+
+static void LSMethodEntryFree(void *methodEntry)
+{
+    LS_ASSERT(methodEntry);
+
+    g_slice_free(LSMethodEntry, methodEntry);
+}
+
 /* @} END OF LunaServiceInternals */
 
 /**
@@ -129,7 +148,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         table = g_new0(LSCategoryTable, 1);
 
         table->sh = sh;
-        table->methods    = g_hash_table_new(g_str_hash, g_str_equal);
+        table->methods    = g_hash_table_new_full(g_str_hash, g_str_equal, free, LSMethodEntryFree);
         table->signals    = g_hash_table_new(g_str_hash, g_str_equal);
         table->category_user_data = NULL;
 
@@ -155,7 +174,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         LSMethod *m;
         for (m = methods; m->name && m->function; m++)
         {
-            g_hash_table_replace(table->methods, (gpointer)m->name, m);
+            g_hash_table_replace(table->methods, strdup(m->name), LSMethodEntryCreate(m));
         }
     }
 

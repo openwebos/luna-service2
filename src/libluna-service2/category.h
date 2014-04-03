@@ -52,6 +52,11 @@ struct LSCategoryTable {
 
 typedef struct LSCategoryTable LSCategoryTable;
 
+typedef struct {
+    LSMethodFunction function;  /**< Method function */
+    LSMethodFlags flags;        /**< Method flags */
+} LSMethodEntry;
+
 static inline LSMessageHandlerResult LSCategoryMethodCall(
     LSHandle *sh,
     LSCategoryTable *category,
@@ -62,7 +67,7 @@ static inline LSMessageHandlerResult LSCategoryMethodCall(
     const char* method_name = LSMessageGetMethod(message);
 
     /* find the method in the tableHandlers->methods hash */
-    LSMethod *method = g_hash_table_lookup(category->methods, method_name);
+    LSMethodEntry *method = g_hash_table_lookup(category->methods, method_name);
 
     if (!method)
     {

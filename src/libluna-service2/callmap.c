@@ -37,6 +37,7 @@
 #include "transport.h"
 #include "message.h"
 #include "base.h"
+#include "category.h"
 #include "transport_utils.h"
 #include "clock.h"
 #include "pmtrace_ls2.h"

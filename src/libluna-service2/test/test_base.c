@@ -21,6 +21,7 @@
 #include <string.h>
 #include <glib.h>
 #include <base.h>
+#include <category.h>
 
 /* Test data ******************************************************************/
 

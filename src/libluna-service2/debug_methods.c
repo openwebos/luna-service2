@@ -20,6 +20,7 @@
 #include "debug_methods.h"
 #include "subscription.h"
 #include "base.h"
+#include "category.h"
 
 #ifdef MALLOC_DEBUG
 #include <malloc.h>

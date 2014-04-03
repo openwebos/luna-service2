@@ -40,22 +40,6 @@ extern bool _ls_enable_utf8_validation;
 
 void LSDebugLogIncoming(const char *where, _LSTransportMessage *message);
 
-/**
-* @brief
-*/
-struct LSCategoryTable {
-
-    LSHandle       *sh;
-
-    GHashTable     *methods;
-    GHashTable     *signals;
-    GHashTable     *properties;
-
-    void           *category_user_data;
-};
-
-typedef struct LSCategoryTable LSCategoryTable;
-
 typedef struct _CallMap _CallMap;
 typedef struct _FetchMessageQueue _FetchMessageQueue;
 
@@ -69,6 +53,9 @@ void LSCustomMessageQueueFree(LSCustomMessageQueue *q);
 
 bool _CallMapInit(LSHandle *sh, _CallMap **ret_map, LSError *lserror);
 void _CallMapDeinit(LSHandle *sh, _CallMap *map);
+
+void _LSGlobalLock();
+void _LSGlobalUnlock();
 
 bool _LSUnregisterCommon(LSHandle *sh, bool flush_and_send_shutdown, void *call_ret_addr, LSError *lserror);
 

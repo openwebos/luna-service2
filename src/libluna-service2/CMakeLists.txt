@@ -19,6 +19,7 @@
 set(SOURCE
     base.c
     callmap.c
+    category.c
     clock.c
     debug_methods.c
     mainloop.c

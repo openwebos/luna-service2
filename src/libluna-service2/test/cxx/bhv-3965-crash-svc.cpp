@@ -18,6 +18,7 @@
 
 #include <luna-service2/lunaservice.hpp>
 #include <boost/scope_exit.hpp>
+#include <memory>
 
 using namespace std;
 

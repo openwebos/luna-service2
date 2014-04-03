@@ -31,16 +31,20 @@ foreach(TEST ${UNIT_TEST_SOURCES})
 endforeach()
 
 set(INTEGRATION_TEST_SOURCES
-    test_client
+    "bhv-3965-crash\;bhv-3965-crash-svc"
     )
 
-foreach(TEST ${INTEGRATION_TEST_SOURCES})
-    add_executable(${TEST} ${TEST}.cpp)
-    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES})
+foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
+    foreach(SOURCE ${SOURCES})
+        add_executable(${SOURCE} ${SOURCE}.cpp)
+        target_link_libraries(${SOURCE} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES})
+    endforeach()
+    list(GET SOURCES 0 TEST)
     add_test(
         NAME integration.${TEST}
         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../run_with_hub
+                ${CMAKE_SOURCE_DIR}
                 ${CMAKE_BINARY_DIR}
-                ${CMAKE_CURRENT_BINARY_DIR}/${TEST}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${TEST}.conf
              )
 endforeach()

@@ -21,7 +21,14 @@
 usage()
 {
 	cat <<EOF
-Usage: `basename $0` <BUILD_DIR> <TEST_TO_RUN>
+Usage: `basename $0` <SOURCE_DIR> <BUILD_DIR> <CONFIG_FILE>
+
+EOF
+
+column -t -s\& <<EOF
+<SOURCE_DIR>    &    Path to the source directory root
+<BUILD_DIR>     &    Path to the build directory root
+<CONFIG_FILE>   &    Test environment configuration
 EOF
 }
 
@@ -31,27 +38,135 @@ die()
 	exit 1
 }
 
-if [[ $# != 2 ]]; then
+if [[ $# != 3 ]]; then
 	usage
 	exit 1
 fi
 
-build_dir=$1
-test_file=$2
+source_dir=`readlink -f $1`
+build_dir=`readlink -f $2`
+config_file=`readlink -f $3`
 
+# Directory where the configuration file is located.
+# All paths in the configuration file should be relative to this.
+config_dir=`readlink -f $(dirname $config_file)`
+
+# Allocate a temporary directory for the hub configuration.
 conf_root=`mktemp -d /tmp/ls-hubd-conf.XXXXXXXX` || die "Failed to allocate temp directory"
 
 cleanup()
 {
-	kill ${spawned_pids[@]}
+	# Kill spawn hubs
+	[[ ${#hub_pids} > 0 ]] && kill ${hub_pids[@]}
+	wait  # until the hubs exit
 	rm -rf $conf_root || echo >&2 "Failed to remove the temp directory"
 }
 
 trap cleanup EXIT
 
-mkdir -p $conf_root/var/palm/ls2/{roles,services}/{prv,pub}
-mkdir -p $conf_root/usr/share/ls2/roles/{prv,pub}
-mkdir -p $conf_root/usr/share/dbus-1/{system-,}services
+install_files()
+{
+	# Prepare directories to avoid ENOENT
+	mkdir -p $conf_root/var/palm/ls2/{roles,services}/{prv,pub}
+	mkdir -p $conf_root/usr/share/ls2/roles/{prv,pub}
+	mkdir -p $conf_root/usr/share/dbus-1/{system-,}services
+
+	# Variables are defined in the configuration file
+	declare -a service dynamic_services
+	declare -A service_pub service_prv
+	declare -A role_pub role_prv
+
+	# Read configuration
+	source $config_file || die "Failed to source config file"
+
+	get_full_exe_path()
+	{
+		echo $build_dir/${config_dir#$source_dir}/$1
+	}
+
+	install_service()
+	{
+		service_exe=$1
+		is_dynamic=$2
+		pub=$3   # other arguments list service files to install
+
+		dst=$conf_root/var/palm/ls2/services/$pub
+		for svc_file in ${@:4}; do
+			target=$dst/`basename $svc_file`
+			if [[ -f "$config_dir/$svc_file" ]]; then
+				cp -a "$config_dir/$svc_file" $dst
+			else
+				cat >$target <<END
+[D-BUS Service]
+Name=`basename ${svc_file%.service}`
+Exec=
+Type=$is_dynamic
+END
+			fi
+			sed -i -e "s|^Exec=.*$|Exec=${service_exe}|" $target
+		done
+	}
+
+	install_role()
+	{
+		service_exe=$1
+		pub=$2   # other arguments list role files to install
+
+		dst=$conf_root/var/palm/ls2/role/$1
+		for role_file in ${@:3}; do
+			target=$dst/`basename $role_file`
+			if [[ -f "$config_dir/$role_file" ]]; then
+				cp -a "$config_dir/$role_file" $dst
+			else
+				cat >$target <<END
+{
+    "role": {
+        "exeName": "",
+        "type": "regular",
+        "allowedNames": ["*"]
+    },
+    "permissions": [
+        {
+            "service": "*",
+            "inbound": ["*"],
+            "outbound": ["*"]
+        }
+    ]
+}
+END
+			fi
+			sed -i -e "s|^\"exeName\".*$|\"exeName\":\"${service_exe}\",|" $dst/`basename $role_file`
+		done
+	}
+
+	# Install service and role files for every described service
+	for service in ${services[@]}; do
+		service_exe=`get_full_exe_path $service`
+		# Gather static services to launch (the dynamic ones are launched by the hub).
+		services_to_spawn+=($service_exe)
+
+		install_service $service_exe static pub ${service_pub[$service]}
+		install_service $service_exe static prv ${service_prv[$service]}
+
+		install_role $service_exe pub ${role_pub[$service]}
+		install_role $service_exe prv ${role_prv[$service]}
+	done
+
+	for service in ${dynamic_services[@]}; do
+		service_exe=`get_full_exe_path $service`
+
+		install_service $service_exe dynamic pub ${service_pub[$service]}
+		install_service $service_exe dynamic prv ${service_prv[$service]}
+
+		install_role $service_exe pub ${role_pub[$service]}
+		install_role $service_exe prv ${role_prv[$service]}
+	done
+
+	cat $conf_root/var/palm/ls2/services/prv/com.palm.test_service.service
+	exit 0
+}
+
+install_files
 
 spawn_hubd()
 {
@@ -64,15 +179,22 @@ spawn_hubd()
 		|| die "Failed to detect old root"
 
 	sed -e "s|$old_root|$conf_root|g" \
-		-e "s|Enabled=true|Enabled=false|g" \
+		-e "s|ExecPrefix=.*|ExecPrefix=|g" \
 		$old_conf > $conf \
 		|| die "Failed to prepare ls-${pubpriv}.conf"
 
+	# Switch on or off security depending on the configuration file.
+	# This chunk implies the config file has been sourced.
+	security_enabled=false
+	[[ "$security" == "enabled" ]] && security_enabled=true
+	sed -i -e "s|^Enabled=.*$|Enabled=$security_enabled|g" $conf
+
 	[[ $pubpriv == public ]] && pub_opt=-p
 
+	# Launch the hub
 	$build_dir/src/ls-hubd/ls-hubd -c $conf $pub_opt &
 	[[ $? -eq 0 ]] || die "Failed to launch $pubpriv ls-hubd"
-	spawned_pids+=($!)
+	hub_pids+=($!)
 }
 
 spawn_hubd private
@@ -82,4 +204,14 @@ while [[ ! -S /tmp/com.palm.private_hub || ! -S /tmp/com.palm.public_hub ]]; do
 	sleep 0.1
 done
 
-$test_file || die "Failed to execute $test_file"
+(
+for service in ${services_to_spawn[@]}; do
+	echo "Launching $service"
+	$service &
+	service_pid+=($!)
+done
+for pid in ${service_pid[@]}; do
+	wait $pid
+	[[ $? -eq 0 ]] || die "Failure detected"
+done
+)

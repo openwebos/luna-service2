@@ -21,10 +21,11 @@
 #include <luna-service2/lunaservice.h>
 #include <cstring>
 #include <iostream>
+#include <exception>
 
 namespace LS {
 
-class Error
+class Error : public std::exception
 {
 public:
     Error()
@@ -32,7 +33,7 @@ public:
         LSErrorInit(&_error);
     }
 
-    ~Error()
+    ~Error() noexcept
     {
         LSErrorFree(&_error);
     }
@@ -62,6 +63,9 @@ public:
     const LSError *get() const { return &_error; }
     LSError *operator->() { return &_error; }
     const LSError *operator->() const { return &_error; }
+
+    const char *what() const noexcept
+    { return _error.message; }
 
     bool isSet() const
     {

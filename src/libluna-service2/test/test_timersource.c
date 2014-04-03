@@ -75,22 +75,29 @@ test_timer_source_new()
     gboolean fired = FALSE;
 
     GMainLoop *main_loop = g_main_loop_new(NULL, false);
-    GTimerSource *source = g_timer_source_new(100, 1);
+    GTimerSource *source = g_timer_source_new(250, 1);
     g_assert(NULL != source);
+
+    // note that in this test we expect that scattering is +/- 50ms which is
+    // probably fine for most systems
 
     g_source_set_callback ((GSource*)source, test_on_timeout, &fired, NULL);
     g_source_attach ((GSource*)source, NULL);
 
-    // test timer of 100ms in fork process with 200ms timeout
-    test_iterate_main_loop(200);
+    // so we've started a timer that fires each 250ms
+
+    // wait 350 ms and see if it were fired
+    test_iterate_main_loop(350);
     g_assert(fired);
 
-    // test timer of 100ms in fork process with 50ms timeout
+    // looks good. next fire in 150.
+    // lets check that during next 100ms it will not fire
     fired = FALSE;
-    test_iterate_main_loop(50);
-
+    test_iterate_main_loop(100);
     g_assert(!fired);
-    test_iterate_main_loop(75);
+
+    // fine. 50ms to next fire. will see if it will made up for next 100ms
+    test_iterate_main_loop(100);
     g_assert(fired);
 
     g_source_unref((GSource*)source);

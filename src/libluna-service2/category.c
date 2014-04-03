@@ -43,6 +43,8 @@ _LSCategoryTableFree(LSCategoryTable *table)
     if (table->properties)
         g_hash_table_unref(table->properties);
 
+    j_release(&table->description);
+
 #ifdef MEMCHECK
     memset(table, 0xFF, sizeof(LSCategoryTable));
 #endif
@@ -87,6 +89,32 @@ _category_exists(LSHandle *sh, const char *category)
     g_free(category_path);
 
     return exists;
+}
+
+static LSCategoryTable *
+LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
+{
+    LSCategoryTable *table;
+    char *categoryPath = _category_to_object_path_alloc(category);
+
+    _LSGlobalLock();
+
+    _LSErrorGotoIfFail(fail, sh->tableHandlers != NULL, error, MSGID_LS_NO_CATEGORY_TABLE,
+        -1, "%s: %s not registered.", __FUNCTION__, category);
+
+    table = g_hash_table_lookup(sh->tableHandlers, category);
+    _LSErrorGotoIfFail(fail, table != NULL, error, MSGID_LS_NO_CATEGORY,
+        -1, "%s: %s not registered.", __FUNCTION__, category);
+
+    _LSGlobalUnlock();
+    g_free(categoryPath);
+    return table;
+
+fail:
+    _LSGlobalUnlock();
+    g_free(categoryPath);
+
+    return NULL;
 }
 
 static LSMethodEntry *LSMethodEntryCreate(LSMethod *method)
@@ -151,6 +179,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         table->methods    = g_hash_table_new_full(g_str_hash, g_str_equal, free, LSMethodEntryFree);
         table->signals    = g_hash_table_new(g_str_hash, g_str_equal);
         table->category_user_data = NULL;
+        table->description = NULL;
 
         g_hash_table_replace(sh->tableHandlers, category_path, table);
 
@@ -251,30 +280,29 @@ LSCategorySetData(LSHandle *sh, const char *category, void *user_data, LSError *
 {
     LSHANDLE_VALIDATE(sh);
 
-    LSCategoryTable *table;
-
-    char *categoryPath = _category_to_object_path_alloc(category);
-
-    _LSGlobalLock();
-
-    _LSErrorGotoIfFail(fail, sh->tableHandlers != NULL, lserror, MSGID_LS_NO_CATEGORY_TABLE,
-        -1, "%s: %s not registered.", __FUNCTION__, category);
-
-    table = g_hash_table_lookup(sh->tableHandlers, category);
-    _LSErrorGotoIfFail(fail, table != NULL, lserror, MSGID_LS_NO_CATEGORY,
-        -1, "%s: %s not registered.", __FUNCTION__, category);
+    LSCategoryTable *table = LSHandleGetCategory(sh, category, lserror);
+    if (table == NULL) return false;
 
     table->category_user_data = user_data;
 
-    _LSGlobalUnlock();
-    g_free(categoryPath);
     return true;
+}
 
-fail:
-    _LSGlobalUnlock();
-    g_free(categoryPath);
+bool LSCategorySetDescription(
+    LSHandle *sh, const char *category,
+    jvalue_ref description,
+    LSError *error
+)
+{
+    LSHANDLE_VALIDATE(sh);
 
-    return false;
+    LSCategoryTable *table = LSHandleGetCategory(sh, category, error);
+    if (table == NULL) return false;
+
+    j_release(&table->description);
+    table->description = jvalue_copy(description);
+
+    return true;
 }
 
 /**

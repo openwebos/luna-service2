@@ -19,6 +19,7 @@
 #pragma once
 
 #include <luna-service2/lunaservice.h>
+#include <luna-service2/lunaservice-meta.h>
 #include "call.hpp"
 #include <PmLogLib.h>
 #include <cstring>
@@ -117,6 +118,16 @@ public:
         Error error;
 
         if (!LSCategorySetData(_handle, category, user_data, error.get()))
+        {
+            throw error;
+        }
+    }
+
+    void setCategoryDescription(const char *category, jvalue_ref description)
+    {
+        Error error;
+
+        if (!LSCategorySetDescription(_handle, category, description, error.get()))
         {
             throw error;
         }

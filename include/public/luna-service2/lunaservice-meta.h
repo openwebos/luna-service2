@@ -27,6 +27,10 @@
 
 #include <pbnjson.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @defgroup LunaServiceMeta
  * @ingroup LunaService
@@ -43,6 +47,9 @@
  *
  * Set JSON value that describes specified category. Provides validation schema
  * for input params and replies. Gives some description for calls etc.
+ *
+ * Note that some services with dynamically registered methods may wish to call
+ *      this function after each LSRegisterCategoryAppend.
  *
  * @param sh  handle that identifies registered service on bus
  * @param category  identifier of category this information provided for
@@ -65,5 +72,9 @@ bool LSCategorySetDescription(
 /* TODO */
 
 /* @} END OF LunaServiceMeta */
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif

@@ -25,6 +25,8 @@
 #ifndef __CATEGORY_H
 #define __CATEGORY_H
 
+#include <pbnjson.h>
+
 #include "base.h"
 #include "error.h"
 #include "clock.h"
@@ -48,6 +50,7 @@ struct LSCategoryTable {
     GHashTable     *properties;
 
     void           *category_user_data;
+    jvalue_ref     description;
 };
 
 typedef struct LSCategoryTable LSCategoryTable;

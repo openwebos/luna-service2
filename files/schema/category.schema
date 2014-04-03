@@ -16,6 +16,10 @@
                 "type": "object",
                 "description": "method meta-information",
                 "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "human-readable method description"
+                    },
                     "call": {
                         "description": "schema for params passed to service call",
                         "allOf": [{ "$ref": "http://json-schema.org/draft-04/schema#" }],

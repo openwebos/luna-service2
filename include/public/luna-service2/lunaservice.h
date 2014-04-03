@@ -337,6 +337,13 @@ typedef bool (*LSPropertySetFunction) (LSHandle *sh, LSMessage *msg, void *categ
 */
 typedef enum {
 	LUNA_METHOD_FLAG_DEPRECATED = (1 << 0),
+
+	/**
+	 * Automatic params validation according to schema.
+	 *
+	 * Note: have no effect at the moment
+	 */
+	LUNA_METHOD_FLAG_VALIDATE_IN = (1 << 1),
 } LSMethodFlags;
 
 /**

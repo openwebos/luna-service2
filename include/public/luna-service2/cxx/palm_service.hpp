@@ -35,8 +35,8 @@ public:
     PalmService(const PalmService &) = delete;
     PalmService& operator=(const PalmService &) = delete;
 
-    PalmService(PalmService &&other) = default;
-    PalmService &operator=(PalmService &&other) = default;
+    PalmService(PalmService &&) = default;
+    PalmService &operator=(PalmService &&) = default;
 
     void registerCategory(const char *category, LSMethod *methods_public,
                           LSMethod *methods_private, LSSignal *langis)

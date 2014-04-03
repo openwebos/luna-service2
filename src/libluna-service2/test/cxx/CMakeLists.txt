@@ -20,25 +20,31 @@ webos_add_compiler_flags(ALL -Wall "-std=gnu++0x")
 
 webos_use_gtest()
 
+# check for pbnjson cxx library
+pkg_check_modules(PBNJSON_CXX REQUIRED pbnjson_cpp>=2.5.0)
+include_directories(${PBNJSON_CXX_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${PBNJSON_CXX_CFLAGS_OTHER})
+
 set(UNIT_TEST_SOURCES
     test_error
     )
 
 foreach(TEST ${UNIT_TEST_SOURCES})
     add_executable(${TEST} ${TEST}.cpp)
-    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES})
+    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
     add_test(${TEST} ${TEST})
 endforeach()
 
 set(INTEGRATION_TEST_SOURCES
     "bhv-3965-crash\;bhv-3965-crash-svc"
     test_client
+    test_service
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
     foreach(SOURCE ${SOURCES})
         add_executable(${SOURCE} ${SOURCE}.cpp)
-        target_link_libraries(${SOURCE} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES})
+        target_link_libraries(${SOURCE} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
     endforeach()
     list(GET SOURCES 0 TEST)
     add_test(

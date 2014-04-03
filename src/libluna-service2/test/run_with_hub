@@ -161,9 +161,6 @@ END
 		install_role $service_exe pub ${role_pub[$service]}
 		install_role $service_exe prv ${role_prv[$service]}
 	done
-
-	cat $conf_root/var/palm/ls2/services/prv/com.palm.test_service.service
-	exit 0
 }
 
 install_files
@@ -197,6 +194,12 @@ spawn_hubd()
 	hub_pids+=($!)
 }
 
+# drop artifacts from prev. runs (not always we have clean shutdown)
+[ -S /tmp/com.palm.public_hub ] && rm /tmp/com.palm.public_hub
+[ -S /tmp/com.palm.private_hub ] && rm /tmp/com.palm.private_hub
+killall -KILL ls-hubd
+# TODO: introduce special ENV variable or config that will redirect from /tmp to any other folder
+
 spawn_hubd private
 spawn_hubd public
 
@@ -204,14 +207,13 @@ while [[ ! -S /tmp/com.palm.private_hub || ! -S /tmp/com.palm.public_hub ]]; do
 	sleep 0.1
 done
 
-(
 for service in ${services_to_spawn[@]}; do
 	echo "Launching $service"
 	$service &
+	[[ $? -eq 0 ]] || die "Failed to start $service"
 	service_pid+=($!)
 done
 for pid in ${service_pid[@]}; do
 	wait $pid
 	[[ $? -eq 0 ]] || die "Failure detected"
 done
-)

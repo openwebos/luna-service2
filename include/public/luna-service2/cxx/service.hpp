@@ -45,6 +45,15 @@ public:
 
     Service &operator=(Service &&other)
     {
+        if (_handle)
+        {
+            Error error;
+
+            if (!LSUnregister(_handle, error.get()))
+            {
+                throw error;
+            }
+        }
         _handle = other.release();
         return *this;
     }
@@ -62,7 +71,11 @@ public:
         }
     }
 
+    LSHandle *get() { return _handle; }
+
     const char *getName() const { return LSHandleGetName(_handle); }
+
+    explicit operator bool() const { return _handle; }
 
     void registerCategory(const char *category,
                           LSMethod      *methods,
@@ -217,7 +230,7 @@ private:
     }
 };
 
-Service registerService(const char *name, bool public_service = true)
+Service registerService(const char *name = nullptr, bool public_service = false)
 {
     Error error;
     LSHandle *handle;

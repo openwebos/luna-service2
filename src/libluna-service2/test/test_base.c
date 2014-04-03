@@ -623,13 +623,21 @@ test_serviceDefaultMethods(TestData *fixture, gconstpointer user_data)
     fixture->message_category = "/com/palm/luna/private";
     fixture->message_method = "ping";
 
+    // build a semi-valid transport message
+    _LSTransportClient dummy_client = {
+        .service_name = "dummy",
+    };
+    _LSTransportMessage dummy_transport_msg = {
+        .client = &dummy_client,
+    };
+
     g_assert(NULL != fixture->transport_handlers.msg_handler);
-    g_assert_cmpint(fixture->transport_handlers.msg_handler(GINT_TO_POINTER(1), sh), ==, LSMessageHandlerResultHandled);
+    g_assert_cmpint(fixture->transport_handlers.msg_handler(&dummy_transport_msg, sh), ==, LSMessageHandlerResultHandled);
     g_assert_cmpstr(fixture->lsmessagereply_payload, ==, "{\"returnValue\":true}");
     g_assert_cmpint(fixture->lshandlereply_called, ==, 0);
 
     fixture->transportmessage_type = _LSTransportMessageTypeSignal;
-    g_assert_cmpint(fixture->transport_handlers.msg_handler(GINT_TO_POINTER(1), sh), ==, LSMessageHandlerResultHandled);
+    g_assert_cmpint(fixture->transport_handlers.msg_handler(&dummy_transport_msg, sh), ==, LSMessageHandlerResultHandled);
     g_assert_cmpint(fixture->lshandlereply_called, ==, 1);
 
     LSUnregister(sh, &error);

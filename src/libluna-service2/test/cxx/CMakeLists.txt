@@ -32,6 +32,7 @@ endforeach()
 
 set(INTEGRATION_TEST_SOURCES
     "bhv-3965-crash\;bhv-3965-crash-svc"
+    test_client
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})

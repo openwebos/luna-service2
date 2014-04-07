@@ -73,6 +73,7 @@ public:
     }
 
     LSHandle *get() { return _handle; }
+    const LSHandle *get() const { return _handle; }
 
     const char *getName() const { return LSHandleGetName(_handle); }
 

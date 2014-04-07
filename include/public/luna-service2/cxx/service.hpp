@@ -117,6 +117,47 @@ public:
         }
     }
 
+    void attachToLoop(GMainContext *context) const
+    {
+        Error error;
+
+        if(!LSGmainContextAttach(_handle, context, error.get()))
+        {
+            throw error;
+        }
+    }
+
+    void attachToLoop(GMainLoop *loop) const
+    {
+        Error error;
+
+        if(!LSGmainAttach(_handle, loop, error.get()))
+        {
+            throw error;
+        }
+    }
+
+    void detach()
+    {
+        Error error;
+
+        if(!LSGmainDetach(_handle, error.get()))
+        {
+            throw error;
+        }
+        release();
+    }
+
+    void setPriority(int priority) const
+    {
+        Error error;
+
+        if(!LSGmainSetPriority(_handle, priority, error.get()))
+        {
+            throw error;
+        }
+    }
+
 private:
     LSHandle *_handle;
 

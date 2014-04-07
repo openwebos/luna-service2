@@ -32,13 +32,12 @@ TEST(TestClient, RegisterService)
     EXPECT_THROW(LS::registerService(service_name), LS::Error);
 
     EXPECT_STREQ(srv.getName(), service_name);
-
     EXPECT_NO_THROW(srv.registerCategory("test_cat", nullptr, nullptr, nullptr));
 }
 
 TEST(TestClient, RegisterPalmService)
 {
-    const char *service_name = "com.palm.test_client";
+    const char *service_name = "com.palm.test_client2";
 
     LS::PalmService srv;
 
@@ -53,4 +52,26 @@ TEST(TestClient, RegisterPalmService)
     EXPECT_STREQ(srv.getPublicConnection().getName(), service_name);
 
     EXPECT_NO_THROW(srv.registerCategory("test_cat", nullptr, nullptr, nullptr));
+}
+
+TEST(TestClient, Mainloop)
+{
+    const char *service_name = "com.palm.test_client3";
+
+    GMainLoop *main_loop = g_main_loop_new(nullptr, false);
+
+    LS::Service srv = LS::registerService(service_name);
+    EXPECT_NO_THROW(srv.attachToLoop(main_loop));
+    EXPECT_NO_THROW(srv.detach());
+
+    srv = LS::registerService(service_name);
+    EXPECT_NO_THROW(srv.attachToLoop(g_main_loop_get_context(main_loop)));
+    EXPECT_NO_THROW(srv.setPriority(5));
+    EXPECT_NO_THROW(srv.detach());
+
+    LS::PalmService plmsrv = LS::registerPalmService(service_name);
+    EXPECT_NO_THROW(plmsrv.attachToLoop(g_main_loop_get_context(main_loop)));
+    EXPECT_NO_THROW(plmsrv.setPriority(5));
+    EXPECT_NO_THROW(plmsrv.getPrivateConnection().detach());
+    EXPECT_NO_THROW(plmsrv.getPublicConnection().detach());
 }

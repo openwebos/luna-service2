@@ -60,6 +60,24 @@ public:
         _private_service.pushRole(role_path);
     }
 
+    void attachToLoop(GMainLoop *loop) const
+    {
+        _public_service.attachToLoop(loop);
+        _private_service.attachToLoop(loop);
+    }
+
+    void attachToLoop(GMainContext *context) const
+    {
+        _public_service.attachToLoop(context);
+        _private_service.attachToLoop(context);
+    }
+
+    void setPriority(int priority) const
+    {
+        _public_service.setPriority(priority);
+        _private_service.setPriority(priority);
+    }
+
 private:
     Service _private_service, _public_service;
 

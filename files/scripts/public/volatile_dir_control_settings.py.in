@@ -1,6 +1,7 @@
+#! /usr/bin/python2
 # @@@LICENSE
 #
-#      Copyright (c) 2008-2013 LG Electronics, Inc.
+#      Copyright (c) 2014 LG Electronics, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,22 +16,7 @@
 # limitations under the License.
 #
 # LICENSE@@@
+CONST_CONF_DIR = '@LS_SETTINGS_DIR@'
 
-# Common Eclipse project files
-.project
-.cproject
-
-# Ignore the build artifacts.
-BUILD*
-/build
-release-*/
-debug-*/
-CMakeCache.txt
-cmake_install.cmake
-CMakeFiles
-conf/*.conf
-doc/Doxyfile
-doc/html
-patches
-src/*.pc
-*.pyc
+if __name__ == '__main__':
+    print "CONST_CONF_DIR = " + CONST_CONF_DIR

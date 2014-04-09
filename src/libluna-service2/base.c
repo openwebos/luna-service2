@@ -893,13 +893,11 @@ _LSUnregisterCommon(LSHandle *sh, bool flush_and_send_shutdown, void *call_ret_a
 
     _CatalogFree(sh->catalog);
 
+    _CallMapDeinit(sh, sh->callmap);
+
     _LSTransportDisconnect(sh->transport, flush_and_send_shutdown);
 
     _LSTransportDeinit(sh->transport);
-
-    /* The callmap should outlive the transport, because the latter may
-       send failure notifications during deinitialization [BHV-3965]. */
-    _CallMapDeinit(sh, sh->callmap);
 
     /* Now we can cleanup the gmainloop connection. */
     if (sh->context)

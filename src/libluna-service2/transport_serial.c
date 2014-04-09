@@ -168,7 +168,7 @@ _LSTransportSerialFree(_LSTransportSerial *serial_info)
 
     while (!g_queue_is_empty(serial_info->queue))
     {
-        _LSTransportSerialListItem *item = g_queue_pop_head(serial_info->queue);
+         _LSTransportSerialListItem *item = g_queue_pop_head(serial_info->queue);
         _LSTransportSerialListItemFree(item);
     }
 

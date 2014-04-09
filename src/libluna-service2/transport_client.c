@@ -134,26 +134,6 @@ error:
 void
 _LSTransportClientFree(_LSTransportClient* client)
 {
-    LS_ASSERT(client);
-    LS_ASSERT(client->transport);
-    LS_ASSERT(client->outgoing);
-
-    LSTransportMessageFailure message_failure_handler = client->transport->message_failure_handler;
-    void *message_failure_context = client->transport->message_failure_context;
-    _LSTransportSerial *serial = client->outgoing->serial;
-
-    if (message_failure_handler && client->initiator && client->is_dynamic && client->service_name)
-    {
-        _LSTransportMessage *serial_message = NULL;
-        while ((serial_message = _LSTransportSerialPopHead(serial)) != NULL)
-        {
-            message_failure_handler(
-                        _LSTransportMessageGetToken(serial_message),
-                        _LSTransportMessageFailureTypeUnknown,
-                        message_failure_context);
-        }
-    }
-
     g_free(client->unique_name);
     g_free(client->service_name);
     _LSTransportCredFree(client->cred);

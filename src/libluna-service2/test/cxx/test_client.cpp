@@ -18,8 +18,16 @@
 
 #include <gtest/gtest.h>
 #include <luna-service2/lunaservice.hpp>
+#include <thread>
+#include <chrono>
 
 using namespace std;
+
+#define RUN_IN_THREAD(x)                     \
+do {                                         \
+    thread trd([&](){ g_main_loop_run(x); });\
+    trd.detach();                            \
+} while (0)                                  \
 
 TEST(TestClient, RegisterService)
 {
@@ -74,4 +82,48 @@ TEST(TestClient, Mainloop)
     EXPECT_NO_THROW(plmsrv.setPriority(5));
     EXPECT_NO_THROW(plmsrv.getPrivateConnection().detach());
     EXPECT_NO_THROW(plmsrv.getPublicConnection().detach());
+}
+
+namespace {
+
+int call_count = 0;
+
+bool onSignalCallback(LSHandle *sh, LSMessage *reply, void *ctx)
+{
+    ++call_count;
+
+    return true;
+}
+
+} //namespace;
+
+TEST(TestClient, Signals)
+{
+    GMainLoop *provider_main_loop = g_main_loop_new(nullptr, false);
+    RUN_IN_THREAD(provider_main_loop);
+
+    GMainLoop *receiver_main_loop = g_main_loop_new(nullptr, false);
+    RUN_IN_THREAD(receiver_main_loop);
+
+    LS::Service provider = LS::registerService("com.palm.test_signal_provider");
+    provider.attachToLoop(provider_main_loop);
+
+    LS::Service receiver = LS::registerService("com.palm.test_signal_receiver");
+    receiver.attachToLoop(receiver_main_loop);
+
+    LS::Call signal;
+
+    EXPECT_NO_THROW(signal = receiver.callSignal("/test", "activated", onSignalCallback, nullptr));
+    this_thread::sleep_for(chrono::milliseconds(1));
+    // Hub returns registration response
+    EXPECT_EQ(call_count, 1);
+
+    EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
+    this_thread::sleep_for(chrono::milliseconds(1));
+    EXPECT_EQ(call_count, 2);
+
+    EXPECT_NO_THROW(signal.cancel());
+    EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
+    this_thread::sleep_for(chrono::milliseconds(1));
+    EXPECT_EQ(call_count, 2);
 }

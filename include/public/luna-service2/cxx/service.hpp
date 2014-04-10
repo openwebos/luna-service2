@@ -19,6 +19,7 @@
 #pragma once
 
 #include <luna-service2/lunaservice.h>
+#include "call.hpp"
 #include <PmLogLib.h>
 #include <cstring>
 #include <iostream>
@@ -32,6 +33,7 @@ class Service
 {
     friend Service registerService(const char *, bool);
     friend class PalmService;
+    friend class Signal;
 
 public:
     Service() : _handle(nullptr) {}
@@ -156,6 +158,42 @@ public:
         {
             throw error;
         }
+    }
+
+    void sendSignal(const char *uri, const char *payload, bool typecheck = true) const
+    {
+        Error error;
+
+        if (typecheck)
+        {
+            if (!LSSignalSend(_handle, uri, payload, error.get()))
+            {
+                throw error;
+            }
+        }
+        else
+        {
+            if (!LSSignalSendNoTypecheck(_handle, uri, payload, error.get()))
+            {
+                throw error;
+            }
+        }
+    }
+
+    Call callSignal(const char *category,
+                      const char *methodName,
+                      LSFilterFunc filterFunc,
+                      void *ctx)
+    {
+        Error error;
+        LSMessageToken token;
+
+        if (!LSSignalCall(_handle, category, methodName, filterFunc, ctx, &token, error.get()))
+        {
+            throw error;
+        }
+
+        return Call(_handle, token);
     }
 
 private:

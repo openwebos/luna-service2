@@ -212,7 +212,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         }
     }
 
-    if (methods)
+    if (sh->name)
     {
         // Unlikely
         if (!_LSTransportAppendCategory(sh->transport, category, methods, lserror))

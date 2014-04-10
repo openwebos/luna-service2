@@ -3390,8 +3390,6 @@ Done:
 bool
 _LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMethod *methods, LSError *lserror)
 {
-	LS_ASSERT(methods);
-
     LSMessageToken token;
 
     LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
@@ -3404,9 +3402,12 @@ _LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMeth
     _LSTransportMessageIterInit(message, &iter);
     if (!_LSTransportMessageAppendString(&iter, category)) goto error;
 
-    for (; methods->name && methods->function; ++methods)
+    if (methods)
     {
-        if (!_LSTransportMessageAppendString(&iter, methods->name)) goto error;
+        for (; methods->name && methods->function; ++methods)
+        {
+            if (!_LSTransportMessageAppendString(&iter, methods->name)) goto error;
+        }
     }
 
     if (!_LSTransportSendMessage(message, transport->hub, &token, lserror))

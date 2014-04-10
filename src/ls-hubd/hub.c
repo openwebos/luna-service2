@@ -210,7 +210,8 @@ typedef struct _ClientId {
                                      initiate messages */
     _LocalName local;           /**< local name */
     _InetName inet;             /**< inet name */
-   bool is_monitor;             /**< true if this client is the monitor */
+    bool is_monitor;            /**< true if this client is the monitor */
+    GHashTable *categories;     /**< map of registered categories to method names lists */
 } _ClientId;
 
 typedef struct _SignalMap {
@@ -1565,7 +1566,6 @@ _LSHubClientIdLocalNew(const char *service_name, const char *unique_name, _LSTra
 {
     _ClientId *id = g_new0(_ClientId, 1);
 
-    /* TODO: handle errors */
     id->service_name = g_strdup(service_name);
     id->local.name = g_strdup(unique_name);
     _LSTransportClientRef(client);
@@ -1591,6 +1591,9 @@ _LSHubClientIdLocalFree(_ClientId *id)
     g_free(id->service_name);
     g_free(id->local.name);
     _LSTransportClientUnref(id->client);
+
+    if (id->categories)
+        g_hash_table_destroy(id->categories);
 
 #ifdef MEMCHECK
     memset(id, 0xFF, sizeof(_ClientId));
@@ -3852,6 +3855,38 @@ error:
 }
 
 
+static void free_method_list(gpointer method_list)
+{
+    g_slist_free_full(method_list, g_free);
+}
+
+static void
+_LSHubAppendCategory(const char *service_name, const char *category,
+                     GSList *methods)
+{
+    _ClientId *id = g_hash_table_lookup(available_services, service_name);
+    LS_ASSERT(id);
+
+    // TODO: Is locking required?
+    if (!id->categories)
+        id->categories = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, free_method_list);
+
+    char *orig_category = NULL;
+    GSList *orig_method_list = NULL;
+
+    if (g_hash_table_lookup_extended(id->categories, category,
+                                     (gpointer *) &orig_category, (gpointer *) &orig_method_list))
+    {
+        g_hash_table_steal(id->categories, category);
+        orig_method_list = g_slist_concat(orig_method_list, methods);
+        g_hash_table_insert(id->categories, orig_category, orig_method_list);
+    }
+    else
+    {
+        g_hash_table_insert(id->categories, g_strdup(category), methods);
+    }
+}
+
 static void
 _LSHubHandleAppendCategory(_LSTransportMessage *message)
 {
@@ -3877,9 +3912,8 @@ _LSHubHandleAppendCategory(_LSTransportMessage *message)
         method_list = g_slist_prepend(method_list, g_strdup(method_name));
     }
 
-    LOG_LS_DEBUG("%s: %d methods\n", service_name, g_slist_length(method_list));
     if (method_list)
-        g_slist_free_full(method_list, g_free);
+        _LSHubAppendCategory(service_name, category, method_list);
 }
 
 /**

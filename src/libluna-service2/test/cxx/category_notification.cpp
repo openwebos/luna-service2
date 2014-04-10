@@ -21,25 +21,35 @@
 
 using namespace std;
 
-namespace {
-
-bool callback(LSHandle *sh, LSMessage *msg, void *ctxt)
-{
-    return TRUE;
-}
-
-} //namespace;
-
 TEST(CategoryNotification, First)
 {
-    static LSMethod methods[] =
+    struct A
     {
-        { "bar", callback },
-        { "baz", callback },
-        { nullptr },
+        static bool callback(LSHandle *sh, LSMessage *msg, void *ctxt)
+        {
+            return true;
+        }
     };
 
     auto a = LS::registerService("com.palm.A");
+
+    static LSMethod methods[] =
+    {
+        { "bar", A::callback },
+        { "baz", A::callback },
+        { nullptr },
+    };
+
     a.registerCategory("/foo", methods, nullptr, nullptr);
+
+    static LSMethod methods2[] =
+    {
+        { "bar2", A::callback },
+        { "baz2", A::callback },
+        { nullptr }
+    };
+
+    a.registerCategoryAppend("/foo", methods2, nullptr);
+
     ASSERT_TRUE(true);
 }

@@ -75,6 +75,7 @@ typedef enum LSTransportMessageType
     _LSTransportMessageTypePushRole,                 /**< push a role (security state) to the hub */
     _LSTransportMessageTypePushRoleReply,            /**< reply for a push role message */
     _LSTransportMessageTypeUnknown,                  /**< tag uninitialized types */
+    _LSTransportMessageTypeAppendCategory,           /**< message to the hub to update category tables */
 } _LSTransportMessageType;
 
 /**

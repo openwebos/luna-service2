@@ -3378,6 +3378,51 @@ Done:
 
 /**
  *******************************************************************************
+ * @brief Notify the hub about category change.
+ *
+ * @param  transport    IN  transport
+ * @param  lserror      OUT set on error
+ *
+ * @retval  true on success
+ * @retval  false on failure
+ *******************************************************************************
+ */
+bool
+_LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMethod *methods, LSError *lserror)
+{
+	LS_ASSERT(methods);
+
+    LSMessageToken token;
+
+    LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
+
+    _LSTransportMessage *message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
+
+    _LSTransportMessageSetType(message, _LSTransportMessageTypeAppendCategory);
+
+    _LSTransportMessageIter iter;
+    _LSTransportMessageIterInit(message, &iter);
+    if (!_LSTransportMessageAppendString(&iter, category)) goto error;
+
+    for (; methods->name && methods->function; ++methods)
+    {
+        if (!_LSTransportMessageAppendString(&iter, methods->name)) goto error;
+    }
+
+    if (!_LSTransportSendMessage(message, transport->hub, &token, lserror))
+        goto error;
+
+    _LSTransportMessageUnref(message);
+    return true;
+
+error:
+    if (message) _LSTransportMessageUnref(message);
+    return false;
+}
+
+
+/**
+ *******************************************************************************
  * @brief Called when watch indicates that there is data to be read from a
  * channel. This function does non-blocking reads of the incoming data and
  * processes the complete messages.

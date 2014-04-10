@@ -41,6 +41,7 @@ set(INTEGRATION_TEST_SOURCES
     test_service
     test_category
     "test_call\;test_call_service"
+    category_notification
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})

@@ -3851,6 +3851,37 @@ error:
     if (reply) _LSTransportMessageUnref(reply);
 }
 
+
+static void
+_LSHubHandleAppendCategory(_LSTransportMessage *message)
+{
+    LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeAppendCategory);
+
+    const char *service_name = _LSTransportClientGetServiceName(_LSTransportMessageGetClient(message));
+
+    _LSTransportMessageIter iter;
+    _LSTransportMessageIterInit(message, &iter);
+
+    LS_ASSERT(_LSTransportMessageIterHasNext(&iter));
+    const char *category = NULL;
+    _LSTransportMessageGetString(&iter, &category);
+    LS_ASSERT(category);
+    _LSTransportMessageIterNext(&iter);
+
+    GSList *method_list = NULL;
+    for (; _LSTransportMessageIterHasNext(&iter); _LSTransportMessageIterNext(&iter))
+    {
+        const char *method_name = NULL;
+        _LSTransportMessageGetString(&iter, &method_name);
+        LS_ASSERT(method_name);
+        method_list = g_slist_prepend(method_list, g_strdup(method_name));
+    }
+
+    LOG_LS_DEBUG("%s: %d methods\n", service_name, g_slist_length(method_list));
+    if (method_list)
+        g_slist_free_full(method_list, g_free);
+}
+
 /**
  *******************************************************************************
  * @brief Process incoming messages from underlying transport.
@@ -3908,6 +3939,10 @@ _LSHubHandleMessage(_LSTransportMessage* message, void *context)
 
     case _LSTransportMessageTypePushRole:
         _LSHubHandlePushRole(message);
+        break;
+
+    case _LSTransportMessageTypeAppendCategory:
+        _LSHubHandleAppendCategory(message);
         break;
 
     case _LSTransportMessageTypeMethodCall:

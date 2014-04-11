@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <libgen.h>
 #include <glib.h>
+#include <pbnjson.h>
 
 #include "hub.h"
 #include "conf.h"
@@ -3693,6 +3694,115 @@ _LSHubHandleQueryServiceStatus(const _LSTransportMessage *message)
     _LSTransportMessageUnref(reply);
 }
 
+static void send_service_category_reply(const _LSTransportMessage *message, const char *payload)
+{
+    /* construct the reply -- reply_serial + payload */
+    _LSTransportMessage *reply = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
+    _LSTransportMessageSetType(reply, _LSTransportMessageTypeQueryServiceCategoryReply);
+
+    _LSTransportMessageIter iter;
+    _LSTransportMessageIterInit((_LSTransportMessage*)message, &iter);
+
+    do {
+        LSError lserror;
+        LSErrorInit(&lserror);
+
+        LSMessageToken msg_serial = _LSTransportMessageGetToken(message);
+        _Static_assert(sizeof(LSMessageToken) <= 8, "LSMessageToken doesn't fit into 64 bits");
+        if (!_LSTransportMessageAppendInt64(&iter, msg_serial)) break;
+        if (!_LSTransportMessageAppendString(&iter, payload)) break;
+
+        if (!_LSTransportSendMessage(reply, _LSTransportMessageGetClient(message),
+                                     NULL, &lserror))
+        {
+            LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
+            LSErrorFree(&lserror);
+        }
+
+    } while (0);
+
+    _LSTransportMessageUnref(reply);
+}
+
+/**
+ *******************************************************************************
+ * @brief Process a "QueryServiceCategory" message and send a reply with the
+ * registered categories of the service.
+ *
+ * @param  message  IN  query service categories
+ *******************************************************************************
+ */
+static void
+_LSHubHandleQueryServiceCategory(const _LSTransportMessage *message)
+{
+    LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeQueryServiceCategory);
+
+    _LSTransportMessageIter iter;
+
+    const char *service_name = NULL;
+    const char *category = NULL;
+
+    _LSTransportMessageIterInit((_LSTransportMessage*)message, &iter);
+
+    _LSTransportMessageGetString(&iter, &service_name);
+    _LSTransportMessageIterNext(&iter);
+    _LSTransportMessageGetString(&iter, &category);
+    _LSTransportMessageIterNext(&iter);
+
+    /* look up service name in available list */
+    _ClientId *id = g_hash_table_lookup(available_services, service_name);
+    if (!id || !id->categories)
+        return send_service_category_reply(message, "{}");
+
+    jvalue_ref payload = jobject_create();
+    if (!payload)
+    {
+        LOG_LS_ERROR(MSGID_LSHUB_OOM_ERR, 0, "Out of memory");
+        return;
+    }
+
+    if (!category || !category[0])
+    {
+        /* If no category was given originally, the client is interested
+         * in every category.
+         *
+         * Reply payload: {"/a": ["foo", "bar"], "/b": ["baz"]}
+         */
+
+        GHashTableIter cat_it;
+        g_hash_table_iter_init(&cat_it, id->categories);
+
+        const char *registered_category = NULL;
+        const GSList *method_list = NULL;
+        while (g_hash_table_iter_next(&cat_it, (gpointer *) &registered_category, (gpointer *) &method_list))
+        {
+            jvalue_ref functions = jarray_create(0);
+            for (; method_list; method_list = g_slist_next(method_list))
+                jarray_append(functions, jstring_create(method_list->data));
+            jobject_put(payload, jstring_create(registered_category), functions);
+        }
+    }
+    else
+    {
+        const GSList *method_list = g_hash_table_lookup(id->categories, category);
+        if (method_list)
+        {
+            /* The specific category has been found.
+             *
+             * Reply payload: {"/a": ["foo", "bar"]}
+             */
+
+            jvalue_ref functions = jarray_create(0);
+            for (; method_list; method_list = g_slist_next(method_list))
+                jarray_append(functions, jstring_create(method_list->data));
+            jobject_put(payload, jstring_create(category), functions);
+        }
+
+        /* No such category is registered. Reply payload: {} */
+    }
+    send_service_category_reply(message, jvalue_tostring_simple(payload));
+}
+
 
 /**
  *******************************************************************************
@@ -3969,6 +4079,10 @@ _LSHubHandleMessage(_LSTransportMessage* message, void *context)
 
     case _LSTransportMessageTypeQueryServiceStatus:
         _LSHubHandleQueryServiceStatus(message);
+        break;
+
+    case _LSTransportMessageTypeQueryServiceCategory:
+        _LSHubHandleQueryServiceCategory(message);
         break;
 
     case _LSTransportMessageTypePushRole:

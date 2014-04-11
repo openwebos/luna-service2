@@ -4615,6 +4615,57 @@ error:
 
 /**
  *******************************************************************************
+ * @brief Check to see registered categories in the service.
+ *
+ * The message argument is just the service name string (e.g., "com.palm.foo")
+ *
+ * The hub will reply with a boolean value of whether the service is up.
+ *
+ * @param  transport        IN  transport
+ * @param  service_name     IN  service name to check status of
+ * @param  category         IN  category to filter
+ * @param  serial           OUT serial for this query message
+ * @param  lserror          OUT set on error
+ *
+ * @retval  true on success
+ * @retval  false on failure
+ *******************************************************************************
+ */
+bool
+LSTransportSendQueryServiceCategory(_LSTransport *transport,
+                                    const char *service_name, const char *category,
+                                    LSMessageToken *serial, LSError *lserror)
+{
+    LS_ASSERT(transport != NULL);
+    LS_ASSERT(service_name != NULL);
+
+    _LSTransportMessageIter iter;
+    bool ret = false;
+
+    _LSTransportMessage *message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
+
+    _LSTransportMessageSetType(message, _LSTransportMessageTypeQueryServiceCategory);
+    _LSTransportMessageIterInit(message, &iter);
+    if (!_LSTransportMessageAppendString(&iter, service_name)) goto error;
+    if (!_LSTransportMessageAppendString(&iter, category)) goto error;
+    if (!_LSTransportMessageAppendInvalid(&iter)) goto error;
+
+    LS_ASSERT(transport->hub != NULL);
+
+    ret = _LSTransportSendMessage(message, transport->hub, serial, lserror);
+
+    if (message) _LSTransportMessageUnref(message);
+
+    return ret;
+
+error:
+    if (message) _LSTransportMessageUnref(message);
+    _LSErrorSetOOM(lserror);
+    return false;
+}
+
+/**
+ *******************************************************************************
  * @brief Add a message to the pending queue for the given service with a specified token.
  *
  * @attention locks the transport lock

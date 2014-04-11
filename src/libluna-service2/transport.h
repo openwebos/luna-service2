@@ -197,6 +197,9 @@ bool LSTransportPushRole(_LSTransport *transport, const char *path, LSError *lse
 bool LSTransportSendMessageMonitorRequest(_LSTransport *transport, LSError *lserror);
 bool _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror);
 bool LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_name, LSMessageToken *serial, LSError *lserror);
+bool LSTransportSendQueryServiceCategory(_LSTransport *transport,
+                                         const char *service_name, const char *category,
+                                         LSMessageToken *serial, LSError *lserror);
 const char* _LSTransportQueryNameReplyGetUniqueName(_LSTransportMessage *message);
 
 #ifdef UNIT_TESTS

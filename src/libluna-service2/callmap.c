@@ -1566,6 +1566,104 @@ _send_reg_server_status(LSHandle *sh,
 }
 
 static bool
+_send_reg_service_category(LSHandle     *sh,
+                           _Uri         *luri,
+                           const char   *payload,
+                           LSFilterFunc callback,
+                           void         *ctx,
+                           _Call        **ret_call,
+                           LSError      *lserror)
+{
+    /* Register watch for service category changes.
+     *
+     * For a specific category: {"serviceName": "com.palm.A", "category": "/category1"}
+     * For every category: {"serviceName": "com.palm.A"}
+     */
+
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
+    bool retVal = false;
+    LSMessageToken token;
+    char *signal_category = NULL;
+
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
+    do {
+        if (!jis_valid(object))
+        {
+            _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Malformed json.");
+            break;
+        }
+
+        // "serviceName"
+        jvalue_ref child = jobject_get(object, J_CSTR_TO_BUF("serviceName"));
+
+        raw_buffer service_name_buf = jstring_get_fast(child);
+
+        if (!service_name_buf.m_str)
+        {
+            _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1, "Invalid payload. Missing \"serviceName\".");
+            break;
+        }
+
+        LOCAL_CSTR_FROM_BUF(service_name, service_name_buf);
+
+        // "category"
+        jvalue_ref category_val = NULL;
+        if (jobject_get_exists(object, J_CSTR_TO_BUF("category"), &category_val))
+        {
+            raw_buffer category_buf = jstring_get_fast(category_val);
+            LOCAL_CSTR_FROM_BUF(category, category_buf);
+
+            if (category[0] != '/')
+            {
+                _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1,
+                            "Invalid payload. \"category\" should begin with /.");
+                break;
+            }
+
+            signal_category = g_strdup_printf(LUNABUS_SIGNAL_CATEGORY "/watch/category/%s%s",
+                                              service_name, category);
+            retVal = LSTransportSendQueryServiceCategory(sh->transport, service_name, category,
+                                                         &token, lserror);
+        }
+        else
+        {
+            signal_category = g_strdup_printf(LUNABUS_SIGNAL_CATEGORY "/watch/category/%s", service_name);
+            retVal = LSTransportSendQueryServiceCategory(sh->transport, service_name, NULL,
+                                                         &token, lserror);
+        }
+
+        if (!retVal)
+        {
+            _LSErrorSet(lserror, MSGID_LS_SEND_ERROR, -1, "Could not send QueryServiceCategory.");
+            break;
+        }
+
+        _Call *call = _CallNew(sh, CALL_TYPE_SIGNAL,
+                               service_name, callback, ctx, token, NULL);
+
+        call->match_key = g_strdup(signal_category);
+        call->signal_category = signal_category; signal_category = NULL;
+
+        if (ret_call)
+        {
+            *ret_call = call;
+        }
+
+        retVal = true;
+
+    } while(0);
+
+    g_free(signal_category);
+    j_release(&object);
+
+    return retVal;
+}
+
+
+static bool
 _send_method_call(LSHandle *sh,
              _Uri       *luri,
              const char *payload,
@@ -1901,6 +1999,13 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
                 if (!ret) goto error;
 
                 ret =  _service_watch_enable(sh, call, lserror);
+                if (!ret) goto error;
+            }
+            // uri == "palm://com.palm.bus/signal/registerServiceCategory"
+            else if (strcmp(luri->methodName, "registerServiceCategory") == 0)
+            {
+                bool ret = _send_reg_service_category(sh, luri, payload,
+                                                      callback, ctx, &call, lserror);
                 if (!ret) goto error;
             }
             else

@@ -43,7 +43,8 @@ TEST(CategoryNotification, First)
     {
         static bool callback(LSHandle *sh, LSMessage *reply, void *ctx)
         {
-            printf("Category changed\n");
+            printf("Category changed: ");
+            LSMessagePrint(reply, stdout);
             return true;
         }
     };
@@ -68,8 +69,7 @@ TEST(CategoryNotification, First)
         { "baz", A::callback },
         { nullptr },
     };
-
-    a.registerCategory("/foo", methods, nullptr, nullptr);
+    a.registerCategory("/category1", methods, nullptr, nullptr);
 
     static LSMethod methods2[] =
     {
@@ -77,13 +77,20 @@ TEST(CategoryNotification, First)
         { "baz2", A::callback },
         { nullptr }
     };
+    a.registerCategoryAppend("/category1", methods2, nullptr);
 
-    a.registerCategoryAppend("/foo", methods2, nullptr);
+    static LSMethod methods3[] =
+    {
+        { "foo", A::callback },
+        { "bar", A::callback },
+        { nullptr }
+    };
+    a.registerCategoryAppend("/category2", methods3, nullptr);
 
     usleep(500000);
 
     ASSERT_TRUE(LSCall(watch.get(), "luna://com.palm.bus/signal/registerServiceCategory",
-                "{\"serviceName\": \"com.palm.A\", \"category\": \"/\"}",
+                "{\"serviceName\": \"com.palm.A\", \"category\": \"/category1\"}",
                 Watch::callback, nullptr, &token, e.get()));
     BOOST_SCOPE_EXIT((&watch)(&token)) {
         LS::Error e;

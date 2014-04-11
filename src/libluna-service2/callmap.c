@@ -933,6 +933,27 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
         break;
     }
 
+    /* reply for service category query (registerServerCategory) */
+    case _LSTransportMessageTypeQueryServiceCategoryReply:
+    {
+        LS_ASSERT(call->type == CALL_TYPE_SIGNAL);
+
+        _LSTransportMessageIter iter;
+        _LSTransportMessageIterInit(msg, &iter);
+
+        LS_ASSERT(_LSTransportMessageIterHasNext(&iter));
+        _LSTransportMessageIterNext(&iter);
+
+        const char *categories = NULL;
+        _LSTransportMessageGetString(&iter, &categories);
+
+        reply->category = LUNABUS_SIGNAL_CATEGORY;
+        reply->method = LUNABUS_SIGNAL_SERVICE_CATEGORY;
+        reply->payload = reply->payloadAllocated = g_strdup(categories);
+
+        break;
+    }
+
     /* translate all transport errors to lunabus errors. */
     case _LSTransportMessageTypeError:
     case _LSTransportMessageTypeErrorUnknownMethod:
@@ -1336,6 +1357,17 @@ _get_reply_tokens(_CallMap *map, _LSTransportMessage *msg, _TokenList *tokens)
     _TokenListAdd(tokens, tok);
 }
 
+static void
+_get_first_field_tokens(_CallMap *callmap, _LSTransportMessage *msg, _TokenList *tokens)
+{
+    _LSTransportMessageIter iter;
+    _LSTransportMessageIterInit(msg, &iter);
+    LSMessageToken tok;
+    _Static_assert(sizeof(tok) <= sizeof(int64_t), "LSMessageToken should fit into int64_t");
+    _LSTransportMessageGetInt64(&iter, (int64_t *) &tok);
+    _TokenListAdd(tokens, tok);
+}
+
 void
 _MessageFindTokens(_CallMap *callmap, _LSTransportMessage *msg,
                    _ServerInfo *server_info, _TokenList *tokens)
@@ -1357,6 +1389,9 @@ _MessageFindTokens(_CallMap *callmap, _LSTransportMessage *msg,
     case _LSTransportMessageTypeError:
     case _LSTransportMessageTypeErrorUnknownMethod:
         _get_reply_tokens(callmap, msg, tokens);
+        break;
+    case _LSTransportMessageTypeQueryServiceCategoryReply:
+        _get_first_field_tokens(callmap, msg, tokens);
         break;
     case _LSTransportMessageTypeMethodCall:
     case _LSTransportMessageTypeCancelMethodCall:

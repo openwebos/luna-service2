@@ -3701,7 +3701,7 @@ static void send_service_category_reply(const _LSTransportMessage *message, cons
     _LSTransportMessageSetType(reply, _LSTransportMessageTypeQueryServiceCategoryReply);
 
     _LSTransportMessageIter iter;
-    _LSTransportMessageIterInit((_LSTransportMessage*)message, &iter);
+    _LSTransportMessageIterInit(reply, &iter);
 
     do {
         LSError lserror;

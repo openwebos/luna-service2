@@ -21,6 +21,7 @@
 #include <luna-service2/lunaservice.h>
 #include <luna-service2/lunaservice-meta.h>
 #include "call.hpp"
+#include "server_status.hpp"
 #include <PmLogLib.h>
 #include <cstring>
 #include <iostream>
@@ -34,7 +35,6 @@ class Service
 {
     friend Service registerService(const char *, bool);
     friend class PalmService;
-    friend class Signal;
 
 public:
     Service() : _handle(nullptr) {}
@@ -219,6 +219,12 @@ public:
         }
 
         return Call(_handle, token);
+    }
+
+    // TO-DO: Make consistent with LS::Call behaviour
+    ServerStatus registerServerStatus(const char *service_name, const ServerStatusCallback &callback)
+    {
+        return ServerStatus(_handle, service_name, callback);
     }
 
 private:

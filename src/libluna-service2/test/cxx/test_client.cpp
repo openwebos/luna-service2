@@ -127,3 +127,35 @@ TEST(TestClient, Signals)
     this_thread::sleep_for(chrono::milliseconds(1));
     EXPECT_EQ(call_count, 2);
 }
+
+TEST(TestClient, ServerStatus)
+{
+    bool is_active = false;
+
+    LS::ServerStatusCallback statusCallback = [&](bool isact)
+    {
+        is_active = isact;
+
+        return true;
+    };
+
+    GMainLoop *listener_main_loop = g_main_loop_new(nullptr, false);
+    RUN_IN_THREAD(listener_main_loop);
+
+    LS::Service listener = LS::registerService("com.palm.test_status_listener");
+    listener.attachToLoop(listener_main_loop);
+
+    LS::ServerStatus status;
+    EXPECT_NO_THROW(status = listener.registerServerStatus("com.palm.test_status_server", statusCallback));
+    this_thread::sleep_for(chrono::milliseconds(1));
+    EXPECT_FALSE(is_active);
+
+    LS::Service server = LS::registerService("com.palm.test_status_server");
+    server.attachToLoop(listener_main_loop);
+    this_thread::sleep_for(chrono::milliseconds(1));
+    EXPECT_TRUE(is_active);
+
+    server.detach();
+    this_thread::sleep_for(chrono::milliseconds(1));
+    EXPECT_FALSE(is_active);
+}

@@ -84,16 +84,47 @@ _UriFree(_Uri *luri)
 
 #define MAX_NAME_LEN 255
 
-#define VALID_NAME_INITIAL_CHAR(c) \
-    ( ('A' <= (c) && (c) <= 'Z') || \
-      ('a' <= (c) && (c) <= 'z') || \
-      ('_' == (c)) )
+static inline bool is_valid_initial_char(int c)
+{
+    switch (c)
+    {
+    case 'A'...'Z':
+    case 'a'...'z':
+    case '_':
+        return true;
+    default:
+        return false;
+    }
+}
 
-#define VALID_NAME_CHAR(c) \
-    ( ('A' <= (c) && (c) <= 'Z') || \
-      ('a' <= (c) && (c) <= 'z') || \
-      ('0' <= (c) && (c) <= '9') || \
-      ('_' == (c)) )
+static inline bool is_valid_name_char(int c)
+{
+    switch (c)
+    {
+    case 'A'...'Z':
+    case 'a'...'z':
+    case '0'...'9':
+    case '_':
+        return true;
+    default:
+        return false;
+    }
+}
+
+static inline bool is_valid_path_char(int c)
+{
+    switch (c)
+    {
+    case 'A'...'Z':
+    case 'a'...'z':
+    case '0'...'9':
+    case '_':
+    case '.':
+        return true;
+    default:
+        return false;
+    }
+}
 
 /**
 * @brief Validate the service name.
@@ -123,7 +154,7 @@ _validate_service_name(const char *service_name)
 
     if ('.' == *p) return false;
 
-    if (unlikely(!VALID_NAME_INITIAL_CHAR(*p))) return false;
+    if (unlikely(!is_valid_initial_char(*p))) return false;
 
     p++;
 
@@ -139,12 +170,12 @@ _validate_service_name(const char *service_name)
             if (p == end) return false;
 
             // after '.' back to initial character
-            if (unlikely(!VALID_NAME_INITIAL_CHAR(*p)))
+            if (unlikely(!is_valid_initial_char(*p)))
             {
                 return false;
             }
         }
-        else if (unlikely(!VALID_NAME_CHAR(*p)))
+        else if (unlikely(!is_valid_name_char(*p)))
         {
             return false;
         }
@@ -200,7 +231,7 @@ _validate_path(const char *path)
             if ((p - last_slash) < 2)
                 return false;
         }
-        else if (unlikely(!VALID_NAME_CHAR(*p)))
+        else if (unlikely(!is_valid_path_char(*p)))
         {
             return false;
         }
@@ -240,7 +271,7 @@ _validate_method(const char *method)
     if (0 == len) return false;
 
     // first character may not be a digit.
-    if (unlikely(!VALID_NAME_INITIAL_CHAR(*p)))
+    if (unlikely(!is_valid_initial_char(*p)))
     {
         return false;
     }
@@ -248,7 +279,7 @@ _validate_method(const char *method)
 
     for ( ; p < end; p++)
     {
-        if (unlikely(!VALID_NAME_CHAR(*p)))
+        if (unlikely(!is_valid_name_char(*p)))
         {
             return false;
         }

@@ -18,77 +18,385 @@
 
 #pragma once
 
-#include <luna-service2/lunaservice.h>
+#include <cassert>
 #include <cstring>
 #include <iostream>
+#include <string>
+#include <chrono>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
+#include <thread>
+#include <memory>
+
+#include <luna-service2/lunaservice.h>
+
 
 namespace LS {
 
-class Service;
 
 class Call
 {
+
     friend class Service;
 
 public:
-    Call() : _service_handle(nullptr), _token(LSMESSAGE_TOKEN_INVALID) {}
 
-    Call(const Call &) = delete;
-    Call& operator=(const Call &) = delete;
-
-    Call(Call &&other)
-        : _service_handle(other._service_handle)
-        , _token(other._token)
+    Call()
+        : _token{LSMESSAGE_TOKEN_INVALID}
+        , _sh{nullptr}
+        , _single{false}
+        , _callCB{nullptr}
+        , _callCtx{nullptr}
+        , _context{new CallPtr(this)}
     {
-        other._service_handle = nullptr;
-        other._token = LSMESSAGE_TOKEN_INVALID;
-    }
-
-    Call &operator=(Call &&other)
-    {
-        _service_handle = other._service_handle;
-        _token = other._token;
-
-        other._service_handle = nullptr;
-        other._token = LSMESSAGE_TOKEN_INVALID;
-        return *this;
     }
 
     ~Call()
     {
-        if (LSMESSAGE_TOKEN_INVALID != _token)
-        {
-            Error error;
+        cleanup();
+    }
 
-            if (!LSSignalCallCancel(_service_handle, _token, error.get()))
+    Call(Call &&other)
+        : _token{other._token}
+        , _sh{other._sh}
+        , _single{other._single}
+        , _callCB{other._callCB}
+        , _callCtx{other._callCtx}
+        , _context{std::move(other._context)}
+    {
+        *_context = this;
+        std::lock_guard<std::mutex> lockg{other._mutex};
+        other._token = LSMESSAGE_TOKEN_INVALID;
+        other._sh = nullptr;
+        other._callCB = nullptr;
+        other._callCtx = nullptr;
+        _queue = std::move(other._queue);
+    }
+
+    Call & operator=(Call &&other)
+    {
+        if (this != &other)
+        {
+            std::unique_lock<std::mutex> thisLock{_mutex, std::defer_lock};
+            std::unique_lock<std::mutex> thatLock{other._mutex, std::defer_lock};
+            std::lock(thisLock, thatLock);
+            cleanup();
+            _token = other._token;
+            _sh = other._sh;
+            _callCB = other._callCB;
+            _callCtx = other._callCtx;
+            _context = std::move(other._context);
+            *_context = this;
+            _queue = std::move(other._queue);
+            other._token = LSMESSAGE_TOKEN_INVALID;
+            other._sh = nullptr;
+            other._callCB = nullptr;
+            other._callCtx = nullptr;
+        }
+        return *this;
+    }
+
+    Call(const Call &) = delete;
+    Call & operator=(const Call &) = delete;
+
+    void cancel()
+    {
+        if (isActive())
+        {
+            LS::Error error;
+            if (LSCallCancel(_sh, _token, error.get()))
             {
-                error.log(PmLogGetLibContext(), "LS_FAILED_TO_CANC_SIGNAL");
+                _token = LSMESSAGE_TOKEN_INVALID;
+            }
+            else
+            {
+                error.log(PmLogGetLibContext(), "LS_CANC_METH");
             }
         }
     }
 
-    void cancel()
+    bool setTimeout(int msTimeout) const
     {
-        Error error;
-
-        if (!LSSignalCallCancel(_service_handle, _token, error.get()))
+        if (isActive())
         {
-            error.log(PmLogGetLibContext(), "LS_FAILED_TO_CANC_SIGNAL");
+            LS::Error error;
+            return LSCallSetTimeout(_sh, _token, msTimeout, error.get());
+        }
+        return false;
+    }
+
+    void continueWith(LSFilterFunc callback, void * context)
+    {
+        std::lock_guard<std::mutex> lockg{_mutex};
+        _callCB = callback;
+        _callCtx = context;
+        if (!_callCB)
+        {
+            return;
+        }
+
+        while (!_queue.empty())
+        {
+            (_callCB)(_sh, _queue.front(), _callCtx);
+            LSMessageUnref(_queue.front());
+            _queue.pop();
+        }
+    }
+
+    LSMessage * get()
+    {
+        LSMessage * result = tryGet();
+        if (result)
+            return result;
+
+        if (!isMainLoopThread())
+        {
+            return wait();
+        }
+        else
+        {
+            return waitOnMainLoop();
+        }
+    }
+
+    LSMessage * get(unsigned long msTimeout)
+    {
+        LSMessage * result = tryGet();
+        if (result)
+            return result;
+
+        if (!isMainLoopThread())
+        {
+            return waitTimeout(msTimeout);
+        }
+        else
+        {
+            return waitTimeoutOnMainLoop(msTimeout);
         }
     }
 
 private:
-    LSHandle *_service_handle;
+
     LSMessageToken _token;
+    LSHandle * _sh;
+    bool _single;
+    LSFilterFunc _callCB;
+    void * _callCtx;
+    typedef Call * CallPtr;
+    std::unique_ptr<CallPtr> _context;
+    std::mutex _mutex;
+    std::condition_variable _cv;
+    std::queue<LSMessage *> _queue;
+    GMainContext * _mainloopCtx;
+    volatile bool _timeoutExpired;
 
-private:
-    explicit Call(LSHandle *service_handle, LSMessageToken token)
-        : _service_handle(service_handle)
-        , _token(token) {}
-
-    friend std::ostream &operator<<(std::ostream &os, const Call &signal)
+    void cleanup()
     {
-        return os << "LUNA SIGNAL CALL '" << signal._token << "'";
+        cancel();
     }
+
+    bool isActive() const
+    {
+        if (LSMESSAGE_TOKEN_INVALID != _token && _sh)
+        {
+            return true;
+        }
+        return false;
+    }
+
+
+    void call(LSHandle *sh, const char *uri, const char *payload, bool oneReply, const char *appID = NULL)
+    {
+        LS::Error error;
+        typedef bool (*CallFuncType) (LSHandle *, const char *, const char *, const char *,LSFilterFunc , void *,
+            LSMessageToken *, LSError *);
+        _sh = sh;
+        _single = oneReply;
+        CallFuncType callFunc = (_single) ? (LSCallFromApplicationOneReply) : (LSCallFromApplication);
+
+        if (!callFunc(
+             _sh,
+             uri,
+             payload,
+             appID,
+             &replyCallback,
+             _context.get(),
+             &_token,
+             error.get()))
+        {
+            throw error;
+        }
+    }
+
+    void callSignal(LSHandle *sh, const char *category, const char *methodName)
+    {
+        LS::Error error;
+        _sh = sh;
+        _single = false;
+
+        if (!LSSignalCall(
+             _sh,
+             category,
+             methodName,
+             &replyCallback,
+             _context.get(),
+             &_token,
+             error.get()))
+        {
+            throw error;
+        }
+    }
+
+    bool isMainLoopThread() const
+    {
+        if (!_sh)
+            return false;
+        LS::Error error;
+        if (FALSE != g_main_context_is_owner(LSGmainGetContext(_sh, error.get())))
+            return true;
+        else
+        {
+            //Check if we can acquire context - probably main loop is not running
+            if (FALSE != g_main_context_acquire(LSGmainGetContext(_sh, error.get())))
+            {
+                g_main_context_release(LSGmainGetContext(_sh, error.get()));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    LSMessage * tryGet()
+    {
+        std::lock_guard<std::mutex> lockg{_mutex};
+        LSMessage * result{nullptr};
+        if (!_queue.empty())
+        {
+            result = _queue.front();
+            _queue.pop();
+        }
+        return result;
+    }
+
+    LSMessage * waitOnMainLoop()
+    {
+        LS::Error error;
+        _mainloopCtx = LSGmainGetContext(_sh, error.get());
+        if (!_mainloopCtx)
+            return nullptr;
+
+        LSMessage * reply{nullptr};
+        while (true)
+        {
+            g_main_context_iteration(_mainloopCtx, TRUE);
+            if (_queue.empty())
+                continue;
+            std::lock_guard<std::mutex> lockg{_mutex};
+            if (!_queue.empty())
+            {
+                reply = _queue.front();
+                _queue.pop();
+                break;
+            }
+        }
+        return reply;
+    }
+
+    LSMessage * waitTimeoutOnMainLoop(unsigned long msTimeout)
+    {
+        LS::Error error;
+        _mainloopCtx = LSGmainGetContext(_sh, error.get());;
+        if (!_mainloopCtx)
+            return nullptr;
+
+        LSMessage * reply{nullptr};
+        _timeoutExpired = false;
+        guint timeoutID = g_timeout_add(msTimeout, onWaitCB, this);
+        while (!_timeoutExpired)
+        {
+            if (FALSE == g_main_context_iteration(_mainloopCtx, TRUE))
+                continue;
+
+            if (_queue.empty())
+                continue;
+
+            std::lock_guard<std::mutex> lockg{_mutex};
+            if (!_queue.empty())
+            {
+                reply = _queue.front();
+                _queue.pop();
+                break;
+            }
+        }
+        g_source_remove(timeoutID);
+        return reply;
+    }
+
+    LSMessage * wait()
+    {
+        std::unique_lock<std::mutex> ul{_mutex};
+        _cv.wait(ul, [this]{ return !_queue.empty();});
+        LSMessage * result = _queue.front();
+        _queue.pop();
+        return result;
+    }
+
+    LSMessage * waitTimeout(unsigned long msTimeout)
+    {
+        std::unique_lock<std::mutex> ul{_mutex};
+        bool gotMessage = _cv.wait_for(ul,
+            std::chrono::milliseconds(msTimeout), [this]{ return !_queue.empty(); });
+        if (gotMessage)
+        {
+            LSMessage * result = _queue.front();
+            _queue.pop();
+            return result;
+        }
+        return nullptr;
+    }
+
+    bool handleReply(LSHandle * sh, LSMessage * reply)
+    {
+        std::lock_guard<std::mutex> lockg{_mutex};
+        if (LSMESSAGE_TOKEN_INVALID == _token)
+            return false;
+
+        if (_single)
+            _token = LSMESSAGE_TOKEN_INVALID;
+
+        if (_callCB)
+        {
+            (_callCB)(sh, reply, _callCtx);
+        }
+        else
+        {
+            LSMessageRef(reply);
+            _queue.push(reply);
+            _cv.notify_one();
+        }
+        return true;
+    }
+
+    static bool replyCallback(LSHandle *sh, LSMessage *reply, void *context)
+    {
+        if (context)
+        {
+            CallPtr * call = static_cast<CallPtr *>(context);
+            (*call)->handleReply(sh, reply);
+        }
+        return true;
+    }
+
+    static gboolean onWaitCB(gpointer context)
+    {
+        (static_cast<Call *>(context))->_timeoutExpired = true;
+        /* FIXME -- investigate GMainLoop internal work if this call is really nesessary */
+        g_main_context_wakeup((static_cast<Call *>(context))->_mainloopCtx);
+        return G_SOURCE_REMOVE;
+    }
+
 };
+
 } //namespace LS;

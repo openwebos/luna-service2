@@ -54,6 +54,22 @@ bool LSCustomMessageQueueIsEmpty(LSCustomMessageQueue *q);
  */
 
 /**
+* @brief Get a glib mainloop context for service
+*
+* @param sh
+* @param lserror
+*
+* @retval
+*/
+GMainContext * LSGmainGetContext(LSHandle *sh, LSError *lserror)
+{
+    _LSErrorIfFail(sh != NULL, lserror, MSGID_LS_INVALID_HANDLE);
+    LSHANDLE_VALIDATE(sh);
+
+    return sh->context;
+}
+
+/**
 * @brief Attach a service to a glib mainloop
 *
 * @param sh

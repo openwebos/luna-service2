@@ -40,6 +40,7 @@ set(INTEGRATION_TEST_SOURCES
     test_client
     test_service
     test_category
+    "test_call\;test_call_service"
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})

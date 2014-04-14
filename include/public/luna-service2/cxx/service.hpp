@@ -205,23 +205,46 @@ public:
         }
     }
 
-    Call callSignal(const char *category,
-                      const char *methodName,
-                      LSFilterFunc filterFunc,
-                      void *ctx)
+    Call callOneReply(const char *uri, const char *payload, const char * appID = NULL)
     {
-        Error error;
-        LSMessageToken token;
-
-        if (!LSSignalCall(_handle, category, methodName, filterFunc, ctx, &token, error.get()))
-        {
-            throw error;
-        }
-
-        return Call(_handle, token);
+        Call call;
+        call.call(_handle, uri, payload, true, appID);
+        return call;
     }
 
-    // TO-DO: Make consistent with LS::Call behaviour
+    Call callOneReply(const char *uri,
+        const char *payload, LSFilterFunc func, void * context, const char * appID = NULL)
+    {
+        Call call;
+        call.continueWith(func, context);
+        call.call(_handle, uri, payload, true, appID);
+        return call;
+    }
+
+    Call callMultiReply(const char *uri, const char *payload, const char * appID = NULL)
+    {
+        Call call;
+        call.call(_handle, uri, payload, false, appID);
+        return call;
+    }
+
+    Call callMultiReply(const char *uri,
+        const char *payload, LSFilterFunc func, void * context, const char * appID = NULL)
+    {
+        Call call;
+        call.continueWith(func, context);
+        call.call(_handle, uri, payload, false, appID);
+        return call;
+    }
+
+    Call callSignal(const char *category, const char *methodName, LSFilterFunc func, void * context)
+    {
+        Call call;
+        call.continueWith(func, context);
+        call.callSignal(_handle, category, methodName);
+        return call;
+    }
+
     ServerStatus registerServerStatus(const char *service_name, const ServerStatusCallback &callback)
     {
         return ServerStatus(_handle, service_name, callback);

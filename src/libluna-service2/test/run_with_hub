@@ -56,6 +56,8 @@ conf_root=`mktemp -d /tmp/ls-hubd-conf.XXXXXXXX` || die "Failed to allocate temp
 
 cleanup()
 {
+	# Kill helper services
+	[[ ${#service_pid_to_kill} > 0 ]] && kill ${service_pid_to_kill[@]}
 	# Kill spawn hubs
 	[[ ${#hub_pids} > 0 ]] && kill ${hub_pids[@]}
 	wait  # until the hubs exit
@@ -72,7 +74,7 @@ install_files()
 	mkdir -p $conf_root/usr/share/dbus-1/{system-,}services
 
 	# Variables are defined in the configuration file
-	declare -a service dynamic_services
+	declare -a services dynamic_services helper_services
 	declare -A service_pub service_prv
 	declare -A role_pub role_prv
 
@@ -152,6 +154,18 @@ END
 		install_role $service_exe prv ${role_prv[$service]}
 	done
 
+	for service in ${helper_services[@]}; do
+		service_exe=`get_full_exe_path $service`
+		# Gather helper services to launch and kill after test
+		services_to_spawn_and_kill+=($service_exe)
+
+		install_service $service_exe static pub ${service_pub[$service]}
+		install_service $service_exe static prv ${service_prv[$service]}
+
+		install_role $service_exe pub ${role_pub[$service]}
+		install_role $service_exe prv ${role_prv[$service]}
+	done
+
 	for service in ${dynamic_services[@]}; do
 		service_exe=`get_full_exe_path $service`
 
@@ -207,6 +221,12 @@ while [[ ! -S /tmp/com.palm.private_hub || ! -S /tmp/com.palm.public_hub ]]; do
 	sleep 0.1
 done
 
+for service in ${services_to_spawn_and_kill[@]}; do
+	echo "Launching $service"
+	$service &
+	[[ $? -eq 0 ]] || die "Failed to start $service"
+	service_pid_to_kill+=($!)
+done
 for service in ${services_to_spawn[@]}; do
 	echo "Launching $service"
 	$service &

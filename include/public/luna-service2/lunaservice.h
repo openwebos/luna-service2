@@ -502,6 +502,8 @@ bool LSMessageReply(LSHandle *sh, LSMessage *lsmsg, const char *replyPayload,
 
 /* Mainloop integration functions. */
 
+GMainContext * LSGmainGetContext(LSHandle *sh, LSError *lserror);
+
 bool LSGmainAttach(LSHandle *sh, GMainLoop *mainLoop, LSError *lserror);
 bool LSGmainContextAttach(LSHandle *sh, GMainContext *mainContext, LSError *lserror);
 

@@ -21,8 +21,12 @@
 #include <boost/scope_exit.hpp>
 #include <glib.h>
 #include <thread>
+#include "util.hpp"
 
 using namespace std;
+using namespace pbnjson;
+
+namespace {
 
 template <typename T, typename D>
 std::unique_ptr<T, D> mk_ptr(T *t, D d)
@@ -30,21 +34,24 @@ std::unique_ptr<T, D> mk_ptr(T *t, D d)
     return std::unique_ptr<T, D>(t, d);
 }
 
+} //namespace;
+
 TEST(CategoryNotification, First)
 {
-    LS::Error e;
-    LSMessageToken token;
+    typedef vector<string> NotificationsT;
+    NotificationsT notifications;
 
     // Start background main loop
     auto main_loop = mk_ptr(g_main_loop_new(nullptr, false), g_main_loop_unref);
     thread t([&main_loop](){ g_main_loop_run(main_loop.get()); });
 
+    // Register a watch service to collect notifications
     struct Watch
     {
         static bool callback(LSHandle *sh, LSMessage *reply, void *ctx)
         {
-            printf("Category changed: ");
-            LSMessagePrint(reply, stdout);
+            NotificationsT &notifications = *static_cast<NotificationsT *>(ctx);
+            notifications.push_back(LSMessageGetPayload(reply));
             return true;
         }
     };
@@ -52,6 +59,16 @@ TEST(CategoryNotification, First)
     auto watch = LS::registerService("a.b.watch");
     watch.attachToLoop(main_loop.get());
 
+    auto call = watch.callMultiReply("luna://com.palm.bus/signal/registerServiceCategory",
+                                     "{\"serviceName\": \"com.palm.A\"}",
+                                     Watch::callback, &notifications);
+    BOOST_SCOPE_EXIT((&call)) {
+        call.cancel();
+    } BOOST_SCOPE_EXIT_END
+
+    usleep(50000);
+
+    // Register and kick-off watched service
     struct A
     {
         static bool callback(LSHandle *sh, LSMessage *msg, void *ctxt)
@@ -63,6 +80,7 @@ TEST(CategoryNotification, First)
     auto a = LS::registerService("com.palm.A");
     a.attachToLoop(main_loop.get());
 
+    // Register part of /category1
     static LSMethod methods[] =
     {
         { "bar", A::callback },
@@ -71,6 +89,7 @@ TEST(CategoryNotification, First)
     };
     a.registerCategory("/category1", methods, nullptr, nullptr);
 
+    // Register another part of /category1
     static LSMethod methods2[] =
     {
         { "bar2", A::callback },
@@ -79,25 +98,45 @@ TEST(CategoryNotification, First)
     };
     a.registerCategoryAppend("/category1", methods2, nullptr);
 
+    // Register /category2
     static LSMethod methods3[] =
     {
         { "foo", A::callback },
         { "bar", A::callback },
         { nullptr }
     };
-    a.registerCategoryAppend("/category2", methods3, nullptr);
+    a.registerCategory("/category2", methods3, nullptr, nullptr);
 
-    usleep(500000);
+    usleep(50000);
 
-    ASSERT_TRUE(LSCall(watch.get(), "luna://com.palm.bus/signal/registerServiceCategory",
-                "{\"serviceName\": \"com.palm.A\", \"category\": \"/category1\"}",
-                Watch::callback, nullptr, &token, e.get()));
-    BOOST_SCOPE_EXIT((&watch)(&token)) {
-        LS::Error e;
-        LSCallCancel(watch.get(), token, e.get());
-    } BOOST_SCOPE_EXIT_END
+    ASSERT_EQ(5, notifications.size());
 
-    usleep(500000);
+    EXPECT_EQ(JRef::object(), fromJson(notifications[0]));
+
+    auto ref1 = JRef{{"/com/palm/luna/private",
+                      JRef::array({"introspection","malloc_trim", "mallinfo",
+                                   "subscriptions", "ping", "cancel"})}};
+    EXPECT_EQ(ref1, fromJson(notifications[1]));
+
+    auto ref2 = JRef{{"/com/palm/luna/private",
+                      JRef::array({"introspection","malloc_trim", "mallinfo",
+                                   "subscriptions", "ping", "cancel"})},
+                     {"/category1", JRef::array({"baz","bar"})}};
+    EXPECT_EQ(ref2, fromJson(notifications[2]));
+
+    auto ref3 = JRef{{"/com/palm/luna/private",
+                      JRef::array({"introspection","malloc_trim", "mallinfo",
+                                   "subscriptions", "ping", "cancel"})},
+                     {"/category1", JRef::array({"baz","bar", "baz2", "bar2"})}};
+    EXPECT_EQ(ref3, fromJson(notifications[3]));
+
+    auto ref4 = JRef{{"/com/palm/luna/private",
+                      JRef::array({"introspection","malloc_trim", "mallinfo",
+                                   "subscriptions", "ping", "cancel"})},
+                     {"/category1", JRef::array({"baz","bar", "baz2", "bar2"})},
+                     {"/category2", JRef::array({"bar","foo"})}};
+    EXPECT_EQ(ref4, fromJson(notifications[4]));
+
     g_main_loop_quit(main_loop.get());
     t.join();
 }

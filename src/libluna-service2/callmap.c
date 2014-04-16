@@ -31,6 +31,7 @@
 #include <pbnjson.h>
 
 #include <luna-service2/lunaservice.h>
+#include <luna-service2/lunaservice-errors.h>
 
 #include "simple_pbnjson.h"
 //#include "callmap.h"
@@ -1658,14 +1659,14 @@ _send_reg_service_category(LSHandle     *sh,
                 break;
             }
 
-            signal_category = g_strdup_printf(LUNABUS_SIGNAL_CATEGORY "/watch/category/%s%s",
+            signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s%s",
                                               service_name, category);
             retVal = LSTransportSendQueryServiceCategory(sh->transport, service_name, category,
                                                          &token, lserror);
         }
         else
         {
-            signal_category = g_strdup_printf(LUNABUS_SIGNAL_CATEGORY "/watch/category/%s", service_name);
+            signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s", service_name);
             retVal = LSTransportSendQueryServiceCategory(sh->transport, service_name, NULL,
                                                          &token, lserror);
         }

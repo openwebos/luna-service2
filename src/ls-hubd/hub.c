@@ -43,6 +43,7 @@
 #include "timersource.h"
 #include "utils.h"
 #include "pattern.h"
+#include "base.h"
 
 /**
  * @defgroup LunaServiceHub
@@ -3724,41 +3725,13 @@ static void send_service_category_reply(const _LSTransportMessage *message, cons
     _LSTransportMessageUnref(reply);
 }
 
-/**
- *******************************************************************************
- * @brief Process a "QueryServiceCategory" message and send a reply with the
- * registered categories of the service.
- *
- * @param  message  IN  query service categories
- *******************************************************************************
- */
-static void
-_LSHubHandleQueryServiceCategory(const _LSTransportMessage *message)
+static jvalue_ref DumpCategories(const _ClientId *id, const char *category)
 {
-    LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeQueryServiceCategory);
-
-    _LSTransportMessageIter iter;
-
-    const char *service_name = NULL;
-    const char *category = NULL;
-
-    _LSTransportMessageIterInit((_LSTransportMessage*)message, &iter);
-
-    _LSTransportMessageGetString(&iter, &service_name);
-    _LSTransportMessageIterNext(&iter);
-    _LSTransportMessageGetString(&iter, &category);
-    _LSTransportMessageIterNext(&iter);
-
-    /* look up service name in available list */
-    _ClientId *id = g_hash_table_lookup(available_services, service_name);
-    if (!id || !id->categories)
-        return send_service_category_reply(message, "{}");
-
     jvalue_ref payload = jobject_create();
     if (!payload)
     {
         LOG_LS_ERROR(MSGID_LSHUB_OOM_ERR, 0, "Out of memory");
-        return;
+        return NULL;
     }
 
     if (!category || !category[0])
@@ -3800,7 +3773,59 @@ _LSHubHandleQueryServiceCategory(const _LSTransportMessage *message)
 
         /* No such category is registered. Reply payload: {} */
     }
-    send_service_category_reply(message, jvalue_tostring_simple(payload));
+
+    return payload;
+}
+
+/**
+ *******************************************************************************
+ * @brief Process a "QueryServiceCategory" message and send a reply with the
+ * registered categories of the service.
+ *
+ * @param  message  IN  query service categories
+ *******************************************************************************
+ */
+static void
+_LSHubHandleQueryServiceCategory(const _LSTransportMessage *message)
+{
+    LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeQueryServiceCategory);
+
+    _LSTransportMessageIter iter;
+
+    const char *service_name = NULL;
+    const char *category = NULL;
+
+    _LSTransportMessageIterInit((_LSTransportMessage*)message, &iter);
+
+    _LSTransportMessageGetString(&iter, &service_name);
+    _LSTransportMessageIterNext(&iter);
+    _LSTransportMessageGetString(&iter, &category);
+    _LSTransportMessageIterNext(&iter);
+
+    /* look up service name in available list */
+    _ClientId *id = g_hash_table_lookup(available_services, service_name);
+    if (!id || !id->categories)
+        send_service_category_reply(message, "{}");
+    else
+    {
+        jvalue_ref payload = DumpCategories(id, category);
+        if (payload)
+        {
+            send_service_category_reply(message, jvalue_tostring_simple(payload));
+            j_release(&payload);
+        }
+    }
+
+    // Remember the client for further notifications
+    char *signal_category = NULL;
+    if (category && category[0])
+        signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s%s", service_name, category);
+    else
+        signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s", service_name);
+
+    _LSHubAddSignal(signal_map->category_map, signal_category, _LSTransportMessageGetClient(message));
+
+    g_free(signal_category);
 }
 
 
@@ -3994,6 +4019,39 @@ _LSHubAppendCategory(const char *service_name, const char *category,
     else
     {
         g_hash_table_insert(id->categories, g_strdup(category), methods);
+    }
+
+    // Send signal about the update to the interested clients.
+    {
+        // Without specifying category
+        jvalue_ref payload = DumpCategories(id, NULL);
+        if (payload)
+        {
+            char *signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s", service_name);
+            _LSTransportMessage *message = LSTransportMessageSignalNewRef(signal_category,
+                                                                          "change",
+                                                                          jvalue_tostring_simple(payload));
+            _LSHubHandleSignal(message, true);
+            _LSTransportMessageUnref(message);
+            g_free(signal_category);
+            j_release(&payload);
+        }
+    }
+
+    {
+        // To the specific category listeners
+        jvalue_ref payload = DumpCategories(id, category);
+        if (payload)
+        {
+            char *signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s%s", service_name, category);
+            _LSTransportMessage *message = LSTransportMessageSignalNewRef(signal_category,
+                                                                          "change",
+                                                                          jvalue_tostring_simple(payload));
+            _LSHubHandleSignal(message, true);
+            _LSTransportMessageUnref(message);
+            g_free(signal_category);
+            j_release(&payload);
+        }
     }
 }
 

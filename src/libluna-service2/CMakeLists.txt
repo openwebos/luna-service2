@@ -60,16 +60,22 @@ if(WEBOS_LTTNG_ENABLED)
     set(LIBRARIES ${LIBRARIES} urcu-bp lttng-ust)
 endif()
 
-set(TESTLIB_PREFIX "_test")
-set(TESTLIBNAME ${CMAKE_PROJECT_NAME}${TESTLIB_PREFIX})
-add_library(${CMAKE_PROJECT_NAME} SHARED ${SOURCE})
-add_library(${TESTLIBNAME} SHARED ${SOURCE_TEST})
-target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBRARIES})
-target_link_libraries(${TESTLIBNAME} ${LIBRARIES})
-webos_build_library()
+if (WEBOS_CONFIG_BUILD_TESTS)
+    set(TESTLIB_PREFIX "_test")
+    set(TESTLIBNAME ${CMAKE_PROJECT_NAME}${TESTLIB_PREFIX})
+    add_library(${CMAKE_PROJECT_NAME} SHARED ${SOURCE})
+    add_library(${TESTLIBNAME} SHARED ${SOURCE_TEST})
+    target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBRARIES})
+    target_link_libraries(${TESTLIBNAME} ${LIBRARIES})
+    webos_build_library()
 
-SET_TARGET_PROPERTIES(${TESTLIBNAME} PROPERTIES COMPILE_FLAGS "-DLUNA_SERVICE_UNIT_TEST")
+    SET_TARGET_PROPERTIES(${TESTLIBNAME} PROPERTIES COMPILE_FLAGS "-DLUNA_SERVICE_UNIT_TEST")
 
-# Unit tests are compiled every time, to ensure that errors are thrown
-# if a functions API is changed, but the unit tests are not updated
-add_subdirectory(test)
+    # Unit tests are compiled every time, to ensure that errors are thrown
+    # if a functions API is changed, but the unit tests are not updated
+    add_subdirectory(test)
+else()
+    message(STATUS "libluna-service2: skipping automatic tests")
+endif()
+
+

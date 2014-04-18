@@ -97,8 +97,6 @@ LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
     LSCategoryTable *table;
     char *categoryPath = _category_to_object_path_alloc(category);
 
-    _LSGlobalLock();
-
     _LSErrorGotoIfFail(fail, sh->tableHandlers != NULL, error, MSGID_LS_NO_CATEGORY_TABLE,
         -1, "%s: %s not registered.", __FUNCTION__, category);
 
@@ -106,12 +104,10 @@ LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
     _LSErrorGotoIfFail(fail, table != NULL, error, MSGID_LS_NO_CATEGORY,
         -1, "%s: %s not registered.", __FUNCTION__, category);
 
-    _LSGlobalUnlock();
     g_free(categoryPath);
     return table;
 
 fail:
-    _LSGlobalUnlock();
     g_free(categoryPath);
 
     return NULL;

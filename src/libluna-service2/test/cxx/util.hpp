@@ -35,7 +35,7 @@ public:
     template<typename T>
     JRef(const T &origin) : pbnjson::JValue(origin) {}
 
-    JRef(const std::initializer_list<std::pair<std::string,JRef>> &props) : pbnjson::JValue(pbnjson::Array())
+    JRef(const std::initializer_list<std::pair<std::string,JRef>> &props) : pbnjson::JValue(pbnjson::Object())
     { for(const auto &prop : props) put(prop.first, prop.second); }
 
     jvalue_ref get() const { return peekRaw(); }

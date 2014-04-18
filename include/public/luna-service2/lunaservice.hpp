@@ -19,6 +19,7 @@
 #pragma once
 
 #include "luna-service2/cxx/error.hpp"
+#include "luna-service2/cxx/message.hpp"
 #include "luna-service2/cxx/service.hpp"
 #include "luna-service2/cxx/palm_service.hpp"
-#include "luna-service2/cxx/message.hpp"
+#include "luna-service2/cxx/call.hpp"

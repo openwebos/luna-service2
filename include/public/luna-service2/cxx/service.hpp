@@ -26,10 +26,26 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include "message.hpp"
 
 namespace LS {
 
+class Message;
 class PalmService;
+
+#define LS_CATEGORY_BEGIN(cl,name)                      \
+    { typedef class cl cl_t;                            \
+      constexpr const char* category_name = #name;      \
+      constexpr static const LSMethod table[] = {
+
+#define LS_CATEGORY_METHOD(name) { #name,               \
+      &Service::methodWraper<cl_t, &cl_t::name>,        \
+      static_cast<LSMethodFlags>(0) },
+
+#define LS_CATEGORY_END };                              \
+    registerCategory(category_name, table, 0, 0);       \
+    }
+
 
 class Service
 {
@@ -37,12 +53,33 @@ class Service
     friend class PalmService;
 
 public:
+    template<typename ClassT, bool (ClassT::*MethT)(LSMessage&)>
+    static bool methodWraper(LSHandle* h, LSMessage* m, void* ctx)
+    {
+        auto this_ = static_cast<ClassT*>(ctx);
+        return (this_->*MethT)(*m);
+    }
+
+
     Service() : _handle(nullptr) {}
 
     Service(const Service &) = delete;
     Service& operator=(const Service &) = delete;
 
     Service(Service &&other) : _handle(other.release()) {}
+
+    Service(const char *name, bool public_service = false)
+    {
+        Error error;
+        LSHandle *handle;
+
+        if (!LSRegisterPubPriv(name, &handle, public_service, error.get()))
+        {
+            throw error;
+        }
+
+        _handle = handle;
+    }
 
     Service &operator=(Service &&other)
     {
@@ -79,14 +116,23 @@ public:
 
     explicit operator bool() const { return _handle; }
 
-    void registerCategory(const char *category,
-                          LSMethod      *methods,
-                          LSSignal      *signal,
-                          LSProperty    *properties)
+    void registerCategory(const char*       category,
+                          const LSMethod*   methods,
+                          const LSSignal*   signal,
+                          const LSProperty* properties)
     {
         Error error;
-
-        if (!LSRegisterCategory(_handle, category, methods, signal, properties, error.get()))
+        bool result = LSRegisterCategory(_handle,
+                                         category,
+                                         const_cast<LSMethod*>(methods),
+                                         const_cast<LSSignal*>(signal),
+                                         const_cast<LSProperty*>(properties),
+                                         error.get());
+        if ( result )
+        {
+            setCategoryData(category, this);
+        }
+        else
         {
             throw error;
         }
@@ -267,21 +313,12 @@ private:
     friend std::ostream &operator<<(std::ostream &os, const Service &service)
     {
         return os << "LUNA SERVICE '" << service.getName() << "'";
-
     }
 };
 
 Service registerService(const char *name = nullptr, bool public_service = false)
 {
-    Error error;
-    LSHandle *handle;
-
-    if (!LSRegisterPubPriv(name, &handle, public_service, error.get()))
-    {
-        throw error;
-    }
-
-    return Service(handle);
+    return { name, public_service };
 }
 
 } //namespace LS;

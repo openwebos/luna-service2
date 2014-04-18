@@ -24,15 +24,46 @@
 #include <gtest/gtest.h>
 #include "util.hpp"
 
+using namespace LS;
 using namespace std;
 using pbnjson::JValue;
 using pbnjson::JSchemaFragment;
+
+
+class SimpleService
+    : public Service
+{
+public:
+    bool cbPing(LSMessage& message);
+
+    bool cbPong(LSMessage& message);
+
+    template <typename... ParamsT>
+    SimpleService(ParamsT&&... p) : Service(std::forward<ParamsT>(p)...) {}
+
+    void regCategoryByMacro() {
+        LS_CATEGORY_BEGIN(SimpleService, CategoryName)
+            LS_CATEGORY_METHOD(cbPing)
+            LS_CATEGORY_METHOD(cbPong)
+        LS_CATEGORY_END
+    }
+
+    void regCategory(const char* name, LSMethodFlags customFlag = static_cast<LSMethodFlags>(0)) {
+        LSMethod methodTable[] = {
+            {"ping", &Service::methodWraper<SimpleService, &SimpleService::cbPing>, customFlag},
+            {"pong", &Service::methodWraper<SimpleService, &SimpleService::cbPong>, customFlag},
+            {0}
+        };
+        registerCategory(name, methodTable, nullptr, nullptr);
+    }
+};
+
 
 class TestCategory
     : public ::testing::Test
 {
 protected:
-    LS::Service sh, sh_client;
+    SimpleService sh, sh_client;
     GMainLoop *main_loop;
 
 private:
@@ -47,29 +78,22 @@ private:
         main_loop = g_main_loop_new(nullptr, false);
 
         LS::Error e;
-        ASSERT_NO_THROW({ sh = LS::registerService("com.palm.test"); });
+        ASSERT_NO_THROW({ sh = SimpleService(LS::registerService("com.palm.test")); });
         ASSERT_NO_THROW({ sh.attachToLoop(main_loop); });
 
-        ASSERT_NO_THROW({ sh_client = LS::registerService(); });
+        ASSERT_NO_THROW({ sh_client = SimpleService(""); });
         ASSERT_NO_THROW({ sh_client.attachToLoop(main_loop); });
     }
 
     virtual void TearDown()
     {
         LS::Error e;
-        ASSERT_NO_THROW({ sh = LS::Service(); });
-        ASSERT_NO_THROW({ sh_client = LS::Service(); });
+        ASSERT_NO_THROW({ sh = SimpleService(); });
+        ASSERT_NO_THROW({ sh_client = SimpleService(); });
         g_main_loop_unref(main_loop);
     }
 
 protected:
-    function<bool(LSMessage *message)> ping, pong;
-
-    static bool cbPing(LSHandle *, LSMessage *message, void *ctx)
-    { return static_cast<TestCategory*>(ctx)->ping(message); }
-
-    static bool cbPong(LSHandle *, LSMessage *message, void *ctx)
-    { return static_cast<TestCategory*>(ctx)->pong(message); }
 
     void finish(bool done = true)
     { this->done = done; }
@@ -82,11 +106,26 @@ protected:
         { (void) g_main_context_iteration(ctx, true); }
         finish(false);
     }
+
+public:
+    static function<bool(LSMessage *message)> ping, pong;
 };
+
+function<bool(LSMessage *message)> TestCategory::ping, TestCategory::pong;
+
+bool SimpleService::cbPing(LSMessage& message)
+{
+    return TestCategory::ping(&message);
+}
+
+bool SimpleService::cbPong(LSMessage& message)
+{
+    return TestCategory::pong(&message);
+}
 
 TEST_F(TestCategory, DummyRegister)
 {
-    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    ASSERT_NO_THROW({ sh.regCategory("/"); });
 }
 
 TEST_F(TestCategory, UnregisteredSet)
@@ -107,7 +146,7 @@ TEST_F(TestCategory, SetDescription)
         }},
     };
 
-    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    ASSERT_NO_THROW({ sh.regCategory("/"); });
     EXPECT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
 
     // Actually we should to check that effect of prev setting disappeared
@@ -129,6 +168,7 @@ TEST_F(TestCategory, SetDescription)
     EXPECT_NO_THROW({ sh.setCategoryDescription("/", description2.get()); });
 }
 
+
 TEST_F(TestCategory, BasicScenario)
 {
     LS::Error e;
@@ -148,20 +188,15 @@ TEST_F(TestCategory, BasicScenario)
     EXPECT_TRUE(
         LSCallOneReply(
             sh_client.get(), "luna://com.palm.test/ping", "{}",
-            cbPong, this, &token,
+            [](LSHandle* h, LSMessage* m, void* ctx) { return pong(m); },
+            this, &token,
             e.get()
         )
     ) << e.what();
     wait();
     ASSERT_TRUE(havePong);
 
-    LSMethod methods[] = {
-        { "ping", cbPing },
-        { nullptr, nullptr },
-    };
-
-    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
-    ASSERT_NO_THROW({ sh.setCategoryData("/", this); });
+    ASSERT_NO_THROW({ sh.regCategory("/"); });
 
     // call complete service for /ping
     havePing = havePong = false;
@@ -184,7 +219,8 @@ TEST_F(TestCategory, BasicScenario)
     EXPECT_TRUE(
         LSCallOneReply(
             sh_client.get(), "luna://com.palm.test/ping", "{}",
-            cbPong, this, &token,
+            [](LSHandle* h, LSMessage* m, void* ctx) { return pong(m); },
+            this, &token,
             e.get()
         )
     ) << e.what();
@@ -196,7 +232,7 @@ TEST_F(TestCategory, BasicScenario)
 
 TEST_F(TestCategory, Introspection)
 {
-    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    ASSERT_NO_THROW({ sh.regCategory("/"); });
 
     JRef description {
         { "methods", {
@@ -218,13 +254,7 @@ TEST_F(TestCategory, DISABLED_Validation)
     LS::Error e;
     LSMessageToken token;
 
-    LSMethod methods[] = {
-        { "ping", cbPing, LUNA_METHOD_FLAG_VALIDATE_IN },
-        { nullptr, nullptr },
-    };
-
-    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
-    ASSERT_NO_THROW({ sh.setCategoryData("/", this); });
+    ASSERT_NO_THROW({ sh.regCategory("/", LUNA_METHOD_FLAG_VALIDATE_IN); });
 
     JRef description {
         { "methods", {
@@ -257,8 +287,11 @@ TEST_F(TestCategory, DISABLED_Validation)
     };
     EXPECT_TRUE(
         LSCallOneReply(
-            sh_client.get(), "luna://com.palm.test/ping", "{\"wrong\":42}",
-            cbPong, this, &token,
+            sh_client.get(),
+            "luna://com.palm.test/ping", "{\"wrong\":42}",
+            [](LSHandle* h, LSMessage* m, void* ctx) { return pong(m); },
+            this,
+            &token,
             e.get()
         )
     ) << e.what();
@@ -282,7 +315,8 @@ TEST_F(TestCategory, DISABLED_Validation)
     EXPECT_TRUE(
         LSCallOneReply(
             sh_client.get(), "luna://com.palm.test/ping", "{}",
-            cbPong, this, &token,
+            [](LSHandle* h, LSMessage* m, void* ctx) { return pong(m); },
+            this, &token,
             e.get()
         )
     ) << e.what();

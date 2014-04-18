@@ -39,6 +39,16 @@ public:
         other._message = nullptr;
     }
 
+    Message(Service *service, LSMessage *message)
+        :  _service(service)
+        , _message(message)
+    {
+        assert(service);
+
+        LSMessageRef(_message);
+    }
+
+
     Message &operator=(Message &&other)
     {
         if (_message)
@@ -165,12 +175,6 @@ private:
     LSMessage *_message;
 
 private:
-    Message(Service *service, LSMessage *message) :  _service(service), _message(message)
-    {
-        assert(service);
-
-        LSMessageRef(_message);
-    }
 
     friend std::ostream &operator<<(std::ostream &os, const Message &message)
     {

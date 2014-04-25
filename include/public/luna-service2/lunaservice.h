@@ -548,6 +548,27 @@ typedef bool (*LSServerStatusFunc) (LSHandle *sh, const char *serviceName,
 */
 typedef bool (*LSFilterFunc) (LSHandle *sh, LSMessage *reply, void *ctx);
 
+/**
+* @brief Function callback to be called when service cancelled call.
+*
+* @param  sh             service handle
+* @param  uniqueToken    cancelled message unique token.
+* @param  ctx            context for function callback.
+*
+* @retval
+*/
+typedef bool (*LSCancelNotificationFunc) (LSHandle *sh,
+                                  const char *uniqueToken,
+                                  void *ctx);
+
+bool LSCallCancelNotificationAdd(LSHandle *sh,
+                                LSCancelNotificationFunc cancelNotifyFunction,
+                                void *ctx, LSError *lserror);
+
+bool LSCallCancelNotificationRemove(LSHandle *sh,
+                                LSCancelNotificationFunc cancelNotifyFunction,
+                                void *ctx, LSError *lserror);
+
 bool LSCall(LSHandle *sh, const char *uri, const char *payload,
        LSFilterFunc callback, void *user_data,
        LSMessageToken *ret_token, LSError *lserror);
@@ -579,6 +600,7 @@ bool LSCallSetTimeout(
  * @addtogroup LunaServiceSubscription
  * @{
  */
+
 typedef struct LSSubscriptionIter LSSubscriptionIter;
 
 bool LSSubscriptionProcess (LSHandle *sh, LSMessage *message, bool *subscribed,

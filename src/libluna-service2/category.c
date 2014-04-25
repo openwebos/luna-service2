@@ -100,7 +100,7 @@ LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
     _LSErrorGotoIfFail(fail, sh->tableHandlers != NULL, error, MSGID_LS_NO_CATEGORY_TABLE,
         -1, "%s: %s not registered.", __FUNCTION__, category);
 
-    table = g_hash_table_lookup(sh->tableHandlers, category);
+    table = g_hash_table_lookup(sh->tableHandlers, categoryPath);
     _LSErrorGotoIfFail(fail, table != NULL, error, MSGID_LS_NO_CATEGORY,
         -1, "%s: %s not registered.", __FUNCTION__, category);
 

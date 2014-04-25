@@ -38,6 +38,11 @@
 typedef GPtrArray _SubList;
 
 /**
+* @brief Internal representation of a subscriber cancel notification callback list.
+*/
+typedef GPtrArray _CancelNotifyCallbackList;
+
+/**
 * @brief One subscription.
 */
 typedef struct _Subscription
@@ -69,7 +74,18 @@ struct _Catalog {
 
     LSFilterFunc cancel_function;
     void*        cancel_function_ctx;
+
+    _CancelNotifyCallbackList *cancel_notify_list;
 };
+
+/**
+* @brief Subscriber's cancellation notification callback.
+*/
+typedef struct _SubscriberCancelNotification
+{
+    LSCancelNotificationFunc function;
+    void                    *context;
+} _SubscriberCancelNotification;
 
 /**
 * @brief User reference to a subscription list.
@@ -358,6 +374,48 @@ _SubListGet(_SubList *tokens, int i)
     return g_ptr_array_index(tokens, i);
 }
 
+/**
+* @brief Create a new subscriber cancel notification item.
+*
+* @param  message
+* @param  context
+*
+* @retval
+*/
+static _SubscriberCancelNotification *
+_SubscriberCancelNotificationNew(LSCancelNotificationFunc function, void *context)
+{
+    _SubscriberCancelNotification *scn = g_new0(_SubscriberCancelNotification, 1);
+    scn->function = function;
+    scn->context = context;
+    return scn;
+}
+
+static void
+_SubscriberCancelNotificationFree(_SubscriberCancelNotification *scn)
+{
+    g_free(scn);
+}
+
+/**
+* @brief Create a new subscriber cancellation notifications list
+*
+* @retval
+*/
+static _CancelNotifyCallbackList *
+_SubscriberCancelNotificationListNew()
+{
+    return g_ptr_array_new_full(1, (GDestroyNotify)_SubscriberCancelNotificationFree);
+}
+
+static void
+_SubscriberCancelNotificationListFree(_CancelNotifyCallbackList *scnList)
+{
+    if (!scnList) return;
+
+    g_ptr_array_free(scnList, TRUE);
+}
+
 _Catalog *
 _CatalogNew(LSHandle *sh)
 {
@@ -405,6 +463,10 @@ _CatalogFree(_Catalog *catalog)
         if (catalog->subscription_lists)
         {
             g_hash_table_destroy(catalog->subscription_lists);
+        }
+        if (catalog->cancel_notify_list)
+        {
+            _SubscriberCancelNotificationListFree(catalog->cancel_notify_list);
         }
 
 #ifdef MEMCHECK
@@ -508,6 +570,26 @@ _CatalogRemoveToken(_Catalog *catalog, const char *token,
     return true;
 }
 
+static void
+_CatalogCallCancelNotifications(_Catalog *catalog, const char *uniqueToken)
+{
+    LS_ASSERT(uniqueToken);
+    _CatalogLock(catalog);
+    if (catalog->cancel_notify_list)
+    {
+        int idx;
+        for (idx = 0; idx < catalog->cancel_notify_list->len; ++idx)
+        {
+            _SubscriberCancelNotification *scn = g_ptr_array_index(catalog->cancel_notify_list, idx);
+            if (scn->function)
+            {
+                scn->function(catalog->sh, uniqueToken, scn->context);
+            }
+        }
+    }
+    _CatalogUnlock(catalog);
+}
+
 bool
 _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
                      LSError *lserror)
@@ -542,6 +624,7 @@ _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
 
     char *uniqueToken = g_strdup_printf("%s.%d", sender, token);
 
+    _CatalogCallCancelNotifications(catalog, uniqueToken);
     _CatalogRemoveToken(catalog, uniqueToken, true);
 
     g_free(uniqueToken);
@@ -560,6 +643,52 @@ _CatalogGetSubList_unlocked(_Catalog *catalog, const char *key)
         g_hash_table_lookup(catalog->subscription_lists, key);
 
     return tokens;
+}
+
+static bool
+_CatalogAddCancelNotification(_Catalog *catalog,
+              LSCancelNotificationFunc function, void *context, LSError *lserror)
+{
+    _CatalogLock(catalog);
+
+    if (!catalog->cancel_notify_list)
+    {
+        catalog->cancel_notify_list = _SubscriberCancelNotificationListNew();
+    }
+    g_ptr_array_add(catalog->cancel_notify_list, _SubscriberCancelNotificationNew(function, context));
+
+    _CatalogUnlock(catalog);
+    return true;
+}
+
+static bool
+_CatalogRemoveCancelNotification(_Catalog *catalog,
+              LSCancelNotificationFunc function, void *context, LSError *lserror)
+{
+    bool retVal = false;
+    _CatalogLock(catalog);
+
+    if (!catalog->cancel_notify_list)
+    {
+        _LSErrorSet(lserror, MSGID_LS_CATALOG_ERR, -1, "Cancel notification list not available");
+        goto cleanup;
+    }
+
+    int idx;
+    for (idx = 0; idx < catalog->cancel_notify_list->len; ++idx)
+    {
+        _SubscriberCancelNotification *scn = g_ptr_array_index(catalog->cancel_notify_list, idx);
+        if (scn->function == function && scn->context == context)
+        {
+            g_ptr_array_remove_index(catalog->cancel_notify_list, idx);
+            break;
+        }
+    }
+    retVal = true;
+
+cleanup:
+    _CatalogUnlock(catalog);
+    return retVal;
 }
 
 static bool
@@ -782,6 +911,53 @@ LSSubscriptionSetCancelFunction(LSHandle *sh, LSFilterFunc cancelFunction,
     sh->catalog->cancel_function = cancelFunction;
     sh->catalog->cancel_function_ctx = ctx;
     return true;
+}
+
+/**
+* @brief Register a callback to be called when remote service cancelled call.
+*
+*  Callback called when client cancels call via LSCallCancel().
+*  Callback called independently if subscriber has been added to subscriptions catalog or not.
+*  Used when we want to get cancel notification without adding subscriber into catalog.
+*  Subscription message unique token passed to function callback together with user-defined context.
+*  User can register multiple callback's, which called in order of registration/removing.
+*
+* @param  sh
+* @param  cancelNotifyFunction
+* @param  ctx
+* @param  lserror
+*
+* @retval
+*/
+bool LSCallCancelNotificationAdd(LSHandle *sh,
+                                LSCancelNotificationFunc cancelNotifyFunction,
+                                void *ctx, LSError *lserror)
+{
+    LSHANDLE_VALIDATE(sh);
+
+    return _CatalogAddCancelNotification(sh->catalog, cancelNotifyFunction, ctx, lserror);
+}
+
+/**
+* @brief Remove cancellation function callback.
+*
+*  Function callback removed from list not changing relative order of other elements.
+*  Both function callback and context should match to remove.
+*
+* @param  sh
+* @param  cancelNotifyFunction
+* @param  ctx
+* @param  lserror
+*
+* @retval
+*/
+bool LSCallCancelNotificationRemove(LSHandle *sh,
+                                LSCancelNotificationFunc cancelNotifyFunction,
+                                void *ctx, LSError *lserror)
+{
+    LSHANDLE_VALIDATE(sh);
+
+    return _CatalogRemoveCancelNotification(sh->catalog, cancelNotifyFunction, ctx, lserror);
 }
 
 /**

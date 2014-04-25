@@ -25,6 +25,7 @@ webos_add_compiler_flags(ALL ${PBNJSON_CXX_CFLAGS_OTHER})
 
 set(UNIT_TEST_SOURCES
     test_error
+    test_jsonpayload
     )
 
 foreach(TEST ${UNIT_TEST_SOURCES})
@@ -39,6 +40,7 @@ set(INTEGRATION_TEST_SOURCES
     test_service
     test_category
     "test_call\;test_call_service"
+    test_subscription_cxx
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})

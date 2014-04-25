@@ -26,12 +26,14 @@ set(SOURCE
     error.cpp
     message.cpp
     palm_service.cpp
+    payload.cpp
     server_status.cpp
     service.cpp
+    subscription.cpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE})
-target_link_libraries(${PROJECT_NAME} luna-service2)
+target_link_libraries(${PROJECT_NAME} luna-service2 ${PBNJSON_CXX_LIBRARIES})
 
 if (WEBOS_CONFIG_BUILD_TESTS)
     add_subdirectory(test)

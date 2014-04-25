@@ -3378,6 +3378,52 @@ Done:
 
 /**
  *******************************************************************************
+ * @brief Notify the hub about category change.
+ *
+ * @param  transport    IN  transport
+ * @param  lserror      OUT set on error
+ *
+ * @retval  true on success
+ * @retval  false on failure
+ *******************************************************************************
+ */
+bool
+_LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMethod *methods, LSError *lserror)
+{
+    LSMessageToken token;
+
+    LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
+
+    _LSTransportMessage *message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
+
+    _LSTransportMessageSetType(message, _LSTransportMessageTypeAppendCategory);
+
+    _LSTransportMessageIter iter;
+    _LSTransportMessageIterInit(message, &iter);
+    if (!_LSTransportMessageAppendString(&iter, category)) goto error;
+
+    if (methods)
+    {
+        for (; methods->name && methods->function; ++methods)
+        {
+            if (!_LSTransportMessageAppendString(&iter, methods->name)) goto error;
+        }
+    }
+
+    if (!_LSTransportSendMessage(message, transport->hub, &token, lserror))
+        goto error;
+
+    _LSTransportMessageUnref(message);
+    return true;
+
+error:
+    if (message) _LSTransportMessageUnref(message);
+    return false;
+}
+
+
+/**
+ *******************************************************************************
  * @brief Called when watch indicates that there is data to be read from a
  * channel. This function does non-blocking reads of the incoming data and
  * processes the complete messages.
@@ -4551,6 +4597,57 @@ LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_n
     _LSTransportMessageSetType(message, _LSTransportMessageTypeQueryServiceStatus);
     _LSTransportMessageIterInit(message, &iter);
     if (!_LSTransportMessageAppendString(&iter, service_name)) goto error;
+    if (!_LSTransportMessageAppendInvalid(&iter)) goto error;
+
+    LS_ASSERT(transport->hub != NULL);
+
+    ret = _LSTransportSendMessage(message, transport->hub, serial, lserror);
+
+    if (message) _LSTransportMessageUnref(message);
+
+    return ret;
+
+error:
+    if (message) _LSTransportMessageUnref(message);
+    _LSErrorSetOOM(lserror);
+    return false;
+}
+
+/**
+ *******************************************************************************
+ * @brief Check to see registered categories in the service.
+ *
+ * The message argument is just the service name string (e.g., "com.palm.foo")
+ *
+ * The hub will reply with a boolean value of whether the service is up.
+ *
+ * @param  transport        IN  transport
+ * @param  service_name     IN  service name to check status of
+ * @param  category         IN  category to filter
+ * @param  serial           OUT serial for this query message
+ * @param  lserror          OUT set on error
+ *
+ * @retval  true on success
+ * @retval  false on failure
+ *******************************************************************************
+ */
+bool
+LSTransportSendQueryServiceCategory(_LSTransport *transport,
+                                    const char *service_name, const char *category,
+                                    LSMessageToken *serial, LSError *lserror)
+{
+    LS_ASSERT(transport != NULL);
+    LS_ASSERT(service_name != NULL);
+
+    _LSTransportMessageIter iter;
+    bool ret = false;
+
+    _LSTransportMessage *message = _LSTransportMessageNewRef(LS_TRANSPORT_MESSAGE_DEFAULT_PAYLOAD_SIZE);
+
+    _LSTransportMessageSetType(message, _LSTransportMessageTypeQueryServiceCategory);
+    _LSTransportMessageIterInit(message, &iter);
+    if (!_LSTransportMessageAppendString(&iter, service_name)) goto error;
+    if (!_LSTransportMessageAppendString(&iter, category)) goto error;
     if (!_LSTransportMessageAppendInvalid(&iter)) goto error;
 
     LS_ASSERT(transport->hub != NULL);

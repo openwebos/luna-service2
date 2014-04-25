@@ -48,6 +48,7 @@
 
 #define LUNABUS_SIGNAL_REGISTERED "registered"
 #define LUNABUS_SIGNAL_SERVERSTATUS "ServerStatus"
+#define LUNABUS_SIGNAL_SERVICE_CATEGORY "ServiceCategory"
 
 /** Category for lunabus errors */
 #define LUNABUS_ERROR_CATEGORY "/com/palm/bus/error"

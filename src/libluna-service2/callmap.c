@@ -31,6 +31,7 @@
 #include <pbnjson.h>
 
 #include <luna-service2/lunaservice.h>
+#include <luna-service2/lunaservice-errors.h>
 
 #include "simple_pbnjson.h"
 //#include "callmap.h"
@@ -84,16 +85,47 @@ _UriFree(_Uri *luri)
 
 #define MAX_NAME_LEN 255
 
-#define VALID_NAME_INITIAL_CHAR(c) \
-    ( ('A' <= (c) && (c) <= 'Z') || \
-      ('a' <= (c) && (c) <= 'z') || \
-      ('_' == (c)) )
+static inline bool is_valid_initial_char(int c)
+{
+    switch (c)
+    {
+    case 'A'...'Z':
+    case 'a'...'z':
+    case '_':
+        return true;
+    default:
+        return false;
+    }
+}
 
-#define VALID_NAME_CHAR(c) \
-    ( ('A' <= (c) && (c) <= 'Z') || \
-      ('a' <= (c) && (c) <= 'z') || \
-      ('0' <= (c) && (c) <= '9') || \
-      ('_' == (c)) )
+static inline bool is_valid_name_char(int c)
+{
+    switch (c)
+    {
+    case 'A'...'Z':
+    case 'a'...'z':
+    case '0'...'9':
+    case '_':
+        return true;
+    default:
+        return false;
+    }
+}
+
+static inline bool is_valid_path_char(int c)
+{
+    switch (c)
+    {
+    case 'A'...'Z':
+    case 'a'...'z':
+    case '0'...'9':
+    case '_':
+    case '.':
+        return true;
+    default:
+        return false;
+    }
+}
 
 /**
 * @brief Validate the service name.
@@ -123,7 +155,7 @@ _validate_service_name(const char *service_name)
 
     if ('.' == *p) return false;
 
-    if (unlikely(!VALID_NAME_INITIAL_CHAR(*p))) return false;
+    if (unlikely(!is_valid_initial_char(*p))) return false;
 
     p++;
 
@@ -139,12 +171,12 @@ _validate_service_name(const char *service_name)
             if (p == end) return false;
 
             // after '.' back to initial character
-            if (unlikely(!VALID_NAME_INITIAL_CHAR(*p)))
+            if (unlikely(!is_valid_initial_char(*p)))
             {
                 return false;
             }
         }
-        else if (unlikely(!VALID_NAME_CHAR(*p)))
+        else if (unlikely(!is_valid_name_char(*p)))
         {
             return false;
         }
@@ -200,7 +232,7 @@ _validate_path(const char *path)
             if ((p - last_slash) < 2)
                 return false;
         }
-        else if (unlikely(!VALID_NAME_CHAR(*p)))
+        else if (unlikely(!is_valid_path_char(*p)))
         {
             return false;
         }
@@ -240,7 +272,7 @@ _validate_method(const char *method)
     if (0 == len) return false;
 
     // first character may not be a digit.
-    if (unlikely(!VALID_NAME_INITIAL_CHAR(*p)))
+    if (unlikely(!is_valid_initial_char(*p)))
     {
         return false;
     }
@@ -248,7 +280,7 @@ _validate_method(const char *method)
 
     for ( ; p < end; p++)
     {
-        if (unlikely(!VALID_NAME_CHAR(*p)))
+        if (unlikely(!is_valid_name_char(*p)))
         {
             return false;
         }
@@ -902,6 +934,27 @@ _LSMessageTranslateFromCall(_Call *call, LSMessage *reply,
         break;
     }
 
+    /* reply for service category query (registerServerCategory) */
+    case _LSTransportMessageTypeQueryServiceCategoryReply:
+    {
+        LS_ASSERT(call->type == CALL_TYPE_SIGNAL);
+
+        _LSTransportMessageIter iter;
+        _LSTransportMessageIterInit(msg, &iter);
+
+        LS_ASSERT(_LSTransportMessageIterHasNext(&iter));
+        _LSTransportMessageIterNext(&iter);
+
+        const char *categories = NULL;
+        _LSTransportMessageGetString(&iter, &categories);
+
+        reply->category = LUNABUS_SIGNAL_CATEGORY;
+        reply->method = LUNABUS_SIGNAL_SERVICE_CATEGORY;
+        reply->payload = reply->payloadAllocated = g_strdup(categories);
+
+        break;
+    }
+
     /* translate all transport errors to lunabus errors. */
     case _LSTransportMessageTypeError:
     case _LSTransportMessageTypeErrorUnknownMethod:
@@ -1305,6 +1358,17 @@ _get_reply_tokens(_CallMap *map, _LSTransportMessage *msg, _TokenList *tokens)
     _TokenListAdd(tokens, tok);
 }
 
+static void
+_get_first_field_tokens(_CallMap *callmap, _LSTransportMessage *msg, _TokenList *tokens)
+{
+    _LSTransportMessageIter iter;
+    _LSTransportMessageIterInit(msg, &iter);
+    LSMessageToken tok;
+    _Static_assert(sizeof(tok) <= sizeof(int64_t), "LSMessageToken should fit into int64_t");
+    _LSTransportMessageGetInt64(&iter, (int64_t *) &tok);
+    _TokenListAdd(tokens, tok);
+}
+
 void
 _MessageFindTokens(_CallMap *callmap, _LSTransportMessage *msg,
                    _ServerInfo *server_info, _TokenList *tokens)
@@ -1326,6 +1390,9 @@ _MessageFindTokens(_CallMap *callmap, _LSTransportMessage *msg,
     case _LSTransportMessageTypeError:
     case _LSTransportMessageTypeErrorUnknownMethod:
         _get_reply_tokens(callmap, msg, tokens);
+        break;
+    case _LSTransportMessageTypeQueryServiceCategoryReply:
+        _get_first_field_tokens(callmap, msg, tokens);
         break;
     case _LSTransportMessageTypeMethodCall:
     case _LSTransportMessageTypeCancelMethodCall:
@@ -1533,6 +1600,104 @@ _send_reg_server_status(LSHandle *sh,
 
     return retVal;
 }
+
+static bool
+_send_reg_service_category(LSHandle     *sh,
+                           _Uri         *luri,
+                           const char   *payload,
+                           LSFilterFunc callback,
+                           void         *ctx,
+                           _Call        **ret_call,
+                           LSError      *lserror)
+{
+    /* Register watch for service category changes.
+     *
+     * For a specific category: {"serviceName": "com.palm.A", "category": "/category1"}
+     * For every category: {"serviceName": "com.palm.A"}
+     */
+
+    JSchemaInfo schemaInfo;
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+
+    bool retVal = false;
+    LSMessageToken token;
+    char *signal_category = NULL;
+
+    jvalue_ref object = jdom_parse(j_cstr_to_buffer(payload), DOMOPT_NOOPT,
+                                   &schemaInfo);
+    do {
+        if (!jis_valid(object))
+        {
+            _LSErrorSet(lserror, MSGID_LS_INVALID_JSON, -1, "Malformed json.");
+            break;
+        }
+
+        // "serviceName"
+        jvalue_ref child = jobject_get(object, J_CSTR_TO_BUF("serviceName"));
+
+        raw_buffer service_name_buf = jstring_get_fast(child);
+
+        if (!service_name_buf.m_str)
+        {
+            _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1, "Invalid payload. Missing \"serviceName\".");
+            break;
+        }
+
+        LOCAL_CSTR_FROM_BUF(service_name, service_name_buf);
+
+        // "category"
+        jvalue_ref category_val = NULL;
+        if (jobject_get_exists(object, J_CSTR_TO_BUF("category"), &category_val))
+        {
+            raw_buffer category_buf = jstring_get_fast(category_val);
+            LOCAL_CSTR_FROM_BUF(category, category_buf);
+
+            if (category[0] != '/')
+            {
+                _LSErrorSet(lserror, MSGID_LS_INVALID_PAYLOAD, -1,
+                            "Invalid payload. \"category\" should begin with /.");
+                break;
+            }
+
+            signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s%s",
+                                              service_name, category);
+            retVal = LSTransportSendQueryServiceCategory(sh->transport, service_name, category,
+                                                         &token, lserror);
+        }
+        else
+        {
+            signal_category = g_strdup_printf(LUNABUS_WATCH_CATEGORY_CATEGORY "/%s", service_name);
+            retVal = LSTransportSendQueryServiceCategory(sh->transport, service_name, NULL,
+                                                         &token, lserror);
+        }
+
+        if (!retVal)
+        {
+            _LSErrorSet(lserror, MSGID_LS_SEND_ERROR, -1, "Could not send QueryServiceCategory.");
+            break;
+        }
+
+        _Call *call = _CallNew(sh, CALL_TYPE_SIGNAL,
+                               service_name, callback, ctx, token, NULL);
+
+        call->match_key = g_strdup(signal_category);
+        call->signal_category = signal_category; signal_category = NULL;
+
+        if (ret_call)
+        {
+            *ret_call = call;
+        }
+
+        retVal = true;
+
+    } while(0);
+
+    g_free(signal_category);
+    j_release(&object);
+
+    return retVal;
+}
+
 
 static bool
 _send_method_call(LSHandle *sh,
@@ -1870,6 +2035,13 @@ _LSCallFromApplicationCommon(LSHandle *sh, const char *uri,
                 if (!ret) goto error;
 
                 ret =  _service_watch_enable(sh, call, lserror);
+                if (!ret) goto error;
+            }
+            // uri == "palm://com.palm.bus/signal/registerServiceCategory"
+            else if (strcmp(luri->methodName, "registerServiceCategory") == 0)
+            {
+                bool ret = _send_reg_service_category(sh, luri, payload,
+                                                      callback, ctx, &call, lserror);
                 if (!ret) goto error;
             }
             else

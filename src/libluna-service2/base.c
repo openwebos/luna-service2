@@ -411,6 +411,7 @@ _LSMessageHandler(_LSTransportMessage *message, void *context)
     case _LSTransportMessageTypeSignal:
     case _LSTransportMessageTypeReply:
     case _LSTransportMessageTypeQueryServiceStatusReply:
+    case _LSTransportMessageTypeQueryServiceCategoryReply:
     case _LSTransportMessageTypeServiceDownSignal:
     case _LSTransportMessageTypeServiceUpSignal:
     case _LSTransportMessageTypeError:

@@ -3390,6 +3390,12 @@ Done:
 bool
 _LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMethod *methods, LSError *lserror)
 {
+    if (!category)
+        category = "/";  /* Default category */
+
+    if (!strcmp(category, "/com/palm/luna/private"))
+        return true;  /* Omit private service category */
+
     LSMessageToken token;
 
     LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);

@@ -109,33 +109,19 @@ TEST(CategoryNotification, First)
 
     usleep(50000);
 
-    ASSERT_EQ(5, notifications.size());
+    ASSERT_EQ(4, notifications.size());
 
     EXPECT_EQ(JRef::object(), fromJson(notifications[0]));
 
-    auto ref1 = JRef{{"/com/palm/luna/private",
-                      JRef::array({"introspection","malloc_trim", "mallinfo",
-                                   "subscriptions", "ping", "cancel"})}};
+    auto ref1 = JRef{{"/category1", JRef::array({"baz","bar"})}};
     EXPECT_EQ(ref1, fromJson(notifications[1]));
 
-    auto ref2 = JRef{{"/com/palm/luna/private",
-                      JRef::array({"introspection","malloc_trim", "mallinfo",
-                                   "subscriptions", "ping", "cancel"})},
-                     {"/category1", JRef::array({"baz","bar"})}};
+    auto ref2 = JRef{{"/category1", JRef::array({"baz","bar", "baz2", "bar2"})}};
     EXPECT_EQ(ref2, fromJson(notifications[2]));
 
-    auto ref3 = JRef{{"/com/palm/luna/private",
-                      JRef::array({"introspection","malloc_trim", "mallinfo",
-                                   "subscriptions", "ping", "cancel"})},
-                     {"/category1", JRef::array({"baz","bar", "baz2", "bar2"})}};
-    EXPECT_EQ(ref3, fromJson(notifications[3]));
-
-    auto ref4 = JRef{{"/com/palm/luna/private",
-                      JRef::array({"introspection","malloc_trim", "mallinfo",
-                                   "subscriptions", "ping", "cancel"})},
-                     {"/category1", JRef::array({"baz","bar", "baz2", "bar2"})},
+    auto ref3 = JRef{{"/category1", JRef::array({"baz","bar", "baz2", "bar2"})},
                      {"/category2", JRef::array({"bar","foo"})}};
-    EXPECT_EQ(ref4, fromJson(notifications[4]));
+    EXPECT_EQ(ref3, fromJson(notifications[3]));
 
     g_main_loop_quit(main_loop.get());
     t.join();

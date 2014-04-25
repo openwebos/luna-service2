@@ -760,12 +760,6 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
 }
 
 bool
-_LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMethod *methods, LSError *lserror)
-{
-    return true;
-}
-
-bool
 _LSTransportDisconnect(_LSTransport *transport, bool flush_and_send_shutdown)
 {
     return true;

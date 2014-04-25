@@ -1861,7 +1861,6 @@ typedef enum LSTransportMessageArgType
     _LSTransportMessageArgTypeInvalid,
     _LSTransportMessageArgTypeString,
     _LSTransportMessageArgTypeInt32,
-    _LSTransportMessageArgTypeInt64,
 } _LSTransportMessageArgType;
 
 /**
@@ -1893,15 +1892,6 @@ typedef struct _LSTransportMessageArgInt32
     _LSTransportMessageArgHeader header;    /**< header */
     int32_t value;                          /**< actual 32-bit value */
 } _LSTransportMessageArgInt32;
-
-/**
- * Represents an argument that is a 64-bit integer
- */
-typedef struct _LSTransportMessageArgInt64
-{
-    _LSTransportMessageArgHeader header;    /**< header */
-    int64_t value;                          /**< actual 64-bit value */
-} _LSTransportMessageArgInt64;
 
 /**
  * Represents an argument that is a NULL-terminated string
@@ -2092,7 +2082,6 @@ _LSTransportMessageGetArgHeaderSize(_LSTransportMessageIter *iter)
     case _LSTransportMessageArgTypeString:
         return sizeof(_LSTransportMessageArgStringHeader);
     case _LSTransportMessageArgTypeInt32:
-    case _LSTransportMessageArgTypeInt64:
     case _LSTransportMessageArgTypeInvalid:
         return sizeof(_LSTransportMessageArgHeader);
     }
@@ -2133,12 +2122,6 @@ _LSTransportMessageGetArgValue(_LSTransportMessageIter *iter, _LSTransportMessag
             return NULL;
         }
         return &(((_LSTransportMessageArgInt32*)(iter->actual_iter))->value);
-    case _LSTransportMessageArgTypeInt64:
-        if (!ITER_SAFE_DEREFERENCE(iter, _LSTransportMessageArgInt64))
-        {
-            return NULL;
-        }
-        return &(((_LSTransportMessageArgInt64*)(iter->actual_iter))->value);
     default:
         return NULL;
     }
@@ -2432,43 +2415,6 @@ _LSTransportMessageAppendInt32(_LSTransportMessageIter *iter, int32_t value)
 
 /**
  *******************************************************************************
- * @brief Append a 64-bit integer argument to the message.
- *
- * @param  iter     IN  iterator
- * @param  value    IN  argument
- *
- * @retval  true on success
- * @retval  false on failure
- *******************************************************************************
- */
-bool
-_LSTransportMessageAppendInt64(_LSTransportMessageIter *iter, int64_t value)
-{
-    LS_ASSERT(iter != NULL);
-
-    _LSTransportMessageArgInt64 arg;
-
-    _LSTransportMessageArgSetHeader(&arg.header, _LSTransportMessageArgTypeInt64, sizeof(arg.value));
-
-    arg.value = value;
-
-    int arg_len = sizeof(arg);
-
-    if (!_LSTransportMessageIterExpandMessage(iter, arg_len))
-    {
-        return false;
-    }
-
-    memcpy(iter->actual_iter, &arg, arg_len);
-
-    /* move iterator */
-    _LSTransportMessageIterNext(iter);
-
-    return true;
-}
-
-/**
- *******************************************************************************
  * @brief Append a boolean argument to the message.
  *
  * @param  iter     IN  iterator
@@ -2607,33 +2553,6 @@ _LSTransportMessageGetInt32(_LSTransportMessageIter *iter, int32_t *ret)
     }
 
     *ret = *((int32_t*)_LSTransportMessageGetArgValue(iter, _LSTransportMessageArgTypeInt32));
-    return true;
-}
-
-/**
- *******************************************************************************
- * @brief Get a 64-bit integer argument from a message.
- *
- * @param  iter     IN  iterator
- * @param  iter     OUT result int
- *
- * @retval  true on success
- * @retval  false on failure (ret is meaningless)
- *******************************************************************************
- */
-bool
-_LSTransportMessageGetInt64(_LSTransportMessageIter *iter, int64_t *ret)
-{
-    LS_ASSERT(iter != NULL);
-    LS_ASSERT(ret != NULL);
-
-    if (_LSTransportMessageGetArgType(iter) != _LSTransportMessageArgTypeInt64)
-    {
-        *ret = 0;
-        return false;
-    }
-
-    *ret = *((int64_t*)_LSTransportMessageGetArgValue(iter, _LSTransportMessageArgTypeInt64));
     return true;
 }
 

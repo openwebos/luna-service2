@@ -86,7 +86,6 @@
 #define MSGID_LSHUB_UPSTART_ERROR               "LSHUB_UPSTART"         /** Unable to emit upstart event */
 #define MSGID_LSHUB_WATCHDOG_ERR                "LSHUB_WD"              /** Watchdog errors */
 #define MSGID_LSHUB_WRONG_PROTOCOL              "LSHUB_BAD_PROTOCOL"    /** Transport protocol mismatch */
-#define MSGID_LSHUB_OOM_ERR                     "LSHUB_MEM"             /** Out of memory error */
 
 /* LUNA SERVICE */
 #define MSGID_LS_ACCESS_ERR                     "LS_ACCESS"             /** Message access error */

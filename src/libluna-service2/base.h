@@ -141,9 +141,6 @@ struct LSPalmService {
     LSHandle *private_sh;
 };
 
-/** Category for lunabus watch category signal */
-#define LUNABUS_WATCH_CATEGORY_CATEGORY "/com/palm/bus/watch/category"
-
 /* @} END OF LunaServiceInternals */
 
 #endif // _BASE_H_

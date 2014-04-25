@@ -212,16 +212,6 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         }
     }
 
-    if (sh->name)
-    {
-        // Unlikely
-        if (!_LSTransportAppendCategory(sh->transport, category, methods, lserror))
-        {
-            LOG_LS_ERROR(MSGID_LS_CONN_ERROR, 0, "Failed to notify the hub about category append.");
-            return false;
-        }
-    }
-
     return true;
 }
 

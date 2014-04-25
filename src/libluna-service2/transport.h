@@ -173,7 +173,6 @@ void _LSTransportGmainAttach(_LSTransport *transport, GMainContext *context);
 GMainContext* _LSTransportGetGmainContext(const _LSTransport *transport);
 bool _LSTransportGmainSetPriority(_LSTransport *transport, int priority, LSError *lserror);
 bool _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSError *lserror);
-bool _LSTransportAppendCategory(_LSTransport *transport, const char *category, LSMethod *methods, LSError *lserror);
 _LSTransportConnectState _LSTransportConnectLocal(const char *unique_name, bool new_socket, int *fd, LSError *lserror);
 bool _LSTransportListenLocal(const char *unique_name, mode_t mode, int *fd, LSError *lserror);
 bool _LSTransportSetupListenerLocal(_LSTransport *transport, const char *name, mode_t mode, LSError *lserror);
@@ -197,9 +196,6 @@ bool LSTransportPushRole(_LSTransport *transport, const char *path, LSError *lse
 bool LSTransportSendMessageMonitorRequest(_LSTransport *transport, LSError *lserror);
 bool _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror);
 bool LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_name, LSMessageToken *serial, LSError *lserror);
-bool LSTransportSendQueryServiceCategory(_LSTransport *transport,
-                                         const char *service_name, const char *category,
-                                         LSMessageToken *serial, LSError *lserror);
 const char* _LSTransportQueryNameReplyGetUniqueName(_LSTransportMessage *message);
 
 #ifdef UNIT_TESTS

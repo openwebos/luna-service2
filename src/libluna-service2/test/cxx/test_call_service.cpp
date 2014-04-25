@@ -234,7 +234,7 @@ static void timeoutReply(LSHandle* lsh, LSMessage* message)
         return errorReply(lsh, message, TIMEOUT_CALL_NAME);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds{timeout});
+    usleep(timeout * 1000);
     return justReply(lsh, message, TIMEOUT_CALL_NAME);
 }
 

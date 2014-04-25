@@ -115,7 +115,7 @@ jarray_get_string(jvalue_ref array, ssize_t index, raw_buffer *value, LSError *l
 
     if (!jis_string(prop))
     {
-        _LSErrorSet(lserror, msgid, -1, "Item #%ld isn't a string inside JSON (%s)", index, jsonDesc);
+        _LSErrorSet(lserror, msgid, -1, "Item #%zd isn't a string inside JSON (%s)", index, jsonDesc);
         return false;
     }
 

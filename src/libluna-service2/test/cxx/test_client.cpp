@@ -114,17 +114,17 @@ TEST(TestClient, Signals)
     LS::Call signal;
 
     EXPECT_NO_THROW(signal = receiver.callSignal("/test", "activated", onSignalCallback, nullptr));
-    this_thread::sleep_for(chrono::milliseconds(1));
+    usleep(1000);
     // Hub returns registration response
     EXPECT_EQ(call_count, 1);
 
     EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
-    this_thread::sleep_for(chrono::milliseconds(1));
+    usleep(1000);
     EXPECT_EQ(call_count, 2);
 
     EXPECT_NO_THROW(signal.cancel());
     EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
-    this_thread::sleep_for(chrono::milliseconds(1));
+    usleep(1000);
     EXPECT_EQ(call_count, 2);
 }
 
@@ -147,15 +147,15 @@ TEST(TestClient, ServerStatus)
 
     LS::ServerStatus status;
     EXPECT_NO_THROW(status = listener.registerServerStatus("com.palm.test_status_server", statusCallback));
-    this_thread::sleep_for(chrono::milliseconds(1));
+    usleep(1000);
     EXPECT_FALSE(is_active);
 
     LS::Service server = LS::registerService("com.palm.test_status_server");
     server.attachToLoop(listener_main_loop);
-    this_thread::sleep_for(chrono::milliseconds(1));
+    usleep(1000);
     EXPECT_TRUE(is_active);
 
     server.detach();
-    this_thread::sleep_for(chrono::milliseconds(1));
+    usleep(1000);
     EXPECT_FALSE(is_active);
 }

@@ -75,6 +75,7 @@ static gboolean list_malloc = false;
 static gboolean debug_output = false;
 static gboolean compact_output = false;
 static gboolean two_line_output = false;
+static gboolean sort_by_timestamps = false;
 static GMainLoop *mainloop = NULL;
 
 static uint32_t terminal_width = TERMINAL_WIDTH_DEFAULT;
@@ -146,7 +147,7 @@ static gboolean
 _LSMonitorIdleHandlerPrivate(gpointer data)
 {
     _LSMonitorQueue *queue = data;
-    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
+    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output, sort_by_timestamps);
     return TRUE;
 }
 #endif
@@ -155,7 +156,7 @@ static gboolean
 _LSMonitorIdleHandlerPublic(gpointer data)
 {
     _LSMonitorQueue *queue = data;
-    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
+    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output, sort_by_timestamps);
     return TRUE;
 }
 
@@ -581,6 +582,7 @@ _HandleCommandline(int argc, char *argv[])
         {"malloc", 'm', 0, G_OPTION_ARG_NONE, &list_malloc, "List malloc data from all services in the system", NULL},
         {"debug", 'd', 0, G_OPTION_ARG_NONE, &debug_output, "Print extra output for debugging monitor but with UNBOUNDED MEMORY GROWTH", NULL},
         {"compact", 'c', 0, G_OPTION_ARG_NONE, &compact_output, "Print compact output to fit terminal. Take precedence over debug", NULL},
+        {"sort-by-timestamps", 't', 0, G_OPTION_ARG_NONE, &sort_by_timestamps, "Sort output by timestamps instead of serials", NULL},
         { NULL }
     };
 

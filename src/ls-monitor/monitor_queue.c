@@ -105,7 +105,7 @@ _OutOfOrder(GHashTable *hash_table, _LSTransportMessage *message)
 }
 
 static gint
-_LSMonitorQueueSortFunc(gconstpointer a, gconstpointer b, gpointer user_data)
+_LSMonitorQueueSerialsSortFunc(gconstpointer a, gconstpointer b, gpointer user_data)
 {
     const _LSMonitorQueueItem *item_a = a;
     const _LSMonitorQueueItem *item_b = b;
@@ -116,8 +116,19 @@ _LSMonitorQueueSortFunc(gconstpointer a, gconstpointer b, gpointer user_data)
     return (serial_a - serial_b);
 }
 
+static gint
+_LSMonitorQueueTimestampsSortFunc(gconstpointer a, gconstpointer b, gpointer user_data)
+{
+    const _LSMonitorQueueItem *item_a = a;
+    const _LSMonitorQueueItem *item_b = b;
+
+    int sec_diff = item_a->timestamp.tv_sec - item_b->timestamp.tv_sec;
+
+    return sec_diff ? sec_diff : item_a->timestamp.tv_nsec - item_b->timestamp.tv_nsec;
+}
+
 void
-_LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, gboolean debug_output)
+_LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, gboolean debug_output, gboolean sort_by_timestamps)
 {
     struct timespec now;
     _LSMonitorGetTime(&now);
@@ -141,8 +152,16 @@ _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, 
         }
     }
 
-    /* sort the print list by serial number */
-    g_queue_sort(print_queue, _LSMonitorQueueSortFunc, NULL);
+    if (sort_by_timestamps)
+    {
+        /* sort the print list by timestamps */
+        g_queue_sort(print_queue, _LSMonitorQueueTimestampsSortFunc, NULL);
+    }
+    else
+    {
+        /* sort the print list by serial number */
+        g_queue_sort(print_queue, _LSMonitorQueueSerialsSortFunc, NULL);
+    }
 
     char first = 'F';
     /* print and free the sorted items */

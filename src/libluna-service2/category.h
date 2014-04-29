@@ -58,6 +58,9 @@ typedef struct LSCategoryTable LSCategoryTable;
 typedef struct {
     LSMethodFunction function;  /**< Method function */
     LSMethodFlags flags;        /**< Method flags */
+    jschema_ref schema_call;
+    jschema_ref schema_firstReply;
+    jschema_ref schema_reply;
 } LSMethodEntry;
 
 static inline LSMessageHandlerResult LSCategoryMethodCall(
@@ -80,6 +83,8 @@ static inline LSMessageHandlerResult LSCategoryMethodCall(
         return LSMessageHandlerResultUnknownMethod;
     }
 
+    bool validCall = true;
+
     // pmtrace point before call a handler
     PMTRACE_SERVER_RECEIVE(service_name, sh->name, (char*)method_name, LSMessageGetToken(message));
 
@@ -88,7 +93,15 @@ static inline LSMessageHandlerResult LSCategoryMethodCall(
     {
         ClockGetTime(&start_time);
     }
-    bool handled = method->function(sh, message, category->category_user_data);
+    bool handled;
+
+    if (!validCall) /* validation error were sent */
+    { handled = true; }
+    else if (method->function == NULL) /* no callback were set? */
+    { handled = false; }
+    else
+    { handled = method->function(sh, message, category->category_user_data); }
+
     if (DEBUG_TRACING)
     {
         ClockGetTime(&end_time);

@@ -23,6 +23,7 @@
  */
 
 #include "category.h"
+#include "simple_pbnjson.h"
 
 #include "luna-service2/lunaservice.h"
 #include "luna-service2/lunaservice-meta.h"
@@ -113,23 +114,138 @@ fail:
     return NULL;
 }
 
-static LSMethodEntry *LSMethodEntryCreate(LSMethod *method)
+static LSMethodEntry *LSMethodEntryCreate()
+{
+    LSMethodEntry *entry = g_slice_new0(LSMethodEntry);
+    return entry;
+}
+
+static void LSMethodEntrySet(LSMethodEntry *entry, LSMethod *method)
 {
     LS_ASSERT(method);
     LS_ASSERT(method->function);
 
-    LSMethodEntry *entry = g_slice_new(LSMethodEntry);
     entry->function = method->function;
     entry->flags = method->flags;
 
-    return entry;
+    /* clean out call schema if no validation needed */
+    if (!(entry->flags & LUNA_METHOD_FLAG_VALIDATE_IN))
+    { jschema_release(&entry->schema_call); }
 }
 
 static void LSMethodEntryFree(void *methodEntry)
 {
     LS_ASSERT(methodEntry);
 
+    LSMethodEntry *entry = methodEntry;
+
+    /* clean out schemas if any present */
+    jschema_release(&entry->schema_call);
+    jschema_release(&entry->schema_reply);
+    jschema_release(&entry->schema_firstReply);
+
     g_slice_free(LSMethodEntry, methodEntry);
+}
+
+static jvalue_ref jvalue_shallow(jvalue_ref value)
+{
+    if (jis_array(value))
+    {
+        jvalue_ref array = jarray_create_hint(NULL, jarray_size(value));
+        jarray_splice_append(array, value, SPLICE_COPY);
+        return array;
+    }
+    else if (jis_object(value))
+    {
+        jobject_iter iter;
+        if (!jobject_iter_init(&iter, value))
+        { return jinvalid(); }
+
+        jvalue_ref object = jobject_create();
+
+        jobject_key_value keyval;
+        while (jobject_iter_next(&iter, &keyval))
+        {
+            jobject_set2(object, keyval.key, keyval.value);
+        }
+        return object;
+    }
+    else
+    { return jvalue_duplicate(value); }
+}
+
+/* unfortunately J_CSTR_TO_JVAL(xxx) is not a constant */
+#define KEYWORD_DEFINITIONS J_CSTR_TO_JVAL("definitions")
+#define KEYWORD_METHODS J_CSTR_TO_JVAL("methods")
+
+static jschema_ref prepare_schema(jvalue_ref schema_value, jvalue_ref defs)
+{
+    LS_ASSERT(schema_value != NULL);
+    LS_ASSERT(jis_object(schema_value));
+    LS_ASSERT(defs == NULL || jis_object(defs));
+
+    if (defs == NULL) /* simple case without mixing in defs */
+    {
+        return jschema_parse_jvalue(schema_value, NULL, "");
+    }
+
+    /* mix together two definitions into one (local scope overrides) */
+    jvalue_ref orig_defs, mixed_defs = NULL;
+    if (jobject_get_exists2(schema_value, KEYWORD_DEFINITIONS, &orig_defs))
+    {
+        jobject_iter iter;
+        if (jobject_iter_init(&iter, defs))
+        {
+            mixed_defs = jvalue_shallow(orig_defs);
+            jobject_key_value keyval;
+            while (jobject_iter_next(&iter, &keyval))
+            {
+                if (jobject_get_exists2(orig_defs, keyval.key, NULL)) continue;
+                jobject_set2(mixed_defs, keyval.key, keyval.value);
+            }
+        }
+    }
+
+    LS_ASSERT(orig_defs == NULL || mixed_defs != NULL);
+
+    /* mix defs into original schema */
+    jvalue_ref mixed_schema_value = jvalue_shallow(schema_value);
+    if (mixed_defs != NULL)
+    {
+        jobject_put(mixed_schema_value, KEYWORD_DEFINITIONS, mixed_defs);
+    }
+    else if (orig_defs == NULL)
+    {
+        jobject_set2(mixed_schema_value, KEYWORD_DEFINITIONS, defs);
+    }
+
+    jschema_ref schema = jschema_parse_jvalue(schema_value, NULL, "");
+    j_release(&mixed_schema_value);
+
+    return schema;
+}
+
+static jschema_ref default_reply_schema()
+{
+    const char *schema_text = "{\"oneOf\":["
+        "{\"type\":\"object\",\"properties\":{"
+            "\"returnValue\":{\"enum\":[true]}"
+        "}, \"required\":[\"returnValue\"] },"
+        "{\"type\":\"object\",\"properties\":{"
+            "\"returnValue\":{\"enum\":[false]},"
+            "\"errorCode\":{\"type\":\"integer\"},"
+            "\"errorText\":{\"type\":\"string\"}"
+        "}, \"required\":[\"returnValue\"] }"
+    "]}";
+
+    static jschema_ref schema = NULL;
+    /* XXX: thread-safe??? */
+    if (schema == NULL)
+    {
+        schema = jschema_parse(j_cstr_to_buffer(schema_text), JSCHEMA_DOM_NOOPT, NULL);
+    }
+    LS_ASSERT( schema != NULL );
+    return schema;
 }
 
 /* @} END OF LunaServiceInternals */
@@ -199,7 +315,13 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         LSMethod *m;
         for (m = methods; m->name && m->function; m++)
         {
-            g_hash_table_replace(table->methods, strdup(m->name), LSMethodEntryCreate(m));
+            LSMethodEntry *entry = g_hash_table_lookup(table->methods, m->name);
+            if (entry == NULL)
+            {
+                entry = LSMethodEntryCreate();
+                g_hash_table_insert(table->methods, strdup(m->name), entry);
+            }
+            LSMethodEntrySet(entry, m);
         }
     }
 
@@ -304,6 +426,70 @@ bool LSCategorySetDescription(
 
     LSCategoryTable *table = LSHandleGetCategory(sh, category, error);
     if (table == NULL) return false;
+
+    /* TODO: use validation once it will be able to fill defaults */
+
+    jvalue_ref defs;
+    if (!jobject_get_exists2(description, KEYWORD_DEFINITIONS, &defs)) defs = NULL;
+
+    jvalue_ref methods;
+    if (!jobject_get_exists2(description, KEYWORD_METHODS, &methods)) methods = NULL;
+
+    LS_ASSERT( methods != NULL );
+
+    jobject_iter iter;
+    if (methods == NULL || !jobject_iter_init(&iter, methods))
+    {
+        _LSErrorSetNoPrint(error, -1, "Category description should have "
+                                      "property \"methods\" with an object as a value");
+        return false;
+    }
+
+    jobject_key_value keyval;
+    while (jobject_iter_next(&iter, &keyval))
+    {
+        LOCAL_CSTR_FROM_BUF(method_name, jstring_get_fast(keyval.key));
+
+        LSMethodEntry *entry = g_hash_table_lookup(table->methods, method_name);
+        if (entry == NULL)
+        {
+            /* create a stub entry for further filling with appropriate callback */
+            entry = LSMethodEntryCreate();
+
+            /* build and keep schema in case if this flag will be true */
+            entry->flags |= LUNA_METHOD_FLAG_VALIDATE_IN;
+
+            g_hash_table_insert(table->methods, strdup(method_name), entry);
+        }
+        else
+        {
+            /* clean out old schemas if any present */
+            jschema_release(&entry->schema_call);
+            jschema_release(&entry->schema_reply);
+            jschema_release(&entry->schema_firstReply);
+        }
+
+        jvalue_ref value;
+
+        if (entry->flags & LUNA_METHOD_FLAG_VALIDATE_IN)
+        {
+            if (jobject_get_exists(keyval.value, J_CSTR_TO_BUF("call"), &value))
+            { entry->schema_call = prepare_schema(value, defs); }
+            else
+            { entry->schema_call = jschema_all(); }
+        }
+
+        /* TODO: introduce global switch that turns on replies validation */
+        if (jobject_get_exists(keyval.value, J_CSTR_TO_BUF("reply"), &value))
+        { entry->schema_reply = prepare_schema(value, defs); }
+        else
+        { entry->schema_reply = jschema_copy(default_reply_schema()); }
+
+        if (jobject_get_exists(keyval.value, J_CSTR_TO_BUF("firstReply"), &value))
+        { entry->schema_firstReply = prepare_schema(value, defs); }
+        else
+        { entry->schema_firstReply = jschema_copy(entry->schema_reply); }
+    }
 
     j_release(&table->description);
     table->description = jvalue_copy(description);

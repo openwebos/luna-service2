@@ -252,9 +252,11 @@ TEST_F(TestCategory, Introspection)
     JRef description {
         { "methods", {
             { "ping", {
-                { "type", "object" },
-                { "description", "simple ping" },
-                { "additionalProperties", false },
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
             }},
         }},
     };
@@ -280,9 +282,11 @@ TEST_F(TestCategory, DISABLED_Validation)
     JRef description {
         { "methods", {
             { "ping", {
-                { "type", "object" },
-                { "description", "simple ping" },
-                { "additionalProperties", false },
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
             }},
         }},
     };

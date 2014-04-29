@@ -45,5 +45,3 @@ foreach (TEST ${UNIT_TEST_SOURCES})
     target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME})
     add_test(${TEST} ${TEST})
 endforeach ()
-
-add_subdirectory(cxx)

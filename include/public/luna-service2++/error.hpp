@@ -28,53 +28,33 @@ namespace LS {
 class Error : public std::exception
 {
 public:
-    Error()
-    {
-        LSErrorInit(&_error);
-    }
+    Error() { LSErrorInit(&_error); }
 
-    ~Error() noexcept
-    {
-        LSErrorFree(&_error);
-    }
+    ~Error() noexcept { LSErrorFree(&_error); }
 
-    Error(Error &&other)
-    {
-        memcpy(&_error, &other._error, sizeof(_error));
-        LSErrorInit(&other._error);
-    }
+    Error(Error &&other);
 
-    Error &operator=(Error &&other)
-    {
-        if (this != &other)
-        {
-            LSErrorFree(&_error);
-            memcpy(&_error, &other._error, sizeof(_error));
-            LSErrorInit(&other._error);
-        }
-        return *this;
-    }
+    Error &operator=(Error &&other);
 
     // Disable copying from lvalue.
     Error(const Error &) = delete;
-    Error& operator=(const Error &) = delete;
+    Error &operator=(const Error &) = delete;
 
     LSError *get() { return &_error; }
     const LSError *get() const { return &_error; }
     LSError *operator->() { return &_error; }
     const LSError *operator->() const { return &_error; }
 
-    const char *what() const noexcept
-    { return _error.message; }
+    const char *what() const noexcept;
 
     bool isSet() const
     {
-        return LSErrorIsSet(const_cast<LSError *>(&_error));
+        return LSErrorIsSet(const_cast<LSError*>(&_error));
     }
 
     void print(FILE *out) const
     {
-        LSErrorPrint(const_cast<LSError *>(&_error), out);
+        LSErrorPrint(const_cast<LSError*>(&_error), out);
     }
 
     void log(PmLogContext context, const char *message_id)
@@ -85,14 +65,7 @@ public:
 private:
     LSError _error;
 
-    friend std::ostream &operator<<(std::ostream &os, const Error &error)
-    {
-        return os << "LUNASERVICE ERROR " << error->error_code
-                  << ": " << error->message
-                  << " (" << error->func
-                  << " @ " << error->file << ":" << error->line
-                  << ")";
-    }
+    friend std::ostream &operator<<(std::ostream &os, const Error &error);
 };
 
 } //namespace LS;

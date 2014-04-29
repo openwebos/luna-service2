@@ -49,18 +49,7 @@ public:
     }
 
 
-    Message &operator=(Message &&other)
-    {
-        if (_message)
-        {
-            LSMessageUnref(_message);
-        }
-        _service = other._service;
-        _message = other._message;
-
-        other._message = nullptr;
-        return *this;
-    }
+    Message &operator=(Message &&other);
 
     ~Message()
     {
@@ -150,25 +139,9 @@ public:
         return LSMessageIsSubscription(_message);
     }
 
-    void respond(const char *reply_payload)
-    {
-        Error error;
+    void respond(const char *reply_payload);
 
-        if (!LSMessageRespond(_message, reply_payload, error.get()))
-        {
-            throw error;
-        }
-    }
-
-    void reply(Service &service, const char *reply_payload)
-    {
-        Error error;
-
-        if (!LSMessageReply(service.get(), _message, reply_payload, error.get()))
-        {
-            throw error;
-        }
-    }
+    void reply(Service &service, const char *reply_payload);
 
 private:
     Service *_service;
@@ -176,14 +149,7 @@ private:
 
 private:
 
-    friend std::ostream &operator<<(std::ostream &os, const Message &message)
-    {
-        return os << "LS MESSAGE from service '" << message.getSenderServiceName() << "'"
-                  << ", category: '" << message.getCategory() << "'"
-                  << ", method: '" << message.getMethod() << "'"
-                  << ", payload: " << message.getPayload() ;
-
-    }
+    friend std::ostream &operator<<(std::ostream &os, const Message &message);
 };
 
 } //namespace LS;

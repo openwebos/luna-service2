@@ -23,6 +23,7 @@
 #include <iostream>
 #include <functional>
 #include <memory>
+#include "error.hpp"
 
 namespace LS {
 
@@ -69,18 +70,7 @@ public:
         return *this;
     }
 
-    ~ServerStatus()
-    {
-        if (_cookie)
-        {
-            Error error;
-
-            if (!LSCancelServerStatus(_handle, _cookie, error.get()))
-            {
-                error.log(PmLogGetLibContext(), "LS_FAILED_TO_UNREG_SRV_STAT");
-            }
-        }
-    }
+    ~ServerStatus();
 
     void *get() { return _cookie; }
     const void *get() const { return _cookie; }
@@ -104,29 +94,13 @@ private:
     std::unique_ptr<ServerStatusCallback> _callback;
 
 private:
-    ServerStatus(LSHandle *_handle, const char *service_name, const ServerStatusCallback &callback)
-        : _handle(_handle)
-        , _cookie(nullptr)
-        , _callback(new ServerStatusCallback(callback))
-    {
-        Error error;
+    ServerStatus(LSHandle *_handle, const char *service_name, const ServerStatusCallback &callback);
 
-        if (!LSRegisterServerStatusEx(_handle, service_name, ServerStatus::callbackFunc, _callback.get(), &_cookie, error.get()))
-        {
-            throw error;
-        }
-    }
-
-    static bool callbackFunc(LSHandle *, const char *, bool connected, void *ctx)
-    {
-        ServerStatusCallback callback = *(static_cast<ServerStatusCallback *>(ctx));
-
-        return callback(connected);
-    }
+    static bool callbackFunc(LSHandle *, const char *, bool connected, void *ctx);
 
     friend std::ostream &operator<<(std::ostream &os, const ServerStatus &status)
     {
-        return os << "LUNA SERVER STATUS [" << status._cookie <<"]";
+        return os << "LUNA SERVER STATUS [" << status._cookie << "]";
     }
 };
 

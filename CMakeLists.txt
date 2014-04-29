@@ -114,6 +114,7 @@ webos_add_linker_options(ALL --no-undefined)
 #webos_add_linker_options(ALL --no-allow-shlib-undefined)
 
 add_subdirectory(src/libluna-service2)
+add_subdirectory(src/libluna-service2++)
 add_subdirectory(src/ls-hubd)
 add_subdirectory(src/ls-monitor)
 add_subdirectory(src/luna-send)

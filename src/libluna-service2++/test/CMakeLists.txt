@@ -16,8 +16,6 @@
 #
 # LICENSE@@@
 
-webos_add_compiler_flags(ALL -Wall "-std=gnu++0x")
-
 webos_use_gtest()
 
 # check for pbnjson cxx library
@@ -31,7 +29,7 @@ set(UNIT_TEST_SOURCES
 
 foreach(TEST ${UNIT_TEST_SOURCES})
     add_executable(${TEST} ${TEST}.cpp)
-    target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
+    target_link_libraries(${TEST} ${PROJECT_NAME} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
     add_test(${TEST} ${TEST})
 endforeach()
 
@@ -46,12 +44,12 @@ set(INTEGRATION_TEST_SOURCES
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
     foreach(SOURCE ${SOURCES})
         add_executable(${SOURCE} ${SOURCE}.cpp)
-        target_link_libraries(${SOURCE} ${LIBRARIES} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
+        target_link_libraries(${SOURCE} ${PROJECT_NAME} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
     endforeach()
     list(GET SOURCES 0 TEST)
     add_test(
         NAME integration.${TEST}
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../run_with_hub
+        COMMAND ${CMAKE_SOURCE_DIR}/src/libluna-service2/test/run_with_hub
                 ${CMAKE_SOURCE_DIR}
                 ${CMAKE_BINARY_DIR}
                 ${CMAKE_CURRENT_SOURCE_DIR}/${TEST}.conf

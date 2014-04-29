@@ -78,6 +78,12 @@ install_files()
 	declare -A service_pub service_prv
 	declare -A role_pub role_prv
 
+	# Place no-op to custom command
+	run_custom_command()
+	{
+		true
+	}
+
 	# Read configuration
 	source $config_file || die "Failed to source config file"
 
@@ -220,6 +226,8 @@ spawn_hubd public
 while [[ ! -S /tmp/com.palm.private_hub || ! -S /tmp/com.palm.public_hub ]]; do
 	sleep 0.1
 done
+
+run_custom_command
 
 for service in ${services_to_spawn_and_kill[@]}; do
 	echo "Launching $service"

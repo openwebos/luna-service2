@@ -1,0 +1,20 @@
+{
+    "role": {
+        "exeName":"@WEBOS_INSTALL_BINDIR@/ls-performance",
+        "type": "regular",
+        "allowedNames": ["com.palm.ls_performance", "com.palm.ls_performance_client"]
+    },
+    "permissions": [
+        {
+            "service":"com.palm.ls_performance",
+            "inbound":["*"],
+            "outbound":["*"]
+        },
+        {
+            "service":"com.palm.ls_performance_client",
+            "inbound":["*"],
+            "outbound":["*"]
+        }
+
+    ]
+}

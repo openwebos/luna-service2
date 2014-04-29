@@ -34,6 +34,3 @@ foreach (TEST ${UNIT_TEST_SOURCES})
     target_link_libraries(${TEST} ls-hublib ${CMAKE_PROJECT_NAME} ${TESTLIBNAME} ${PMLOGLIB_LDFLAGS})
     add_test(${TEST} ${TEST})
 endforeach ()
-
-add_test(NAME volatile-dir-control
-         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/volatile_dir_control_test.py --config-dir ${CMAKE_BINARY_DIR}/Configured/files/conf/)

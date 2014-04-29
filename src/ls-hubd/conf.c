@@ -47,8 +47,6 @@
 #define MAX_KEYS_IN_GROUP   15
 #define MAX_GROUPS          10
 
-#define OVERLAY_CONF_DIR_PERMISSIONS 700
-
 /**
  * Default values for the two special "exePath" values recognized for JS services and mojo apps
  */
@@ -117,7 +115,6 @@ void _ConfigFreeSettings(void);
  * Keyfile format:
  *
  * [General]
- * Overlay=/path/to/some/dir
  * LocalSocketDirectory=/path/to/some/dir
  * PidDirectory=/path/to/some/dir
  * LogServiceStatus=false
@@ -148,12 +145,6 @@ static _ConfigDOM conf_file_dom = {
         {
             .group_name = "General",
             .keys = {
-                {
-                    .key = "Overlay",
-                    .get_value = _ConfigKeyGetString,
-                    .user_cb = (_ConfigKeyUser*)_ConfigKeySetString,
-                    .user_ctxt = &g_conf_config_overlay_dir,
-                },
                 {
                     .key = "LocalSocketDirectory",
                     .get_value = _ConfigKeyGetString,
@@ -325,7 +316,6 @@ char *g_conf_dynamic_service_exec_prefix = NULL; /**< prefix added to Exec in se
                                                       when launching dynamic service */
 int g_conf_connect_timeout_ms = 20000;          /**< timeout in ms for connect() to complete */
 char *g_conf_monitor_exe_path = NULL;           /**< path to ls-monitor */
-char *g_conf_config_overlay_dir = NULL;           /**< path to configuration overlay directory for g_conf_conf_overlay_dir files */
 char *g_conf_monitor_pub_exe_path = NULL;       /**< path to ls-monitor-pub */
 char *g_conf_sysmgr_exe_path = NULL;            /**< path to LunaSysMgr */
 char *g_conf_webappmgr_exe_path = NULL;         /**< path to WebAppMgr (with the separation of LunaSysMgr and WebAppMgr into two separate components,
@@ -340,7 +330,6 @@ char *g_conf_local_socket_path = NULL;          /**< directory that contains dom
 
 /* static -- local to this file */
 static char *config_file_path = NULL;                /**< full path to config file */
-static char *config_overlay_path = NULL;             /**< path to config overlay file */
 static char *config_file_name = NULL;                /**< filename only */
 static gchar **service_volatile_dirs = NULL;         /**< volatile directories with service description files*/
 extern gchar **roles_volatile_dirs;                  /**< volatile directories with role files*/
@@ -850,9 +839,6 @@ _ConfigFreeSettings(void)
         g_free(g_conf_mojo_app_exe_path);
     }
     g_conf_mojo_app_exe_path = NULL;
-
-    g_free(g_conf_config_overlay_dir);
-    g_conf_config_overlay_dir = NULL;
 }
 
 static bool
@@ -1021,6 +1007,12 @@ _ConfigParseFile(const char *path, const _ConfigDOM *dom, LSError *lserror)
 
     LOG_LS_DEBUG("%s: parsing file: \"%s\"\n", __func__, path);
 
+    /* Free old settings */
+    _ConfigFreeSettings();
+
+    /* Set the defaults */
+    ConfigSetDefaults();
+
     key_file = g_key_file_new();
 
     if (!g_key_file_load_from_file(key_file, path, G_KEY_FILE_NONE, &gerror))
@@ -1087,22 +1079,7 @@ ConfigParseFile(const char *path, LSError *lserror)
         config_file_name = g_path_get_basename(path);
     }
 
-    _ConfigFreeSettings();
-
-    ConfigSetDefaults();
-
-    bool result = _ConfigParseFile(path, &conf_file_dom, lserror);
-    if (result && g_conf_config_overlay_dir)
-    {
-        // read overlay config
-        config_overlay_path = g_strdup_printf("%s/%s", g_conf_config_overlay_dir, config_file_name);
-        if (g_mkdir_with_parents(g_conf_config_overlay_dir, OVERLAY_CONF_DIR_PERMISSIONS) == 0)
-        {
-            _ConfigParseFile(path, &conf_file_dom, lserror);
-        }
-    }
-
-    return result;
+    return _ConfigParseFile(path, &conf_file_dom, lserror);
 }
 
 void
@@ -1110,7 +1087,6 @@ ConfigCleanup()
 {
     g_free(config_file_path);
     g_free(config_file_name);
-    g_free(config_overlay_path);
 
     _ConfigFreeSettings();
 

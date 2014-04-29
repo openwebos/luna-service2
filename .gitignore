@@ -33,4 +33,3 @@ doc/Doxyfile
 doc/html
 patches
 src/*.pc
-*.pyc

@@ -18,7 +18,6 @@
 
 set(HUB_SOURCE_FILES
     conf.c
-    lserror_pbnjson.c
     pattern.c
     hub.c
     security.c

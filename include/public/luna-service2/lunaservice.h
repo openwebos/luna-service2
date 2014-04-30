@@ -341,9 +341,18 @@ typedef enum {
 	/**
 	 * Automatic params validation according to schema.
 	 *
-	 * Note: have no effect at the moment
+	 * @note you should provide validation schema through
+	 *       LSCategorySetDescription
 	 */
 	LUNA_METHOD_FLAG_VALIDATE_IN = (1 << 1),
+
+	/**
+	 * Mask that covers all valid method flags. Anything outside treated as an
+	 * error.
+	 */
+	LUNA_METHOD_FLAGS_ALL = LUNA_METHOD_FLAG_DEPRECATED
+	                      | LUNA_METHOD_FLAG_VALIDATE_IN
+	                      ,
 } LSMethodFlags;
 
 /**

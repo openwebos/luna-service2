@@ -379,6 +379,17 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         LSMethod *m;
         for (m = methods; m->name && m->function; m++)
         {
+            /* XXX: report clients that puts garbage in method flags */
+            if (m->flags & ~LUNA_METHOD_FLAGS_ALL)
+            {
+                LOG_LS_ERROR(MSGID_LS_BAD_METHOD_FLAGS, 4,
+                             PMLOGKS("SERVICE", sh->name),
+                             PMLOGKS("CATEGORY", category),
+                             PMLOGKS("METHOD", m->name),
+                             PMLOGKFV("FLAGS", "%d", m->flags),
+                             "Request to register method with invalid flags");
+            }
+
             LSMethodEntry *entry = g_hash_table_lookup(table->methods, m->name);
             if (entry == NULL)
             {

@@ -164,5 +164,7 @@
 #define MSGID_LS_UNKNOWN_GROUP                  "LS_UNKNOWN_GRP"        /** Found unknown group */
 #define MSGID_LS_UNKNOWN_MSG                    "LS_UNKNOWN_MSG"        /** Unknown message */
 #define MSGID_LS_UTF8_INFO                      "LS_UTF8_ENABLED"       /** Enable UTF8 validation on payloads */
+#define MSGID_LS_BAD_METHOD_FLAGS               "LS_BAD_MTHD_FLGS"      /** Invalid flags provdied in LSMethod structure */
+#define MSGID_LS_BAD_VALIDATION_FLAG            "LS_BAD_VALID_FLAG"     /** Error in pre-conditions for validation flag (missing validatoin schema) */
 
 #endif /* _LOG_IDS_H */

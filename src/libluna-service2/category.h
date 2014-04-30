@@ -85,6 +85,20 @@ static inline LSMessageHandlerResult LSCategoryMethodCall(
         return LSMessageHandlerResultUnknownMethod;
     }
     bool validateCall = method->flags & LUNA_METHOD_FLAG_VALIDATE_IN;
+
+    /* XXX: work-around clients that puts garbage in method flags */
+    if (unlikely(validateCall && method->schema_call == NULL))
+    {
+        validateCall = false;
+        LOG_LS_ERROR(MSGID_LS_BAD_VALIDATION_FLAG, 5,
+                     PMLOGKS("SENDER", LSMessageGetSenderServiceName(message)),
+                     PMLOGKS("SERVICE", service_name),
+                     PMLOGKS("CATEGORY", LSMessageGetCategory(message)),
+                     PMLOGKS("METHOD", method_name),
+                     PMLOGKFV("FLAGS", "%d", method->flags),
+                     "Called for method that was declared for validation but wasn't supplied with schema");
+    }
+
     bool validCall = !validateCall || LSCategoryValidateCall(method, message);
 
     // pmtrace point before call a handler

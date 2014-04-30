@@ -39,11 +39,12 @@ class PalmService;
       constexpr static const LSMethod table[] = {
 
 #define LS_CATEGORY_METHOD(name) { #name,               \
-      &Service::methodWraper<cl_t, &cl_t::name>,        \
+      &LS::Service::methodWraper<cl_t, &cl_t::name>,    \
       static_cast<LSMethodFlags>(0) },
 
 #define LS_CATEGORY_END };                              \
-    registerCategory(category_name, table, 0, 0);       \
+    registerCategory(category_name, table, nullptr, nullptr); \
+    setCategoryData(category_name, this); \
     }
 
 
@@ -122,17 +123,12 @@ public:
                           const LSProperty* properties)
     {
         Error error;
-        bool result = LSRegisterCategory(_handle,
-                                         category,
-                                         const_cast<LSMethod*>(methods),
-                                         const_cast<LSSignal*>(signal),
-                                         const_cast<LSProperty*>(properties),
-                                         error.get());
-        if ( result )
-        {
-            setCategoryData(category, this);
-        }
-        else
+        if (!LSRegisterCategory(_handle,
+                                category,
+                                const_cast<LSMethod*>(methods),
+                                const_cast<LSSignal*>(signal),
+                                const_cast<LSProperty*>(properties),
+                                error.get()))
         {
             throw error;
         }

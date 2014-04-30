@@ -40,7 +40,7 @@ TEST(TestClient, RegisterService)
     EXPECT_THROW(LS::registerService(service_name), LS::Error);
 
     EXPECT_STREQ(srv.getName(), service_name);
-    EXPECT_NO_THROW(srv.registerCategory("test_cat", nullptr, nullptr, nullptr));
+    EXPECT_NO_THROW(srv.registerCategory("/test_cat", nullptr, nullptr, nullptr));
 }
 
 TEST(TestClient, RegisterPalmService)
@@ -59,7 +59,7 @@ TEST(TestClient, RegisterPalmService)
     EXPECT_STREQ(srv.getPrivateConnection().getName(), service_name);
     EXPECT_STREQ(srv.getPublicConnection().getName(), service_name);
 
-    EXPECT_NO_THROW(srv.registerCategory("test_cat", nullptr, nullptr, nullptr));
+    EXPECT_NO_THROW(srv.registerCategory("/test_cat", nullptr, nullptr, nullptr));
 }
 
 TEST(TestClient, Mainloop)

@@ -23,6 +23,7 @@
  */
 
 #include "category.h"
+#include "lserror_pbnjson.h"
 #include "simple_pbnjson.h"
 
 #include "luna-service2/lunaservice.h"
@@ -246,6 +247,69 @@ static jschema_ref default_reply_schema()
     }
     LS_ASSERT( schema != NULL );
     return schema;
+}
+
+bool LSCategoryValidateCall(LSMethodEntry *entry, LSMessage *message)
+{
+    const char *badReplyFallback = "{\"returnValue\":false,"
+                                    "\"errorText\":\"non-representable validation error\"}";
+
+    LS_ASSERT( entry->schema_call ); /* this is a bug if service didn't supplied a schema */
+
+    jvalue_ref reply = NULL;
+    const char *payload;
+    LSError error;
+    LSErrorInit(&error);
+    if (entry->schema_call == NULL)
+    {
+        payload = "{\"returnValue\":false,"
+                   "\"errorText\":\"service didn't provided schema, but expects validation\"}";
+    }
+    else
+    {
+        struct JErrorCallbacks errorCallbacks;
+        JSchemaInfo schemaInfo;
+
+        SetLSErrorCallbacks(&errorCallbacks, &error);
+
+        jschema_info_init(&schemaInfo, entry->schema_call, NULL, &errorCallbacks);
+
+        jvalue_ref dom = jdom_parse(j_cstr_to_buffer(LSMessageGetPayload(message)), DOMOPT_NOOPT, &schemaInfo);
+
+        if (jis_valid(dom)) /* no error - nothing to do */
+        { return true; }
+
+        j_release(&dom); /* TODO: save in LSMessage for callback */
+
+        reply = jobject_create_var(
+            jkeyval( J_CSTR_TO_JVAL("returnValue"), jboolean_create(false) ),
+            jkeyval( J_CSTR_TO_JVAL("errorText"), jstring_create(error.message) ),
+            J_END_OBJ_DECL
+        );
+
+        payload = jis_valid(reply) ? jvalue_tostring(reply, jschema_all()) : NULL;
+        if (payload == NULL) payload = badReplyFallback;
+    }
+
+    LOG_LS_ERROR("INVALID_CALL", 4,
+        PMLOGKS("SENDER", LSMessageGetSenderServiceName(message)),
+        PMLOGKS("CATEGORY", LSMessageGetCategory(message)),
+        PMLOGKS("METHOD", LSMessageGetMethod(message)),
+        PMLOGJSON("ERROR", payload),
+        "Validation failed for request %s", LSMessageGetPayload(message)
+    );
+
+    LSErrorFree(&error);
+
+    if (!LSMessageRespond(message, payload, &error))
+    {
+        LSErrorLog(PmLogGetLibContext(), "INVALID_CALL_RESPOND", &error);
+        LSErrorFree(&error);
+    }
+
+    j_release(&reply);
+
+    return false;
 }
 
 /* @} END OF LunaServiceInternals */

@@ -63,6 +63,8 @@ typedef struct {
     jschema_ref schema_reply;
 } LSMethodEntry;
 
+bool LSCategoryValidateCall(LSMethodEntry *entry, LSMessage *message);
+
 static inline LSMessageHandlerResult LSCategoryMethodCall(
     LSHandle *sh,
     LSCategoryTable *category,
@@ -82,8 +84,8 @@ static inline LSMessageHandlerResult LSCategoryMethodCall(
                      "Couldn't find method: %s", method_name);
         return LSMessageHandlerResultUnknownMethod;
     }
-
-    bool validCall = true;
+    bool validateCall = method->flags & LUNA_METHOD_FLAG_VALIDATE_IN;
+    bool validCall = !validateCall || LSCategoryValidateCall(method, message);
 
     // pmtrace point before call a handler
     PMTRACE_SERVER_RECEIVE(service_name, sh->name, (char*)method_name, LSMessageGetToken(message));

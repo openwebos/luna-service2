@@ -266,7 +266,7 @@ TEST_F(TestCategory, Introspection)
     // TODO: call for introspection
 }
 
-TEST_F(TestCategory, DISABLED_Validation)
+TEST_F(TestCategory, Validation)
 {
     LS::Error e;
     LSMessageToken token;

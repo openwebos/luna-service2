@@ -31,6 +31,19 @@ namespace
 #define TIMEOUT_URI "palm://com.palm.test_call_service/testCalls/timeoutCall"
 #define SUBSCRIBE_URI "palm://com.palm.test_call_service/testCalls/subscribeCall"
 
+class TimeoutRemover
+{
+    guint id;
+public:
+    TimeoutRemover(guint _id)
+        : id(_id)
+    {
+    }
+    ~TimeoutRemover()
+    {
+        g_source_remove(id);
+    }
+};
 
 class CallTest : public ::testing::Test
 {
@@ -134,7 +147,7 @@ TEST_F(CallTest, SetReplyCBBeforeLoop)
 {
     LS::Call call = _service.callOneReply(SIMPLE_URI, "{}");
     call.continueWith(onReplyCB, this);
-    g_timeout_add(1000, onHangingCB, this);
+    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -145,8 +158,8 @@ TEST_F(CallTest, SetReplyCBAfterLoop)
 {
     LS::Call call = _service.callOneReply(SIMPLE_URI, "{}");
     _call = &call;
-    g_timeout_add(100, onTimeoutSetCB, this);
-    g_timeout_add(1000, onHangingCB, this);
+    TimeoutRemover cancel(g_timeout_add(100, onTimeoutSetCB, this));
+    TimeoutRemover cancel_1(g_timeout_add(1000, onHangingCB, this));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -156,7 +169,7 @@ TEST_F(CallTest, SetReplyCBAfterLoop)
 TEST_F(CallTest, CallCBBeforeLoop)
 {
     LS::Call call = _service.callOneReply(SIMPLE_URI, "{}", onReplyCB, this);
-    g_timeout_add(1000, onHangingCB, this);
+    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -167,8 +180,8 @@ TEST_F(CallTest, CallCBAfterLoop)
 {
     LS::Call call;
     _call = &call;
-    g_timeout_add(100, onTimeoutCallWithCB, this);
-    g_timeout_add(1000, onHangingCB, this);
+    TimeoutRemover cancel(g_timeout_add(100, onTimeoutCallWithCB, this));
+    TimeoutRemover cancel_1(g_timeout_add(1000, onHangingCB, this));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -179,7 +192,7 @@ TEST_F(CallTest, CallTimeout)
 {
     LS::Call call = _service.callOneReply(TIMEOUT_URI, R"({"timeout": 100})", onReplyCB, this);
     call.setTimeout(200);
-    g_timeout_add(1000, onHangingCB, this);
+    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -191,8 +204,8 @@ TEST_F(CallTest, CallTimeoutExpiration)
     LS::Call call = _service.callOneReply(TIMEOUT_URI, R"({"timeout": 300})", onReplyCB, this);
     call.setTimeout(150);
     _resultFlag = ON_TIMEOUT;
-    g_timeout_add(1000, onHangingCB, this);
-    g_timeout_add(500, onTimeoutCB, this);
+    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
+    TimeoutRemover cancel_1(g_timeout_add(500, onTimeoutCB, this));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_TIMEOUT, _resultFlag);

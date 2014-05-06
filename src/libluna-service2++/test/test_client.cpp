@@ -18,16 +18,11 @@
 
 #include <gtest/gtest.h>
 #include <luna-service2/lunaservice.hpp>
+#include <list>
 #include <thread>
 #include <chrono>
 
 using namespace std;
-
-#define RUN_IN_THREAD(x)                     \
-do {                                         \
-    thread trd([&](){ g_main_loop_run(x); });\
-    trd.detach();                            \
-} while (0)                                  \
 
 TEST(TestClient, RegisterService)
 {
@@ -99,11 +94,12 @@ bool onSignalCallback(LSHandle *sh, LSMessage *reply, void *ctx)
 
 TEST(TestClient, Signals)
 {
+    list<thread> threads;
     GMainLoop *provider_main_loop = g_main_loop_new(nullptr, false);
-    RUN_IN_THREAD(provider_main_loop);
+    threads.emplace_back([&](){ g_main_loop_run(provider_main_loop); });
 
     GMainLoop *receiver_main_loop = g_main_loop_new(nullptr, false);
-    RUN_IN_THREAD(receiver_main_loop);
+    threads.emplace_back([&](){ g_main_loop_run(receiver_main_loop); });
 
     LS::Service provider = LS::registerService("com.palm.test_signal_provider");
     provider.attachToLoop(provider_main_loop);
@@ -126,10 +122,16 @@ TEST(TestClient, Signals)
     EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
     this_thread::sleep_for(chrono::milliseconds(1));
     EXPECT_EQ(call_count, 2);
+
+    // ensure that no mainloops will run after LSUnregister called
+    g_main_loop_quit(provider_main_loop);
+    g_main_loop_quit(receiver_main_loop);
+    for (auto &t : threads) t.join();
 }
 
 TEST(TestClient, ServerStatus)
 {
+    list<thread> threads;
     bool is_active = false;
 
     LS::ServerStatusCallback statusCallback = [&](bool isact)
@@ -140,7 +142,7 @@ TEST(TestClient, ServerStatus)
     };
 
     GMainLoop *listener_main_loop = g_main_loop_new(nullptr, false);
-    RUN_IN_THREAD(listener_main_loop);
+    threads.emplace_back([&](){ g_main_loop_run(listener_main_loop); });
 
     LS::Service listener = LS::registerService("com.palm.test_status_listener");
     listener.attachToLoop(listener_main_loop);
@@ -158,4 +160,8 @@ TEST(TestClient, ServerStatus)
     server.detach();
     this_thread::sleep_for(chrono::milliseconds(1));
     EXPECT_FALSE(is_active);
+
+    // ensure that no mainloops will run after LSUnregister called
+    g_main_loop_quit(listener_main_loop);
+    for (auto &t : threads) t.join();
 }

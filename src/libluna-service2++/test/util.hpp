@@ -93,3 +93,40 @@ namespace pbnjson {
     void PrintTo(const JValueArrayElement& x, ::std::ostream* os)
     { *os << toJson(JRef(x)); }
 }
+
+/// Run something on exit from scope
+class OnDescope {
+    std::function<void()> func;
+public:
+    template <typename T>
+    OnDescope(T &&action) : func { std::forward<T>(action) }
+    {}
+    ~OnDescope()
+    { func(); }
+};
+
+/// Wrap to call any callable object passed as context
+template <typename F>
+typename std::result_of<F()>::type wrap(void *ctx)
+{ return (*static_cast<F*>(ctx))(); }
+
+/// scope-living glib timeout with possibility to attach to custom context
+class GTimeout {
+    std::function<gboolean()> cb;
+    GSource *s;
+public:
+    template <typename T>
+    GTimeout(guint interval, T &&func) :
+        cb(std::forward<T>(func)),
+        s(g_timeout_source_new(interval))
+    { g_source_set_callback(s, &wrap<decltype(cb)>, &cb, nullptr); }
+
+    ~GTimeout()
+    {
+        g_source_destroy(s);
+        g_source_unref(s);
+    }
+
+    void attach(GMainContext *context = nullptr)
+    { (void)g_source_attach(s, context); }
+};

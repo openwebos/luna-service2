@@ -500,7 +500,8 @@ typedef struct _Call {
     char          *signal_category; //< registered signal category (required)
     char          *match_key;  //<key used in callmap->signalMap
     struct        timespec time;  //< time value for performance measurement
-    guint         timer_id;  //< timer id for the expiration (> 0 if set)
+    GSource       *timer_source; //< source for timer expiration (non-NULL if set)
+
     int           timeout_ms;  //< milliseconds to timeout before next message reply.
 } _Call;
 
@@ -530,8 +531,11 @@ _CallFree(_Call *call)
 {
     if (!call) return;
 
-    if (call->timer_id > 0)
-        g_source_remove(call->timer_id);
+    if (call->timer_source != NULL)
+    {
+        g_source_destroy(call->timer_source);
+        g_source_unref(call->timer_source);
+    }
     g_free(call->serviceName);
     //g_free(call->rule);
     g_free(call->signal_method);
@@ -2129,7 +2133,7 @@ OnCallTimedOut(_Call *call)
     {
         LSErrorFree(&lserror);
     }
-    call->timer_id = 0;
+    call->timer_source = NULL;
     return FALSE;  /* One-shot timer */
 }
 
@@ -2137,15 +2141,22 @@ OnCallTimedOut(_Call *call)
 static void
 ResetCallTimeout(_Call *call)
 {
-    if (call->timer_id > 0)
-        g_source_remove(call->timer_id);
+    if (call->timer_source != NULL)
+    {
+        g_source_destroy(call->timer_source);
+        g_source_unref(call->timer_source);
+    }
 
     if (call->timeout_ms > 0)
     {
         _CallAddReference(call);
-        call->timer_id = g_timeout_add_full(G_PRIORITY_DEFAULT, call->timeout_ms,
-                                            (GSourceFunc) OnCallTimedOut, call,
-                                            (GDestroyNotify) _CallRelease);
+        call->timer_source = g_timeout_source_new(call->timeout_ms);
+        g_source_set_callback(call->timer_source, (GSourceFunc) OnCallTimedOut, call, (GDestroyNotify) _CallRelease);
+        (void)g_source_attach(call->timer_source, call->sh->context);
+    }
+    else
+    {
+        call->timer_source = NULL;
     }
 }
 

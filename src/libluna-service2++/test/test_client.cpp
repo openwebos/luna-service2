@@ -21,6 +21,7 @@
 #include <list>
 #include <thread>
 #include <chrono>
+#include "util.hpp"
 
 using namespace std;
 
@@ -77,6 +78,70 @@ TEST(TestClient, Mainloop)
     EXPECT_NO_THROW(plmsrv.setPriority(5));
     EXPECT_NO_THROW(plmsrv.getPrivateHandle().detach());
     EXPECT_NO_THROW(plmsrv.getPublicHandle().detach());
+}
+
+TEST(TestClient, BHV_7106_CallTimeoutOverlapExplicitContext)
+{
+    // boost probability of race and overlap
+    for (size_t n = 0; n < 10; ++n)
+    {
+        GMainContext *main_ctx = g_main_context_new();
+        GMainLoop *main_loop = g_main_loop_new(main_ctx, false);
+        ASSERT_NE(nullptr, main_loop);
+        OnDescope descope_loop { [&] {
+            g_main_loop_unref(main_loop);
+            g_main_context_unref(main_ctx);
+        }};
+
+        LS::Handle srv;
+        ASSERT_NO_THROW({ srv = LS::registerService("com.palm.test_client"); });
+        EXPECT_NO_THROW({ srv.attachToLoop(main_loop); });
+
+        LS::Call call = srv.callOneReply("luna://com.palm.test_client/foo", "{}");
+
+        GTimeout timeout {50, [&] { g_main_loop_quit(main_loop); return FALSE; }};
+        timeout.attach(main_ctx);
+
+        call.setTimeout(50);
+
+        // run the race between call-cancel timeout and main-loop timeout
+        g_main_loop_run(main_loop);
+
+        srv = {}; // unregister so call-cancel timeout shouldn't be valid anymor
+
+        // next iteration will fire outstanding call-cancel timeout
+    }
+}
+
+TEST(TestClient, BHV_7106_CallTimeoutOverlapDefaultContext)
+{
+    // boost probability of race and overlap
+    for (size_t n = 0; n < 10; ++n)
+    {
+        GMainLoop *main_loop = g_main_loop_new(nullptr, false);
+        ASSERT_NE(nullptr, main_loop);
+        OnDescope descope_loop { [&] {
+            g_main_loop_unref(main_loop);
+        }};
+
+        LS::Handle srv;
+        ASSERT_NO_THROW({ srv = LS::registerService("com.palm.test_client"); });
+        EXPECT_NO_THROW({ srv.attachToLoop(main_loop); });
+
+        LS::Call call = srv.callOneReply("luna://com.palm.test_client/foo", "{}");
+
+        GTimeout timeout {50, [&] { g_main_loop_quit(main_loop); return FALSE; }};
+        timeout.attach(g_main_loop_get_context(main_loop));
+
+        call.setTimeout(50);
+
+        // run the race between call-cancel timeout and main-loop timeout
+        g_main_loop_run(main_loop);
+
+        srv = {}; // unregister so call-cancel timeout shouldn't be valid anymor
+
+        // next iteration will fire outstanding call-cancel timeout
+    }
 }
 
 namespace {

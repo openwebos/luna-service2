@@ -75,6 +75,9 @@ typedef enum LSTransportMessageType
     _LSTransportMessageTypePushRole,                 /**< push a role (security state) to the hub */
     _LSTransportMessageTypePushRoleReply,            /**< reply for a push role message */
     _LSTransportMessageTypeUnknown,                  /**< tag uninitialized types */
+    _LSTransportMessageTypeAppendCategory,           /**< message to the hub to update category tables */
+    _LSTransportMessageTypeQueryServiceCategory,     /**< message from client to hub to get list of registered categories */
+    _LSTransportMessageTypeQueryServiceCategoryReply,/**< reply from hub to client with list of registered categories */
 } _LSTransportMessageType;
 
 /**
@@ -259,10 +262,12 @@ bool _LSTransportMessageIterHasNext(_LSTransportMessageIter *iter);
 _LSTransportMessageIter* _LSTransportMessageIterNext(_LSTransportMessageIter *iter);
 bool _LSTransportMessageAppendString(_LSTransportMessageIter *iter, const char *str);
 bool _LSTransportMessageAppendInt32(_LSTransportMessageIter *iter, int32_t value);
+bool _LSTransportMessageAppendInt64(_LSTransportMessageIter *iter, int64_t value);
 bool _LSTransportMessageAppendBool(_LSTransportMessageIter *iter, bool value);
 bool _LSTransportMessageAppendInvalid(_LSTransportMessageIter *iter);
 bool _LSTransportMessageGetString(_LSTransportMessageIter *iter, const char **str);
 bool _LSTransportMessageGetInt32(_LSTransportMessageIter *iter, int32_t *ret);
+bool _LSTransportMessageGetInt64(_LSTransportMessageIter *iter, int64_t *ret);
 bool _LSTransportMessageGetBool(_LSTransportMessageIter *iter, bool *ret);
 
 /** @} LunaServiceTransportMessageIterator */

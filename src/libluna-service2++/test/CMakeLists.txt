@@ -34,6 +34,11 @@ foreach(TEST ${UNIT_TEST_SOURCES})
     add_test(${TEST} ${TEST})
 endforeach()
 
+# check for pbnjson c++ library
+pkg_check_modules(PBNJSON_CXX REQUIRED pbnjson_cxx>=2.5.0)
+include_directories(${PBNJSON_CXX_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${PBNJSON_CXX_CFLAGS_OTHER})
+
 set(INTEGRATION_TEST_SOURCES
     "bhv-3965-crash\;bhv-3965-crash-svc"
     test_client
@@ -41,6 +46,7 @@ set(INTEGRATION_TEST_SOURCES
     test_category
     "test_call\;test_call_service"
     test_subscription_cxx
+    category_notification
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})

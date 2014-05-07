@@ -188,7 +188,7 @@ TEST_F(CallTest, CallCBAfterLoop)
 }
 
 // Tests call timeout
-TEST_F(CallTest, CallTimeout)
+TEST_F(CallTest, DISABLED_CallTimeout)
 {
     LS::Call call = _service.callOneReply(TIMEOUT_URI, R"({"timeout": 100})", onReplyCB, this);
     call.setTimeout(200);
@@ -199,7 +199,7 @@ TEST_F(CallTest, CallTimeout)
 }
 
 // Tests call timeout expiration
-TEST_F(CallTest, CallTimeoutExpiration)
+TEST_F(CallTest, DISABLED_CallTimeoutExpiration)
 {
     LS::Call call = _service.callOneReply(TIMEOUT_URI, R"({"timeout": 300})", onReplyCB, this);
     call.setTimeout(150);

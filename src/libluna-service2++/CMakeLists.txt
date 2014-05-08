@@ -21,6 +21,11 @@ include_directories(${CMAKE_SOURCE_DIR}/include/public/luna-service2++)
 project(luna-service2++)
 webos_add_compiler_flags(ALL -Wall "-std=gnu++0x")
 
+# check for pbnjson c++ library
+pkg_check_modules(PBNJSON_CXX REQUIRED pbnjson_cpp>=2.6.0)
+include_directories(${PBNJSON_CXX_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${PBNJSON_CXX_CFLAGS_OTHER})
+
 set(SOURCE
     call.cpp
     error.cpp

@@ -42,3 +42,7 @@ else()
 endif()
 
 webos_build_library(NAME ${PROJECT_NAME})
+
+if(NOT "${WEBOS_DISTRO_PRERELEASE}" STREQUAL "")
+    add_subdirectory(performance)
+endif()

@@ -18,11 +18,11 @@
 
 webos_add_compiler_flags(ALL -Wall "-std=gnu++0x")
 add_executable(ls-performance ls-performance.cpp)
-target_link_libraries(ls-performance ${LIBRARIES} ${CMAKE_PROJECT_NAME})
+target_link_libraries(ls-performance ${PROJECT_NAME})
 webos_build_program(NAME ls-performance)
 add_custom_target(performance)
 add_custom_command(TARGET performance
-                    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../test/run_with_hub
+                    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../../libluna-service2/test/run_with_hub
                             ${CMAKE_SOURCE_DIR}
                             ${CMAKE_BINARY_DIR}
                             ${CMAKE_CURRENT_SOURCE_DIR}/ls_performance.conf)

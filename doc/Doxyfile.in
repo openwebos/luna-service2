@@ -82,7 +82,7 @@ EXCLUDE_PATTERNS       =
 # directories that contain example code fragments that are included (see 
 # the \include command).
 
-EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@/doc/examples
+EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@/doc/examples @PROJECT_SOURCE_DIR@/src/libluna-service2/test
 EXAMPLE_PATTERNS       = 
 EXAMPLE_RECURSIVE      = NO
 IMAGE_PATH             = 

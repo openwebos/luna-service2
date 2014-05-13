@@ -41,77 +41,21 @@ extern "C" {
 #endif
 
 /**
- * @page
- * @addtogroup LunaServiceExample
- *
- * <h1>LunaService</h1>
- *
- * <em>Example client usage:</em>
- *
-@code
-bool retVal;
-LSError lserror;
-LSErrorInit(&lserror);
+@page
+@addtogroup LunaServiceExample
 
-LSHandle *serviceHandle;
-retVal = LSRegister(NULL, &serviceHandle, &lserror);
-if (!retVal) goto error;
+<h1>LunaService</h1>
 
-retVal = LSCall(serviceHandle, "luna://com.palm.contacts/category/listContacts",
-        "{ \"json payload\" }", listContactsHandler, user_data, &token, &lserror);
-if (!retVal) goto error;
+<em>Example client usage:</em>
 
-LSGmainAttach(serviceHandle, gmainLoop, &lserror);
-g_main_loop_run(gmainLoop);
-@endcode
+@snippet test_example.c client call
 
 
 <em>Example service usage.</em>
 
-@code
-// callback
-static bool
-listContacts(LSHandle *sh, LSMessage *message)
-{
-     LSMessage *reply = NULL;
+@snippet test_example.c method implementation
 
-     bool retVal;
-     LSError lserror;
-     LSErrorInit(&lserror);
-
-     retVal = LSMessageReply(sh, message, "{ JSON REPLY PAYLOAD }", &lserror);
-     if (!retVal)
-     {
-         LSErrorLog(loggingCtx, msgId, &lserror);
-         LSErrorFree(&lserror);
-     }
-
-     return retVal;
-}
-
-static LSMethod ipcMethods[] = {
-   { "listContacts", listContacts },
-   { },
-};
-...
-
-// Service registration thread
-bool retVal;
-LSError lserror;
-LSErrorInit(&lserror);
-
-LSHandle *serviceHandle;
-retVal = LSRegister("com.palm.contacts", &serviceHandle, &lserror);
-if (!retVal) goto error;
-
-retVal = LSRegisterCategory(serviceHandle, "/category",  ipcMethods, NULL, NULL, &lserror);
-if (!retVal) goto error;
-
-retVal = LSGmainAttach(serviceHandle, gmainLoop, &lserror);
-if (!retVal) goto error;
-
-g_main_loop_run(gmainLoop);
-@endcode
+@snippet test_example.c service registration
 
 <em>Storing a message for replying in another thread.</em>
 @code

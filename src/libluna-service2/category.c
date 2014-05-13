@@ -54,25 +54,15 @@ _LSCategoryTableFree(LSCategoryTable *table)
     g_free(table);
 }
 
-static char*
-_category_to_object_path_alloc(const char *category)
+inline const char*
+_category_to_object_path(const char *category)
 {
-    char *category_path;
-
     if (NULL == category)
-    {
-        category_path = g_strdup("/"); // default category
-    }
-    else if ('/' == category[0])
-    {
-        category_path = g_strdup(category);
-    }
-    else
-    {
-        category_path = g_strdup_printf("/%s", category);
-    }
+        return "/"; // default category
 
-    return category_path;
+    assert(*category=='/');
+
+    return category;
 }
 
 static bool
@@ -80,24 +70,15 @@ _category_exists(LSHandle *sh, const char *category)
 {
     if (!sh->tableHandlers) return false;
 
-    char *category_path = _category_to_object_path_alloc(category);
-    bool exists = false;
-
-    if (g_hash_table_lookup(sh->tableHandlers, category_path))
-    {
-        exists = true;
-    }
-
-    g_free(category_path);
-
-    return exists;
+    const char *category_path = _category_to_object_path(category);
+    return g_hash_table_lookup(sh->tableHandlers, category_path);
 }
 
 static LSCategoryTable *
 LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
 {
     LSCategoryTable *table;
-    char *categoryPath = _category_to_object_path_alloc(category);
+    const char *categoryPath = _category_to_object_path(category);
 
     _LSErrorGotoIfFail(fail, sh->tableHandlers != NULL, error, MSGID_LS_NO_CATEGORY_TABLE,
         -1, "%s: %s not registered.", __FUNCTION__, category);
@@ -106,12 +87,9 @@ LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
     _LSErrorGotoIfFail(fail, table != NULL, error, MSGID_LS_NO_CATEGORY,
         -1, "%s: %s not registered.", __FUNCTION__, category);
 
-    g_free(categoryPath);
     return table;
 
 fail:
-    g_free(categoryPath);
-
     return NULL;
 }
 
@@ -335,6 +313,13 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
 {
     LSHANDLE_VALIDATE(sh);
 
+    if (category && *category != '/')
+    {
+        _LSErrorSet(lserror, MSGID_LS_CATEGORY_FIRST_SLASH, -1,
+                    "Category MUST begin with slash. Category: \"%s\"", category);
+        return false;
+    }
+
     LSCategoryTable *table = NULL;
 
     if (!sh->tableHandlers)
@@ -344,7 +329,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
             /*value*/ (GDestroyNotify)_LSCategoryTableFree);
     }
 
-    char *category_path = _category_to_object_path_alloc(category);
+    const char *category_path = _category_to_object_path(category);
 
     table =  g_hash_table_lookup(sh->tableHandlers, category_path);
     if (!table)
@@ -357,19 +342,8 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         table->category_user_data = NULL;
         table->description = NULL;
 
-        g_hash_table_replace(sh->tableHandlers, category_path, table);
+        g_hash_table_replace(sh->tableHandlers, strdup(category_path), table);
 
-    }
-    else
-    {
-        /*
-         * We've already registered the category, so free the unneeded
-         * category_path. This will happen when we call
-         * LSRegisterCategoryAppend multiple times with the same category
-         * (i.e., LSPalmServiceRegisterCategory)
-         */
-        g_free(category_path);
-        category_path = NULL;
     }
 
     /* Add methods to table. */

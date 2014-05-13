@@ -97,6 +97,7 @@
 #define MSGID_LS_CANT_PING                      "LS_CANT_PING"          /** Sending ping failed */
 #define MSGID_LS_CANT_CANCEL_METH               "LS_CANC_METH"          /** Can't cancel method */
 #define MSGID_LS_CATALOG_ERR                    "LS_CATALOG_REG"        /** Error in subscription catalog */
+#define MSGID_LS_CATEGORY_FIRST_SLASH           "LS_CATEG_FIRST_SLASH"  /** Category MUST begin with slash*/
 #define MSGID_LS_CATEGORY_REGISTERED            "LS_CATEG_REG"          /** Category is already registered */
 #define MSGID_LS_CHANNEL_ERR                    "LS_CHAN"               /** Channel error */
 #define MSGID_LS_CLOCK_ERROR                    "LS_CLOCK"              /** Monotonic clock error */

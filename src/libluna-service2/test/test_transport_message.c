@@ -23,6 +23,7 @@
 #include <glib.h>
 #include <transport_message.h>
 #include <transport.h>
+#include <clock.h>
 
 /* Test data ******************************************************************/
 
@@ -372,12 +373,12 @@ test_LSTransportMessageGetDestUniqueName(TestData *fixture, gconstpointer user_d
 }
 
 static void
-test_LSTransportMessageGetMonitorSerial(TestData *fixture, gconstpointer user_data)
+test_LSTransportMessageGetMonitorMessageData(TestData *fixture, gconstpointer user_data)
 {
-    // no valid serial available
-    g_assert_cmpint(_LSTransportMessageGetMonitorSerial(fixture->msg), ==, 0);
+    // no valid data available
+    g_assert(_LSTransportMessageGetMonitorMessageData(fixture->msg) == NULL);
 
-    // valid serial
+    // valid data
     const char *category = "a";
     const char *method = "b";
     const char *payload = "{}";
@@ -385,24 +386,38 @@ test_LSTransportMessageGetMonitorSerial(TestData *fixture, gconstpointer user_da
     const char *dest_servicename = "d";
     const char *dest_uniquename = "e";
 
+    struct timespec now;
+    ClockGetTime(&now);
+
     fixture->msg->raw->header.len = formatTransportMessageMethodCallBuffer(fixture->msg->raw->data, category, method, payload, appid, dest_servicename, dest_uniquename);
     fixture->msg->raw->header.type = _LSTransportMessageTypeMethodCall;
 
-    const _LSTransportMonitorSerial monitor_serial = 1;
+    _LSMonitorMessageData message_data;
+    message_data.serial = 1;
+    message_data.timestamp = now;
+    message_data.type = _LSMonitorMessageTypeRx;
+
     const int orig_msg_size = sizeof(_LSTransportHeader) + _LSTransportMessageGetBodySize(fixture->msg);
 
-    unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, orig_msg_size);
+    unsigned long padding_bytes = PADDING_BYTES_TYPE(void *, orig_msg_size);
 
-    // new message containing enough memory for monitor_serial + padding
-    _LSTransportMessage *monitor_message = _LSTransportMessageNewRef(orig_msg_size + sizeof(monitor_serial) + padding_bytes);
+    // new message containing enough memory for monitor_message_data + padding
+    _LSTransportMessage *monitor_message = _LSTransportMessageNewRef(orig_msg_size + sizeof(message_data) + padding_bytes);
     _LSTransportMessageCopy(monitor_message, fixture->msg);
 
     char *body = monitor_message->raw->data + _LSTransportMessageGetBodySize(fixture->msg);
     memset(body, 0, padding_bytes);
     body += padding_bytes;
-    memcpy(body, &monitor_serial, sizeof(monitor_serial));
+    memcpy(body, &message_data, sizeof(message_data));
 
-    g_assert_cmpint(_LSTransportMessageGetMonitorSerial(monitor_message), ==, monitor_serial);
+    _LSMonitorMessageData *result_data = _LSTransportMessageGetMonitorMessageData(monitor_message);
+
+    g_assert(result_data != NULL);
+
+    g_assert_cmpint(result_data->serial, ==, message_data.serial);
+    g_assert_cmpint(result_data->type, ==, message_data.type);
+    g_assert(result_data->timestamp.tv_nsec == message_data.timestamp.tv_nsec
+            && result_data->timestamp.tv_sec == message_data.timestamp.tv_sec);
 
     _LSTransportMessageUnref(monitor_message);
 }
@@ -1085,7 +1100,7 @@ main(int argc, char *argv[])
     LSTEST_ADD("/luna-service2/LSTransportMessageGetSenderUniqueName", test_LSTransportMessageGetSenderUniqueName);
     LSTEST_ADD("/luna-service2/LSTransportMessageGetDestServiceName", test_LSTransportMessageGetDestServiceName);
     LSTEST_ADD("/luna-service2/LSTransportMessageGetDestUniqueName", test_LSTransportMessageGetDestUniqueName);
-    LSTEST_ADD("/luna-service2/LSTransportMessageGetMonitorSerial", test_LSTransportMessageGetMonitorSerial);
+    LSTEST_ADD("/luna-service2/LSTransportMessageGetMonitorMessageData", test_LSTransportMessageGetMonitorMessageData);
     LSTEST_ADD("/luna-service2/LSTransportMessageFilterMatch", test_LSTransportMessageFilterMatch);
     LSTEST_ADD("/luna-service2/LSTransportMessageTypes", test_LSTransportMessageTypes);
     LSTEST_ADD("/luna-service2/LSTransportMessagePrintUnknownMessage", test_LSTransportMessagePrintUnknownMessage);

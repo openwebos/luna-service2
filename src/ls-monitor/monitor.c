@@ -20,15 +20,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-#ifdef __APPLE__
-#include <mach/mach_time.h>
-#endif
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "utils.h"
 #include "transport.h"
+#include "clock.h"
 #include "monitor_queue.h"
 
 #define DYNAMIC_SERVICE_STR         "dynamic"
@@ -94,26 +92,9 @@ static bool transport_priv_local = false;
 static _LSMonitorQueue *private_queue = NULL;
 #endif
 
-void
-_LSMonitorGetTime(struct timespec *time)
-{
-#ifdef __APPLE__
-    static mach_timebase_info_data_t info = {0,0};
-
-    if (info.denom == 0) {
-      mach_timebase_info(&info);
-    }
-    uint64_t curtime = mach_absolute_time() * (info.numer / info.denom);
-    time->tv_sec = curtime * 1e-9;
-    time->tv_nsec = curtime - (time->tv_sec * 1e9);
-#else
-    clock_gettime(CLOCK_MONOTONIC, time);
-#endif
-}
-
 /* time1 - time2 */
 double
-_LSMonitorTimeDiff(struct timespec *time1, struct timespec *time2)
+_LSMonitorTimeDiff(const struct timespec const *time1, const struct timespec const *time2)
 {
     double diff_time;
 
@@ -132,14 +113,30 @@ _LSMonitorTimeDiff(struct timespec *time1, struct timespec *time2)
 }
 
 /**
- * Print the time that a message was *received*. It doesn't give us the
- * actual time that the message was sent, but it's the best that we can
- * do without sending a timestamp in the message itself
+ * Print message timestamp
  */
 static int
-_LSMonitorPrintTime(struct timespec *time)
+_LSMonitorPrintTime(const struct timespec *time)
 {
     return fprintf(stdout, "%.3f", ((double)(time->tv_sec)) + (((double)time->tv_nsec) / (double)1000000000.0));
+}
+
+/**
+ * Print monitor message type
+ */
+static int
+_LSMonitorPrintType(const _LSMonitorMessageType message_type)
+{
+    switch (message_type)
+    {
+    case _LSMonitorMessageTypeTx:
+        return fprintf(stdout, " TX  ");
+    case _LSMonitorMessageTypeRx:
+        return fprintf(stdout, " RX ");
+    default:
+        LOG_LS_ERROR(MSGID_LS_UNKNOWN_MSG, 1, PMLOGKFV("TYPE", "%d", message_type), "Unknown monitor message type");
+        return fprintf(stdout, " UN ");
+    }
 }
 
 #ifndef PUBLIC_ONLY
@@ -147,7 +144,7 @@ static gboolean
 _LSMonitorIdleHandlerPrivate(gpointer data)
 {
     _LSMonitorQueue *queue = data;
-    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output, sort_by_timestamps);
+    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
     return TRUE;
 }
 #endif
@@ -156,30 +153,22 @@ static gboolean
 _LSMonitorIdleHandlerPublic(gpointer data)
 {
     _LSMonitorQueue *queue = data;
-    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output, sort_by_timestamps);
+    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
     return TRUE;
 }
 
 void
-_LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool public_bus)
+_LSMonitorMessagePrint(_LSTransportMessage *message, bool public_bus)
 {
     if (LSTransportMessageFilterMatch(message, message_filter_str))
     {
-        struct timespec _time;
-
-        if (time)
-        {
-            _time = *time;
-        }
-        else
-        {
-            _LSMonitorGetTime(&_time);
-        }
+        const _LSMonitorMessageData *message_data = _LSTransportMessageGetMonitorMessageData(message);
 
         if (compact_output)
         {
             int nchar = 0;
-            nchar += _LSMonitorPrintTime(&_time);
+            nchar += _LSMonitorPrintTime(&message_data->timestamp);
+            nchar += _LSMonitorPrintType(message_data->type);
             nchar += fprintf(stdout, public_bus?" pub ":" prv ");
 
             int mchar = LSTransportMessagePrintCompactHeader(message, stdout);
@@ -209,7 +198,8 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
         }
         else
         {
-            _LSMonitorPrintTime(&_time);
+            _LSMonitorPrintTime(&message_data->timestamp);
+            _LSMonitorPrintType(message_data->type);
             fprintf(stdout, public_bus?"\t[PUB]\t":"\t[PRV]\t");
             LSTransportMessagePrint(message, stdout);
         }
@@ -221,9 +211,9 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
 static LSMessageHandlerResult
 _LSMonitorMessageHandlerPrivate(_LSTransportMessage *message, void *context)
 {
-    if (!transport_priv_local)
+    if (!transport_priv_local || sort_by_timestamps)
     {
-        _LSMonitorMessagePrint(message, NULL, false);
+        _LSMonitorMessagePrint(message, false);
     }
     else
     {
@@ -238,9 +228,9 @@ _LSMonitorMessageHandlerPrivate(_LSTransportMessage *message, void *context)
 static LSMessageHandlerResult
 _LSMonitorMessageHandlerPublic(_LSTransportMessage *message, void *context)
 {
-    if (!transport_pub_local)
+    if (!transport_pub_local || sort_by_timestamps)
     {
-        _LSMonitorMessagePrint(message, NULL, true);
+        _LSMonitorMessagePrint(message, true);
     }
     else
     {
@@ -781,15 +771,15 @@ main(int argc, char *argv[])
 
         if (debug_output)
         {
-            fprintf(stdout, "Debug\tTime\t\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
+            fprintf(stdout, "Debug\t\tTime\tStatus\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
         }
         else if (compact_output)
         {
-            fprintf(stdout, "Time Prot&Type Caller.Serial Callee/Method Payload\n");
+            fprintf(stdout, "Time \tStatus Prot&Type Caller.Serial Callee/Method Payload\n");
         }
         else
         {
-            fprintf(stdout, "Time\t\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
+            fprintf(stdout, "Time\tStatus\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
         }
         fflush(stdout);
     }

@@ -24,7 +24,7 @@
 
 typedef struct _LSMonitorQueue _LSMonitorQueue;
 
-void _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hashTable, gboolean debug_output, gboolean sort_by_timestamps);
+void _LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hashTable, gboolean debug_output);
 void _LSMonitorQueueMessage(_LSMonitorQueue *queue, _LSTransportMessage *message);
 _LSMonitorQueue* _LSMonitorQueueNew(bool public_bus);
 void _LSMonitorQueueFree(_LSMonitorQueue *queue);

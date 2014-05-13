@@ -37,6 +37,7 @@
 #include "transport_utils.h"
 #include "base.h"
 #include "message.h"
+#include "clock.h"
 //#include "callmap.h"
 
 /**
@@ -91,7 +92,7 @@ bool _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *ls
 
 
 bool _LSTransportSendMessageClientInfo(_LSTransportClient *client, const char *service_name, const char *unique_name, bool prepend, LSError *lserror);
-static bool _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *monitor, LSError *lserror);
+static bool _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *monitor, _LSMonitorMessageType type, LSError *lserror);
 static bool _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *client, bool set_token, LSMessageToken *token, bool prepend, LSError *lserror);
 bool _LSTransportSendMessageToService(_LSTransport *transport, const char *service_name, _LSTransportMessage *message, LSMessageToken *token, LSError *lserror);
 bool _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *service_name, _LSTransportMessage *message, LSMessageToken msg_token, LSError *lserror);
@@ -2820,7 +2821,7 @@ _LSTransportSendMessageMonitorHelper(_LSTransportMessage *message, _LSTransportC
 {
     if (_LSTransportMessageIsMonitorType(message))
     {
-        _LSTransportSendMessageMonitor(message, client, NULL);
+        _LSTransportSendMessageMonitor(message, client, _LSMonitorMessageTypeTx, NULL);
     }
 }
 
@@ -3997,13 +3998,17 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
  *******************************************************************************
  */
 static bool
-_LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *client, LSError *lserror)
+_LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *client, _LSMonitorMessageType type, LSError *lserror)
 {
     bool ret = true;
 
+    _LSMonitorMessageData message_data;
+    ClockGetTime(&message_data.timestamp);
     /* Get a serial number from the shared memory area (global serial) */
-    _LSTransportMonitorSerial monitor_serial = _LSTransportShmGetSerial(client->transport->shm);
-    unsigned long monitor_serial_size = sizeof(_LSTransportMonitorSerial);
+    message_data.serial = _LSTransportShmGetSerial(client->transport->shm);
+    message_data.type = type;
+
+    unsigned long message_data_size = sizeof(_LSMonitorMessageData);
 
     /* do the message copy and add the destination info */
     char nul = '\0';
@@ -4021,9 +4026,9 @@ _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient 
 
     unsigned long monitor_message_body_size = orig_msg_size + dest_service_name_len + dest_unique_name_len;
 
-    unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, sizeof(_LSTransportHeader) + monitor_message_body_size);
+    unsigned long padding_bytes = PADDING_BYTES_TYPE(void *, sizeof(_LSTransportHeader) + monitor_message_body_size);
 
-    monitor_message_body_size += padding_bytes + monitor_serial_size;
+    monitor_message_body_size += padding_bytes + message_data_size;
 
     _LSTransportMessage *monitor_message = _LSTransportMessageNewRef(monitor_message_body_size);
 
@@ -4039,7 +4044,7 @@ _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient 
     /* padding for alignment */
     body += padding_bytes;
 
-    memcpy(body, &monitor_serial, monitor_serial_size);
+    memcpy(body, &message_data, message_data_size);
 
     if (!_LSTransportSendMessageRaw(monitor_message, client->transport->monitor, false, NULL, false, NULL))
     {
@@ -4435,7 +4440,7 @@ _LSTransportSendMessage(_LSTransportMessage *message, _LSTransportClient *client
     {
         if (_LSTransportMessageIsMonitorType(message))
         {
-            _LSTransportSendMessageMonitor(message, client, lserror);
+            _LSTransportSendMessageMonitor(message, client, _LSMonitorMessageTypeTx, lserror);
         }
     }
 
@@ -4975,23 +4980,28 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             LS_ASSERT(client->service_name != NULL);
             LS_ASSERT(client->unique_name != NULL);
 
-            unsigned long monitor_serial_size = sizeof(_LSTransportMonitorSerial);
+            _LSMonitorMessageData message_data;
+            ClockGetTime(&message_data.timestamp);
+            message_data.serial = monitor_serial;
+            message_data.type = _LSMonitorMessageTypeTx;
+
+            unsigned long message_data_size = sizeof(_LSMonitorMessageData);
 
             unsigned long dest_service_name_len = strlen(client->service_name) + 1;
             unsigned long dest_unique_name_len = strlen(client->unique_name) + 1;
             unsigned long monitor_total_size = total_size + dest_service_name_len + dest_unique_name_len;
 
-            unsigned long padding_bytes = PADDING_BYTES_VAR(monitor_serial, monitor_total_size);
+            unsigned long padding_bytes = PADDING_BYTES_TYPE(void *, monitor_total_size);
             char padding[padding_bytes];
             memset(padding, 0, padding_bytes);
 
-            monitor_total_size += padding_bytes + monitor_serial_size;
+            monitor_total_size += padding_bytes + message_data_size;
 
             /* Set the new header size
              *
              * Note that monitor_total_size includes the size of the header
              * itself and this doesn't */
-            header.len += dest_service_name_len + dest_unique_name_len + padding_bytes + monitor_serial_size;
+            header.len += dest_service_name_len + dest_unique_name_len + padding_bytes + message_data_size;
 
             iov_monitor[ARRAY_SIZE(iov)].iov_base = client->service_name;
             iov_monitor[ARRAY_SIZE(iov)].iov_len = dest_service_name_len;
@@ -5002,8 +5012,8 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             iov_monitor[ARRAY_SIZE(iov) + 2].iov_base = padding;
             iov_monitor[ARRAY_SIZE(iov) + 2].iov_len = padding_bytes;
 
-            iov_monitor[ARRAY_SIZE(iov) + 3].iov_base = &monitor_serial;
-            iov_monitor[ARRAY_SIZE(iov) + 3].iov_len = monitor_serial_size;
+            iov_monitor[ARRAY_SIZE(iov) + 3].iov_base = &message_data;
+            iov_monitor[ARRAY_SIZE(iov) + 3].iov_len = message_data_size;
 
             /* We don't really care if this fails and it may fail when the
              * monitor goes down */
@@ -5420,6 +5430,15 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
         _LSTransportMessage *tmsg = (_LSTransportMessage*) g_queue_pop_head(incoming->complete_messages);
 
         //INCOMING_UNLOCK(&incoming->lock);
+
+        /* MONITOR */
+        if (client->transport->monitor)
+        {
+            if (_LSTransportMessageIsMonitorType(tmsg))
+            {
+                _LSTransportSendMessageMonitor(tmsg, client, _LSMonitorMessageTypeRx, lserror);
+            }
+        }
 
         /* Handle "internal" messages, otherwise, let the registered handler take over */
         LOG_LS_DEBUG("%s: received message token %d, type: %d, len: %d\n", __func__, (int)tmsg->raw->header.token, (int)tmsg->raw->header.type, (int)tmsg->raw->header.len);

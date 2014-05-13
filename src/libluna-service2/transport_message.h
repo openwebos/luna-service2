@@ -181,6 +181,22 @@ struct LSTransportMessage {
 
 typedef struct LSTransportMessage _LSTransportMessage;
 
+/**
+ * Message data for monitor message copies.
+ */
+typedef enum {
+    _LSMonitorMessageTypeTx,
+    _LSMonitorMessageTypeRx
+} _LSMonitorMessageType;
+
+struct LSMonitorMessageData {
+    _LSTransportMonitorSerial serial;
+    _LSMonitorMessageType type;
+    struct timespec timestamp;
+};
+
+typedef struct LSMonitorMessageData _LSMonitorMessageData;
+
 bool LSTransportMessageFilterMatch(_LSTransportMessage *message, const char *filter);
 void LSTransportMessagePrint(_LSTransportMessage *message, FILE *file);
 int LSTransportMessagePrintCompactHeader(_LSTransportMessage *message, FILE *file);
@@ -234,8 +250,9 @@ const char* _LSTransportMessageGetSenderServiceName(const _LSTransportMessage *m
 const char* _LSTransportMessageGetSenderUniqueName(const _LSTransportMessage *message);
 const char* _LSTransportMessageGetDestServiceName(_LSTransportMessage *message);
 const char* _LSTransportMessageGetDestUniqueName(_LSTransportMessage *message);
-_LSTransportMonitorSerial _LSTransportMessageGetMonitorSerial(_LSTransportMessage *message);
 const char* _LSTransportMessageGetError(const _LSTransportMessage *message);
+
+const _LSMonitorMessageData *_LSTransportMessageGetMonitorMessageData(_LSTransportMessage *message);
 
 const char* _LSTransportMessageTypeQueryNameGetQueryName(_LSTransportMessage *message);
 const char* _LSTransportMessageTypeQueryNameGetAppId(_LSTransportMessage *message);

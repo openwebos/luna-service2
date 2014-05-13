@@ -1308,8 +1308,8 @@ _LSTransportMessageGetDestUniqueName(_LSTransportMessage *message)
  * @retval  serial
  *******************************************************************************
  */
-_LSTransportMonitorSerial
-_LSTransportMessageGetMonitorSerial(_LSTransportMessage *message)
+const _LSMonitorMessageData*
+_LSTransportMessageGetMonitorMessageData(_LSTransportMessage *message)
 {
     switch (_LSTransportMessageGetType(message))
     {
@@ -1325,18 +1325,18 @@ _LSTransportMessageGetMonitorSerial(_LSTransportMessage *message)
         unsigned long offset = ret - _LSTransportMessageGetBody(message) + sizeof(_LSTransportHeader);
 
         /* move past padding */
-        unsigned long padding = PADDING_BYTES_TYPE(_LSTransportMonitorSerial, offset);
+        unsigned long padding = PADDING_BYTES_TYPE(void *, offset);
 
         ret += padding;
 
         /* make sure we're not trying to access data outside of the message */
         LS_ASSERT((ret - _LSTransportMessageGetBody(message) + 1) < _LSTransportMessageGetBodySize(message));
 
-        return *((_LSTransportMonitorSerial*)ret);
+        return (_LSMonitorMessageData*)ret;
     }
     default:
         LOG_LS_DEBUG("Unrecognized type (%d) to call %s on", (int)_LSTransportMessageGetType(message), __func__);
-        return MONITOR_SERIAL_INVALID;
+        return NULL;
     }
 }
 

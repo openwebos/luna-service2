@@ -286,12 +286,9 @@ error:
 #endif  /* MALLOC_DEBUG */
 
 #ifdef INTROSPECTION_DEBUG
-bool
-_LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
+static jvalue_ref
+build_categories_flat(LSHandle *sh)
 {
-    LSError lserror;
-    LSErrorInit(&lserror);
-
     GHashTableIter iter_category, iter_element;
     gpointer name_category, table_category, name_element, callback;
     struct LSCategoryTable *pTable = NULL;
@@ -336,7 +333,16 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
                     jstring_create_copy(j_cstr_to_buffer(name_category)),
                     category_obj);
     }
+    return ret_obj;
+}
 
+bool
+_LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
+{
+    LSError lserror;
+    LSErrorInit(&lserror);
+
+    jvalue_ref ret_obj = build_categories_flat(sh);
     bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(ret_obj), &lserror);
     if (!reply_ret)
     {
@@ -352,8 +358,6 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
 error:
 
     j_release(&ret_obj);
-    j_release(&category_obj);
-    j_release(&element_obj);
 
     return false;
 }

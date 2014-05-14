@@ -245,9 +245,39 @@ TEST_F(TestCategory, BasicScenario)
     EXPECT_TRUE(havePong);
 }
 
-TEST_F(TestCategory, Introspection)
+TEST_F(TestCategory, IntrospectionFlat)
 {
-    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+
+    LS::Call call;
+    LSMessage *reply;
+    ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", "{}"); });
+    ASSERT_NO_THROW({ reply = call.get(100); });
+
+    ASSERT_TRUE(reply);
+    auto response = fromJson(LSMessageGetPayload(reply));
+    LSMessageUnref(reply);
+    JRef simple_introspection {
+        { "/", {
+            { "ping", "METHOD"},
+        }},
+    };
+    EXPECT_EQ(simple_introspection, response);
+}
+
+TEST_F(TestCategory, DISABLED_IntrospectionDescription)
+{
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
 
     JRef description {
         { "methods", {
@@ -263,7 +293,21 @@ TEST_F(TestCategory, Introspection)
 
     ASSERT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
 
-    // TODO: call for introspection
+    LS::Call call;
+    LSMessage *reply;
+    ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "description"})""); });
+    ASSERT_NO_THROW({ reply = call.get(100); });
+
+    ASSERT_TRUE(reply);
+    auto response = fromJson(LSMessageGetPayload(reply));
+    LSMessageUnref(reply);
+    JRef descr_introspection {
+        { "returnValue", true },
+        { "categories", {
+            { "/", description },
+        }},
+    };
+    EXPECT_EQ(descr_introspection, response);
 }
 
 TEST_F(TestCategory, Validation)

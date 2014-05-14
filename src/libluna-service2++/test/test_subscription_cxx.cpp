@@ -154,10 +154,9 @@ void clientThreadFunc()
 
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
         R"({"subscribe":true})");
-    LSMessage * reply = nullptr;
-    reply = call.get();
-    EXPECT_NE(nullptr, reply) << "No response from test service";
-    LS::JSONPayload replyJSON{LSMessageGetPayload(reply)};
+    auto reply = call.get();
+    EXPECT_TRUE(bool(reply)) << "No response from test service";
+    LS::JSONPayload replyJSON{reply.getPayload()};
     EXPECT_TRUE(replyJSON.isValid());
     bool returnValue = false, isSubscribed = false;
     EXPECT_TRUE(replyJSON.get("returnValue", returnValue));
@@ -169,8 +168,8 @@ void clientThreadFunc()
     EXPECT_EQ(std::string(TEST_CLASS_NAME), serviceClass);
 
     reply = call.get(200);
-    EXPECT_NE(nullptr, reply) << "No post from test service";
-    LS::JSONPayload postJSON{LSMessageGetPayload(reply)};
+    EXPECT_TRUE(bool(reply)) << "No post from test service";
+    LS::JSONPayload postJSON{reply.getPayload()};
     EXPECT_TRUE(postJSON.isValid());
     int32_t postId{0};
     EXPECT_TRUE(postJSON.get("id", postId));
@@ -193,10 +192,9 @@ TEST(TestSubscriptionPoint, SubscriptionDisconnectTest)
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
         R"({"subscribe":true})");
 
-    LSMessage * reply = nullptr;
-    reply = call.get();
-    ASSERT_NE(nullptr, reply) << "No response from test service";
-    LS::JSONPayload replyJSON{LSMessageGetPayload(reply)};
+    auto reply = call.get();
+    ASSERT_TRUE(bool(reply)) << "No response from test service";
+    LS::JSONPayload replyJSON{reply.getPayload()};
     ASSERT_TRUE(replyJSON.isValid());
     bool returnValue = false, isSubscribed = false;
     ASSERT_TRUE(replyJSON.get("returnValue", returnValue));
@@ -208,8 +206,8 @@ TEST(TestSubscriptionPoint, SubscriptionDisconnectTest)
     ASSERT_EQ(std::string(TEST_CLASS_NAME), serviceClass);
 
     reply = call.get(200);
-    ASSERT_NE(nullptr, reply) << "No post from test service";
-    LS::JSONPayload postJSON{LSMessageGetPayload(reply)};
+    ASSERT_TRUE(bool(reply)) << "No post from test service";
+    LS::JSONPayload postJSON{reply.getPayload()};
     ASSERT_TRUE(postJSON.isValid());
     int32_t postId{0};
     ASSERT_TRUE(postJSON.get("id", postId));
@@ -241,10 +239,9 @@ TEST(TestSubscriptionPoint, SubscriptionCancelTest)
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
         R"({"subscribe":true})");
 
-    LSMessage * reply = nullptr;
-    reply = call.get();
-    ASSERT_NE(nullptr, reply) << "No response from test service";
-    LS::JSONPayload replyJSON{LSMessageGetPayload(reply)};
+    auto reply = call.get();
+    ASSERT_TRUE(bool(reply)) << "No response from test service";
+    LS::JSONPayload replyJSON{reply.getPayload()};
     ASSERT_TRUE(replyJSON.isValid());
     bool returnValue = false, isSubscribed = false;
     ASSERT_TRUE(replyJSON.get("returnValue", returnValue));
@@ -256,8 +253,8 @@ TEST(TestSubscriptionPoint, SubscriptionCancelTest)
     ASSERT_EQ(std::string(TEST_CLASS_NAME), serviceClass);
 
     reply = call.get(200);
-    ASSERT_NE(nullptr, reply) << "No post from test service";
-    LS::JSONPayload postJSON{LSMessageGetPayload(reply)};
+    ASSERT_TRUE(bool(reply)) << "No post from test service";
+    LS::JSONPayload postJSON{reply.getPayload()};
     ASSERT_TRUE(postJSON.isValid());
     int32_t postId{0};
     ASSERT_TRUE(postJSON.get("id", postId));

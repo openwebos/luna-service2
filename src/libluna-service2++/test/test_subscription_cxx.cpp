@@ -64,7 +64,7 @@ public:
     {
         if (LSMessageIsSubscription(request))
         {
-            LS::Message message{&_service, request};
+            LS::Message message{request};
             LS::JSONPayload json;
             json.set("class", TEST_CLASS_NAME);
             json.set("subscribed", _sp.subscribe(message));

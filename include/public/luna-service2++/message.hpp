@@ -19,32 +19,29 @@
 #pragma once
 
 #include <luna-service2/lunaservice.h>
-#include "service.hpp"
-#include "palm_service.hpp"
 #include <cassert>
 #include <iostream>
 
 namespace LS {
 
+class Service;
+
 class Message
 {
 public:
-    Message() : _service(nullptr), _message(nullptr) {}
+    Message() : _message(nullptr) {}
 
     Message(const Message &) = delete;
     Message& operator=(const Message &) = delete;
 
-    Message(Message &&other) : _service(other._service), _message(other._message)
+    Message(Message &&other) : _message(other._message)
     {
         other._message = nullptr;
     }
 
-    Message(Service *service, LSMessage *message)
-        :  _service(service)
-        , _message(message)
+    Message(LSMessage *message)
+        : _message(message)
     {
-        assert(service);
-
         LSMessageRef(_message);
     }
 
@@ -63,16 +60,6 @@ public:
     const LSMessage *get() const { return _message; }
 
     explicit operator bool() const { return _message; }
-
-    Service &getService()
-    {
-        return *_service;
-    }
-
-    bool isPublic(PalmService &palm_service) const
-    {
-        return &palm_service.getPublicConnection() == _service;
-    }
 
     void print(FILE *out) const
     {
@@ -144,7 +131,6 @@ public:
     void reply(Service &service, const char *reply_payload);
 
 private:
-    Service *_service;
     LSMessage *_message;
 
 private:

@@ -17,6 +17,8 @@
 // LICENSE@@@
 
 #include "subscription.hpp"
+#include "error.hpp"
+#include "service.hpp"
 
 namespace LS {
 
@@ -55,7 +57,7 @@ bool SubscriptionPoint::subscribe(LS::Message &message)
     try
     {
         std::unique_ptr<SubscriptionItem> item
-        {new SubscriptionItem({&message.getService(), message.get()}, this)};
+        {new SubscriptionItem({message.get()}, this)};
 
         LS::Error error;
         LS::JSONPayload payload;

@@ -31,8 +31,8 @@ class Message
 public:
     Message() : _message(nullptr) {}
 
-    Message(const Message &) = delete;
-    Message& operator=(const Message &) = delete;
+    Message(const Message &);
+    Message& operator=(const Message &);
 
     Message(Message &&other) : _message(other._message)
     {

@@ -36,7 +36,7 @@ class SubscriptionPoint
     friend class SubscriptionPoint;
 
     private:
-        SubscriptionItem(LS::Message &&_message,
+        SubscriptionItem(LS::Message _message,
                          LS::SubscriptionPoint *_parent);
 
     public:

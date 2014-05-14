@@ -22,7 +22,7 @@
 
 namespace LS {
 
-inline SubscriptionPoint::SubscriptionItem::SubscriptionItem(LS::Message &&_message,
+inline SubscriptionPoint::SubscriptionItem::SubscriptionItem(LS::Message _message,
                                                              LS::SubscriptionPoint *_parent)
     : message{ std::move(_message) },
       parent{ _parent },
@@ -57,7 +57,7 @@ bool SubscriptionPoint::subscribe(LS::Message &message)
     try
     {
         std::unique_ptr<SubscriptionItem> item
-        {new SubscriptionItem({message.get()}, this)};
+        {new SubscriptionItem(message, this)};
 
         LS::Error error;
         LS::JSONPayload payload;

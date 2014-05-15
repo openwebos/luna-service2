@@ -20,7 +20,6 @@ cmake_minimum_required(VERSION 2.8.7)
 project(luna-service2)
 
 include(webOS/webOS)
-include(CTest)
 
 webos_modules_init(1 0 0 QUALIFIER RC7)
 webos_component(3 8 2)
@@ -92,6 +91,11 @@ IF(NOT DEFINED WEBOS_LS2_SECURE)
 ENDIF(NOT DEFINED WEBOS_LS2_SECURE)
 
 set(WEBOS_CONFIG_BUILD_TESTS FALSE CACHE BOOL "Set to TRUE to enable tests compilation")
+if (WEBOS_CONFIG_BUILD_TESTS)
+	set(MEMORYCHECK_COMMAND_OPTIONS "--tool=memcheck --leak-check=full --trace-children=yes")
+	set(MEMORYCHECK_SUPPRESSIONS_FILE "${CMAKE_SOURCE_DIR}/valgrind.supp")
+	include(CTest)
+endif()
 
 # Debug definitions
 webos_add_compiler_flags(ALL -DMEMCHECK -DLSHANDLE_CHECK)

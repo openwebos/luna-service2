@@ -1586,6 +1586,13 @@ _LSTransportConnectLocal(const char *unique_name, bool new_socket, int *fd, LSEr
         }
         else
         {
+            /* Some function callers log this error also, but
+             * sometimes they shadow original socket error, so
+             * this log message makes debugging much easier */
+            LOG_LS_ERROR(MSGID_LS_SOCK_ERROR, 2,
+                         PMLOGKFV("ERROR_CODE", "%d", errno),
+                         PMLOGKS("ERROR", g_strerror(errno)),
+                         "Could not connect to the socket: %s", unique_name);
             _LSErrorSetNoPrint(lserror, errno, g_strerror(errno));
             if (new_socket)
             {
@@ -2213,6 +2220,8 @@ _LSTransportHandleMonitor(_LSTransportMessage *message)
     {
         return;
     }
+
+    LS_ASSERT(_LSTransportMessageGetType(message) != _LSTransportMessageTypeMonitorNotConnected);
 
     LOG_LS_DEBUG("%s: connecting to monitor: %s\n", __func__, unique_name);
 

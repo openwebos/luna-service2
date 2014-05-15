@@ -31,14 +31,21 @@ namespace LS {
 
 #define LS_CATEGORY_BEGIN(cl,name)                      \
     { typedef class cl cl_t;                            \
-      constexpr const char *category_name = #name;      \
+      const char *category_name = name;                 \
       constexpr static const LSMethod table[] = {
 
-#define LS_CATEGORY_METHOD(name) { #name,               \
+#define LS_CATEGORY_METHOD2(name,flags) { #name,        \
       &LS::Handle::methodWraper<cl_t, &cl_t::name>,     \
-      static_cast<LSMethodFlags>(0) },
+      static_cast<LSMethodFlags>(flags) },
 
-#define LS_CATEGORY_END };                              \
+#define LS_CATEGORY_METHOD1(name) LS_CATEGORY_METHOD2(name,0)
+
+#define GET_METHOD_MACRO(_1,_2,NAME,...) NAME
+
+#define LS_CATEGORY_METHOD(...)                         \
+    GET_METHOD_MACRO(__VA_ARGS__,LS_CATEGORY_METHOD2,LS_CATEGORY_METHOD1)(__VA_ARGS__)
+
+#define LS_CATEGORY_END {nullptr, nullptr}};            \
     registerCategory(category_name, table, nullptr, nullptr); \
     setCategoryData(category_name, this); \
     }

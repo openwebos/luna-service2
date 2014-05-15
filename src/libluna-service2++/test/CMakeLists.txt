@@ -43,6 +43,7 @@ set(INTEGRATION_TEST_SOURCES
     test_subscription_cxx
     category_notification
     "test_example++"
+    metainfo_example
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})

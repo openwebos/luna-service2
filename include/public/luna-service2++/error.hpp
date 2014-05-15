@@ -25,6 +25,10 @@
 
 namespace LS {
 
+/**
+ * @ingroup LunaServicePP
+ * @brief This class wraps LS errors
+ */
 class Error : public std::exception
 {
 public:
@@ -36,7 +40,7 @@ public:
 
     Error &operator=(Error &&other);
 
-    // Disable copying from lvalue.
+    // non-copyable
     Error(const Error &) = delete;
     Error &operator=(const Error &) = delete;
 
@@ -45,6 +49,9 @@ public:
     LSError *operator->() { return &_error; }
     const LSError *operator->() const { return &_error; }
 
+    /**
+     * @return error text message
+     */
     const char *what() const noexcept;
 
     bool isSet() const

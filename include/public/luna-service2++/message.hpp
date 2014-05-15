@@ -26,6 +26,10 @@ namespace LS {
 
 class Handle;
 
+/**
+ * @ingroup LunaServicePP
+ * @brief LSMessage wrapper
+ */
 class Message
 {
 public:
@@ -56,9 +60,19 @@ public:
         }
     }
 
+    /**
+     * @return underlying LSMessage object
+     */
     LSMessage *get() { return _message; }
+
+    /**
+     * @return underlying LSMessage object
+     */
     const LSMessage *get() const { return _message; }
 
+    /**
+     * @return true if there is a message
+     */
     explicit operator bool() const { return _message; }
 
     void print(FILE *out) const

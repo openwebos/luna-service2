@@ -136,7 +136,7 @@ Message Call::get()
     }
 }
 
-Message Call::get(long unsigned int msTimeout)
+Message Call::get(unsigned long msTimeout)
 {
     Message result = tryGet();
     if (result)

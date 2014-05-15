@@ -24,6 +24,7 @@
 
 namespace LS {
 
+//! @cond
 class JSONPayload
 {
 public:
@@ -92,4 +93,5 @@ private:
 template <>
 bool JSONPayload::set(const std::string &name, const pbnjson::JValue &value);
 
+//! @endcond
 } // namespace LS;

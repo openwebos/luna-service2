@@ -27,12 +27,11 @@
 #include "luna-service2++/subscription.hpp"
 
 
-/// @defgroup LunaServicePP
+/// @defgroup LunaServicePP LunaService++
 /// @ingroup Luna
 /// @brief Luna Services C++ API.
 
-/// @page
-/// @defgroup LunaServicePPExample
+/// @defgroup LunaServicePPExample Luna C++ Wrapper Usage Example
 /// @ingroup LunaServicePP
 /// @brief Luna Services C++ API examples.
 ///

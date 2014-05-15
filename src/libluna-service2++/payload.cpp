@@ -20,6 +20,8 @@
 
 namespace LS {
 
+//! @cond
+
 template <>
 bool JSONPayload::set(const std::string &name, const pbnjson::JValue &value)
 {
@@ -100,5 +102,7 @@ std::string JSONPayload::getJSONString() const
     pbnjson::JGenerator {} .toString(_root, pbnjson::JSchema::AllSchema(), jsonStr);
     return jsonStr;
 }
+
+//! @endcond
 
 } // namespace LS;

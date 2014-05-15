@@ -36,6 +36,12 @@
 namespace LS {
 
 
+/**
+ * @ingroup LunaServicePP
+ * @brief This class provides ability to make call to service category methods
+ * Controls lifetime of the call.
+ * Call is canceled on object destroy.
+ */
 class Call
 {
     friend class Handle;
@@ -53,14 +59,46 @@ public:
     Call(const Call &) = delete;
     Call &operator=(const Call &) = delete;
 
+    /**
+     * @brief Send a cancel message to service to end call session and
+     * unregister any callback associated with call.
+     */
     void cancel();
 
+    /**
+     * @brief Set timeout for a method call.
+     * The call will be canceled if no reply is received after the msTimeout milliseconds.
+     * @param msTimeout
+     * @return is success
+     */
     bool setTimeout(int msTimeout) const;
 
+    /**
+     * @brief Set callback to continue.
+     * The callback called for each message arrives.
+     * Replaces previous callback if exists.
+     * If internal queue already contains messages then callback
+     * to be called sequentially for every message in this function.
+     * @param callback
+     * @param context
+     */
     void continueWith(LSFilterFunc callback, void *context);
 
+    /**
+     * Retrieve top message object from its queue.
+     * Waits for new messages if there is no one.
+     * It blocks execution until new message arrived.
+     * @note If continueWith were called then this call will wait infinitely
+     * because callback from continueWith will intercept all messages and keep message queue empty.
+     * @return message
+     */
     Message get();
 
+    /**
+     * Get with timeout
+     * @param msTimeout
+     * @return message. The message could be empty. Check it by if(message) before processing.
+     */
     Message get(unsigned long msTimeout);
 
 private:

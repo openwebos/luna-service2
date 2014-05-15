@@ -42,7 +42,16 @@
 ///
 /// @snippet test_example++.cpp synchronous client call
 ///
+/// <em>Example asynchronous client usage:</em>
+///
+/// @snippet test_example++.cpp asynchronous client call
+///
 /// <em>Example service usage:</em>
 ///
 /// @snippet test_example++.cpp method implementation
 /// @snippet test_example++.cpp service registration
+///
+/// <em>Example C++ service usage:</em>
+///
+/// @snippet test_example++.cpp memfun service registration
+/// @snippet test_example++.cpp memfun service initialization

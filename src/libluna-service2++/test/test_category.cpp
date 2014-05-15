@@ -46,7 +46,6 @@ private:
 
         main_loop = g_main_loop_new(nullptr, false);
 
-        LS::Error e;
         ASSERT_NO_THROW({ sh = LS::registerService("com.palm.test"); });
         ASSERT_NO_THROW({ sh.attachToLoop(main_loop); });
 
@@ -56,7 +55,6 @@ private:
 
     virtual void TearDown()
     {
-        LS::Error e;
         ASSERT_NO_THROW({ sh = LS::Service(); });
         ASSERT_NO_THROW({ sh_client = LS::Service(); });
         g_main_loop_unref(main_loop);

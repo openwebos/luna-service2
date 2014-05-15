@@ -26,7 +26,8 @@ using namespace std;
 
 namespace {
 
-atomic_bool hit_reply{false};
+atomic_bool hit_reply1{false};
+atomic_bool hit_reply2{false};
 
 gboolean OnTimeout(gpointer user_data)
 {
@@ -70,7 +71,7 @@ void ClientProc(GMainLoop *serviceLoop)
         return;
     }
     //! [synchronous client call]
-    hit_reply = true;
+    hit_reply1 = true;
 }
 
 } //namespace
@@ -103,7 +104,9 @@ static LSMethod ipcMethods[] = {
 } //namespace
 //! [method implementation]
 
-int main()
+namespace {
+
+void Test1()
 {
     unique_ptr<GMainLoop, std::function<void(GMainLoop*)>> main_loop{g_main_loop_new(NULL, FALSE), g_main_loop_unref};
     GMainLoop *mainLoop = main_loop.get();
@@ -127,12 +130,115 @@ int main()
     catch (const LS::Error &e)
     {
         cerr << e << endl;
-        return 1;
+        throw;
     }
     //! [service registration]
 
     t.join();
-    if (hit_reply)
+}
+
+//! [memfun service registration]
+class Category
+    : private LS::Service
+{
+public:
+    Category(GMainLoop *mainLoop)
+        : LS::Service(LS::registerService("com.palm.contacts"))
+    {
+        attachToLoop(mainLoop);
+
+        LS_CATEGORY_BEGIN(Category, /category)
+            LS_CATEGORY_METHOD(listContacts)
+        LS_CATEGORY_END
+    }
+
+private:
+    bool listContacts(LSMessage &message)
+    {
+        LS::Message request(&message);
+        request.respond("{ JSON REPLY PAYLOAD }");
+        return true;
+    }
+};
+//! [memfun service registration]
+
+bool listContactsHandler(LSHandle *sh, LSMessage *message, void *ctx)
+{
+    LS::Message reply{message};
+    cout << "Got reply: " << reply.getPayload() << endl;
+    if (!reply.isHubError())
+        hit_reply2 = true;
+    g_main_loop_quit((GMainLoop *) ctx);
+    return true;
+}
+
+void AsyncClientProc(GMainLoop *serviceMainLoop)
+{
+    unique_ptr<GMainLoop, std::function<void(GMainLoop*)>> main_loop{g_main_loop_new(NULL, FALSE), g_main_loop_unref};
+    GMainLoop *mainLoop = main_loop.get();
+    void *userData = mainLoop;
+
+    //! [asynchronous client call]
+    try
+    {
+        auto client = LS::registerService(nullptr);
+        client.attachToLoop(mainLoop);
+        auto call = client.callOneReply("luna://com.palm.contacts/category/listContacts",
+                                        "{ \"json payload\" }");
+        call.setTimeout(1000);
+        call.continueWith(listContactsHandler, userData);
+
+        g_main_loop_run(mainLoop);
+    }
+    catch (const LS::Error &e)
+    {
+        cerr << e << endl;
+        throw;
+    }
+    //! [asynchronous client call]
+
+    g_main_loop_quit(serviceMainLoop);
+}
+
+void Test2()
+{
+    unique_ptr<GMainLoop, std::function<void(GMainLoop*)>> main_loop{g_main_loop_new(NULL, FALSE), g_main_loop_unref};
+    GMainLoop *mainLoop = main_loop.get();
+    g_timeout_add(10000, &OnTimeout, mainLoop);
+
+    thread t(bind(&AsyncClientProc, mainLoop));
+
+    //! [memfun service initialization]
+    try
+    {
+        Category category(mainLoop);
+
+        g_main_loop_run(mainLoop);
+    }
+    catch (const LS::Error &e)
+    {
+        cerr << e << endl;
+        throw;
+    }
+    //! [memfun service initialization]
+
+    t.join();
+}
+
+} //namespace;
+
+int main()
+{
+    try
+    {
+        Test1();
+        Test2();
+    }
+    catch (const std::exception &e)
+    {
+    }
+
+    if (hit_reply1 && hit_reply2)
     {
         cout << "PASS" << endl;
         return 0;

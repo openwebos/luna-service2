@@ -270,7 +270,7 @@ TEST_F(TestCategory, IntrospectionFlat)
     EXPECT_EQ(simple_introspection, response);
 }
 
-TEST_F(TestCategory, DISABLED_IntrospectionDescription)
+TEST_F(TestCategory, IntrospectionDescription)
 {
     LSMethod methods[] = {
         { "ping", wrap<&TestCategory::cbPing>() },
@@ -308,6 +308,66 @@ TEST_F(TestCategory, DISABLED_IntrospectionDescription)
         }},
     };
     EXPECT_EQ(descr_introspection, response);
+}
+
+TEST_F(TestCategory, IntrospectionBad)
+{
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+
+    LS::Call call;
+    LSMessage *reply;
+    JRef response;
+
+    SCOPED_TRACE("introspection while no description");
+
+    EXPECT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "description"})""); });
+    EXPECT_NO_THROW({ reply = call.get(100); });
+
+    EXPECT_TRUE(reply);
+    if (reply)
+    {
+        response = fromJson(LSMessageGetPayload(reply));
+        LSMessageUnref(reply);
+        JRef answer_for_no_description {
+            { "returnValue", true },
+            { "categories", {
+                { "/", {{}} },
+            }},
+        };
+        EXPECT_EQ(answer_for_no_description, response);
+    }
+
+    JRef description {
+        { "methods", {
+            { "ping", {
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
+            }},
+        }},
+    };
+
+    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
+
+    SCOPED_TRACE("introspection with a wrong type in params");
+    EXPECT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "wrong"})""); });
+    EXPECT_NO_THROW({ reply = call.get(100); });
+
+    EXPECT_TRUE(reply);
+    if (reply)
+    {
+        response = fromJson(LSMessageGetPayload(reply));
+        LSMessageUnref(reply);
+        EXPECT_EQ(JRef(false), response["returnValue"])
+            << "Expected schema failure but got response: " << ::testing::PrintToString(response);
+    }
 }
 
 TEST_F(TestCategory, Validation)

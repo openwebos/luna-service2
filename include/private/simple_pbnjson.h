@@ -53,4 +53,11 @@ buffer_eq_cstr(raw_buffer buf, const char *cstr)
 		&& memcmp(cstr, buf.m_str, buf.m_len) == 0;
 }
 
+/**
+ * Test jstring representation with C-string representation for equivalence
+ */
+static inline bool
+jstr_eq_cstr(jvalue_ref jstr, const char *cstr)
+{ return buffer_eq_cstr(jstring_get_fast(jstr), cstr); }
+
 #endif

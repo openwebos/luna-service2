@@ -30,6 +30,8 @@
 #include "luna-service2/lunaservice-meta.h"
 #include "log.h"
 
+#include <pthread.h>
+
 /**
  * @addtogroup LunaServiceInternals
  * @{
@@ -178,8 +180,10 @@ static jvalue_ref jvalue_shallow(jvalue_ref value)
 /* unfortunately J_CSTR_TO_JVAL(xxx) is not a constant */
 #define KEYWORD_DEFINITIONS J_CSTR_TO_JVAL("definitions")
 #define KEYWORD_METHODS J_CSTR_TO_JVAL("methods")
+#define KEYWORD_REF J_CSTR_TO_JVAL("$ref")
+#define KEYWORD_ONEOF J_CSTR_TO_JVAL("oneOf")
 
-static jschema_ref prepare_schema(jvalue_ref schema_value, jvalue_ref defs)
+static jschema_ref prepare_schema(jvalue_ref schema_value, jvalue_ref defs, LSError *lserror)
 {
     LS_ASSERT(schema_value != NULL);
     LS_ASSERT(jis_object(schema_value));
@@ -215,23 +219,64 @@ static jschema_ref prepare_schema(jvalue_ref schema_value, jvalue_ref defs)
     LS_ASSERT(orig_defs == NULL || mixed_defs != NULL);
 
     /* mix defs into original schema */
-    jvalue_ref mixed_schema_value = jvalue_shallow(schema_value);
+    jvalue_ref mixed_schema_value;
     if (mixed_defs != NULL)
     {
+        mixed_schema_value = jvalue_shallow(schema_value);
         jobject_put(mixed_schema_value, KEYWORD_DEFINITIONS, mixed_defs);
     }
     else if (orig_defs == NULL)
     {
-        jobject_set2(mixed_schema_value, KEYWORD_DEFINITIONS, defs);
+        /* FIXME: work-around { "definitions": { "foo":{} }, "$ref": "#/definitions/foo"}
+         */
+        if (jobject_containskey2(schema_value, KEYWORD_REF))
+        {
+            /* we'll build {definitions: defs, oneOf: [schema]} instead */
+            mixed_schema_value = jobject_create_var(
+                jkeyval( KEYWORD_DEFINITIONS, jvalue_copy(defs) ),
+                jkeyval( KEYWORD_ONEOF, jarray_create_var(NULL,
+                    jvalue_copy(schema_value),
+                    J_END_ARRAY_DECL
+                )),
+                J_END_OBJ_DECL
+            );
+        }
+        else
+        {
+            mixed_schema_value = jvalue_shallow(schema_value);
+            jobject_set2(mixed_schema_value, KEYWORD_DEFINITIONS, defs);
+        }
     }
 
-    jschema_ref schema = jschema_parse_jvalue(schema_value, NULL, "");
+    struct JErrorCallbacks errorCallbacks;
+    SetLSErrorCallbacks(&errorCallbacks, lserror);
+    jschema_ref schema = jschema_parse_jvalue(mixed_schema_value, &errorCallbacks, "");
+    if (schema == NULL)
+    {
+        const char *schema_json = jvalue_tostring(mixed_schema_value, jschema_all());
+
+        /* FIXME: remove work-around situation when schema parsing returns no
+         *        schema and reports no errors
+         */
+        if (!LSErrorIsSet(lserror))
+        {
+            _LSErrorSetNoPrint(lserror, -1, "Failed to parse schema %s", schema_json);
+            LOG_LS_DEBUG("unknown schema parse error for %s", schema_json);
+        }
+        else
+        {
+            LOG_LS_DEBUG("schema parse error \"%s\" for schema %s",
+                         lserror->message, schema_json);
+        }
+
+    }
     j_release(&mixed_schema_value);
 
     return schema;
 }
 
-static jschema_ref default_reply_schema()
+static jschema_ref default_reply_schema;
+static void init_default_reply_schema()
 {
     const char *schema_text = "{\"oneOf\":["
         "{\"type\":\"object\",\"properties\":{"
@@ -244,14 +289,32 @@ static jschema_ref default_reply_schema()
         "}, \"required\":[\"returnValue\"] }"
     "]}";
 
-    static jschema_ref schema = NULL;
-    /* XXX: thread-safe??? */
-    if (schema == NULL)
-    {
-        schema = jschema_parse(j_cstr_to_buffer(schema_text), JSCHEMA_DOM_NOOPT, NULL);
-    }
-    LS_ASSERT( schema != NULL );
-    return schema;
+    default_reply_schema = jschema_parse(j_cstr_to_buffer(schema_text), JSCHEMA_DOM_NOOPT, NULL);
+    LS_ASSERT( default_reply_schema != NULL );
+}
+static jschema_ref get_default_reply_schema()
+{
+    static pthread_once_t initialized = PTHREAD_ONCE_INIT;
+    (void) pthread_once(&initialized, init_default_reply_schema);
+    return default_reply_schema;
+}
+
+static jschema_ref null_schema;
+static void init_null_schema()
+{
+    /* FIXME: use {"not":{}} once pbnjson will support it */
+    /* we wou'ld write {"disallowed":"any"} from JSchema::NullSchema but it doesn't work anymore */
+    const char *schema_text = "{\"type\":\"null\"}"; /* lets pretend that no one passes null to us */
+
+    null_schema = jschema_parse(j_cstr_to_buffer(schema_text), JSCHEMA_DOM_NOOPT, NULL);
+    LS_ASSERT( null_schema != NULL );
+}
+
+static jschema_ref get_null_schema()
+{
+    static pthread_once_t initialized = PTHREAD_ONCE_INIT;
+    (void) pthread_once(&initialized, init_null_schema);
+    return null_schema;
 }
 
 bool LSCategoryValidateCall(LSMethodEntry *entry, LSMessage *message)
@@ -286,9 +349,13 @@ bool LSCategoryValidateCall(LSMethodEntry *entry, LSMessage *message)
 
         j_release(&dom); /* TODO: save in LSMessage for callback */
 
+        /* FIXME: we shouldn't return jinvaid() without providing any
+         *        justification
+         */
+        const char *error_message = error.message == NULL ? "error unset" : error.message;
         reply = jobject_create_var(
             jkeyval( J_CSTR_TO_JVAL("returnValue"), jboolean_create(false) ),
-            jkeyval( J_CSTR_TO_JVAL("errorText"), jstring_create(error.message) ),
+            jkeyval( J_CSTR_TO_JVAL("errorText"), j_cstr_to_jval(error_message) ),
             J_END_OBJ_DECL
         );
 
@@ -554,19 +621,28 @@ bool LSCategorySetDescription(
         if (entry->flags & LUNA_METHOD_FLAG_VALIDATE_IN)
         {
             if (jobject_get_exists(keyval.value, J_CSTR_TO_BUF("call"), &value))
-            { entry->schema_call = prepare_schema(value, defs); }
+            {
+                entry->schema_call = prepare_schema(value, defs, error);
+                if (entry->schema_call == NULL) entry->schema_call = jschema_copy(get_null_schema());
+            }
             else
             { entry->schema_call = jschema_all(); }
         }
 
         /* TODO: introduce global switch that turns on replies validation */
         if (jobject_get_exists(keyval.value, J_CSTR_TO_BUF("reply"), &value))
-        { entry->schema_reply = prepare_schema(value, defs); }
+        {
+            entry->schema_reply = prepare_schema(value, defs, error);
+            if (entry->schema_reply == NULL) entry->schema_reply = jschema_copy(get_null_schema());
+        }
         else
-        { entry->schema_reply = jschema_copy(default_reply_schema()); }
+        { entry->schema_reply = jschema_copy(get_default_reply_schema()); }
 
         if (jobject_get_exists(keyval.value, J_CSTR_TO_BUF("firstReply"), &value))
-        { entry->schema_firstReply = prepare_schema(value, defs); }
+        {
+            entry->schema_firstReply = prepare_schema(value, defs, error);
+            if (entry->schema_firstReply == NULL) entry->schema_firstReply = jschema_copy(get_null_schema());
+        }
         else
         { entry->schema_firstReply = jschema_copy(entry->schema_reply); }
     }

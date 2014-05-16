@@ -147,7 +147,7 @@ TEST_F(TestCategory, SetDescription)
     EXPECT_NO_THROW({ sh.setCategoryDescription("/", description2.get()); });
 }
 
-TEST_F(TestCategory, SetDescriptionWithRef)
+TEST_F(TestCategory, ValidationWithRef)
 {
     JRef description {
         { "definitions", {
@@ -160,14 +160,69 @@ TEST_F(TestCategory, SetDescriptionWithRef)
         { "methods", {
             { "ping", {
                 { "call", {
-                    { "$ref", "#/definitions/foo" },
+                    { "$ref", "#/definitions/foo" }
+                    // { "oneOf", JRef::array({ { { "$ref", "#/definitions/foo" } } })},
                 }},
             }},
         }},
     };
 
-    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>(), LUNA_METHOD_FLAG_VALIDATE_IN },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+    ASSERT_NO_THROW({ sh.setCategoryData("/", this); });
     EXPECT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
+
+    bool havePing = false;
+    ping = [&](LSMessage *m) {
+        finish();
+        havePing = true;
+        LS::Error e;
+        EXPECT_TRUE(LSMessageRespond(m, "{\"returnValue\":true, \"answer\":42}", e.get())) << e.what();
+        return true;
+    };
+
+    LS::Call call;
+    LSMessage *reply;
+    JRef response;
+
+    {
+        SCOPED_TRACE("test against wrong param");
+        ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/ping", "{\"abc\":3}"); });
+        ASSERT_NO_THROW({ reply = call.get(100); });
+        EXPECT_FALSE(havePing);
+        EXPECT_TRUE(reply);
+
+        if (reply)
+        {
+            response = fromJson(LSMessageGetPayload(reply));
+            LSMessageUnref(reply);
+            EXPECT_EQ(JRef(false), response["returnValue"])
+                << "Actual response: " << ::testing::PrintToString(response);
+        }
+    }
+
+    {
+        SCOPED_TRACE("test against correct param");
+        ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/ping", "{}"); });
+        ASSERT_NO_THROW({ reply = call.get(100); });
+        EXPECT_TRUE(reply);
+        EXPECT_TRUE(havePing);
+
+        if (reply)
+        {
+            response = fromJson(LSMessageGetPayload(reply));
+            LSMessageUnref(reply);
+            JRef expected_answer {
+                { "returnValue", true },
+                { "answer", 42 },
+            };
+            EXPECT_EQ(expected_answer, response);
+        }
+    }
 }
 
 TEST_F(TestCategory, RegisterByMacro)

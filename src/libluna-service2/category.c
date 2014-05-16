@@ -206,6 +206,11 @@ static jschema_ref prepare_schema(jvalue_ref schema_value, jvalue_ref defs)
             }
         }
     }
+    else
+    {
+        /* ok no need to mix in-call defs and category defs */
+        orig_defs = NULL;
+    }
 
     LS_ASSERT(orig_defs == NULL || mixed_defs != NULL);
 

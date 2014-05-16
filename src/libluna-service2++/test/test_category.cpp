@@ -112,9 +112,11 @@ TEST_F(TestCategory, SetDescription)
     JRef description {
         { "methods", {
             { "ping", {
-                { "type", "object" },
-                { "description", "simple ping" },
-                { "additionalProperties", false },
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
             }},
         }},
     };
@@ -127,18 +129,45 @@ TEST_F(TestCategory, SetDescription)
     JRef description2 {
         { "methods", {
             { "ping", {
-                { "type", "object" },
-                { "description", "simple ping" },
-                { "additionalProperties", false },
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
             }},
             { "pong", {
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
+            }},
+        }},
+    };
+    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description2.get()); });
+}
+
+TEST_F(TestCategory, SetDescriptionWithRef)
+{
+    JRef description {
+        { "definitions", {
+            { "foo", {
                 { "type", "object" },
                 { "description", "simple ping" },
                 { "additionalProperties", false },
             }},
         }},
+        { "methods", {
+            { "ping", {
+                { "call", {
+                    { "$ref", "#/definitions/foo" },
+                }},
+            }},
+        }},
     };
-    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description2.get()); });
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
 }
 
 TEST_F(TestCategory, RegisterByMacro)

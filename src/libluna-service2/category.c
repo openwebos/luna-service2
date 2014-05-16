@@ -131,7 +131,10 @@ static void LSMethodEntrySet(LSMethodEntry *entry, LSMethod *method)
 
     /* clean out call schema if no validation needed */
     if (!(entry->flags & LUNA_METHOD_FLAG_VALIDATE_IN))
-    { jschema_release(&entry->schema_call); }
+    {
+        jschema_release(&entry->schema_call);
+        entry->schema_call = NULL;
+    }
 }
 
 static void LSMethodEntryFree(void *methodEntry)
@@ -552,6 +555,10 @@ bool LSCategorySetDescription(
             { entry->schema_call = prepare_schema(value, defs); }
             else
             { entry->schema_call = jschema_all(); }
+        }
+        else
+        {
+            entry->schema_call = NULL;
         }
 
         /* TODO: introduce global switch that turns on replies validation */

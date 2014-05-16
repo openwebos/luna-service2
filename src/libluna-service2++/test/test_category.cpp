@@ -310,7 +310,7 @@ TEST_F(TestCategory, IntrospectionDescription)
     EXPECT_EQ(descr_introspection, response);
 }
 
-TEST_F(TestCategory, DISABLED_IntrospectionEffectiveMethods)
+TEST_F(TestCategory, IntrospectionEffectiveMethods)
 {
     LSMethod methods[] = {
         { "ping", wrap<&TestCategory::cbPing>() },
@@ -424,7 +424,11 @@ TEST_F(TestCategory, IntrospectionBad)
         JRef answer_for_no_description {
             { "returnValue", true },
             { "categories", {
-                { "/", {{}} },
+                { "/", {
+                    { "methods", {
+                        { "ping", {{}} },
+                    }},
+                } },
             }},
         };
         EXPECT_EQ(answer_for_no_description, response);

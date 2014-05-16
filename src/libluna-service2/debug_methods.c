@@ -359,22 +359,58 @@ build_categories_description(LSHandle *sh)
          *       to create a copy
          */
 
+        jvalue_ref entry_methods = jobject_create();
         jvalue_ref description = category_table->description;
+        jvalue_ref methods;
         if (description == NULL)
         {
+            /* ok, lets generate from scratch */
+            methods = NULL;
+
             jobject_put(categories,
                         jstring_create_nocopy(j_cstr_to_buffer(category_name)),
-                        jobject_create());
+                        jobject_create_var(
+                            jkeyval( J_CSTR_TO_JVAL("methods"), entry_methods ),
+                            J_END_OBJ_DECL
+                        ));
         }
         else
         {
-            jobject_set(categories,
-                        j_cstr_to_buffer(category_name),
-                        category_table->description);
+            methods = jobject_get(description, J_CSTR_TO_BUF("methods"));
+            LS_ASSERT(jis_valid(methods));
+
+            jvalue_ref category_entry = jvalue_shallow(description);
+
+            (void) jobject_remove(category_entry, J_CSTR_TO_BUF("methods"));
+            jobject_put(category_entry,  J_CSTR_TO_JVAL("methods"), entry_methods);
+
+            jobject_put(categories, j_cstr_to_jval(category_name), category_entry);
         }
-        /* TODO: sync with effective methods list by creating shallow copy and
-         *       adding/removing props
-         */
+
+        GHashTableIter iter_method;
+        const char *method_name;
+        LSMethodEntry *method_entry;
+
+        g_hash_table_iter_init(&iter_method, category_table->methods);
+        while (g_hash_table_iter_next(&iter_method, (gpointer)&method_name, (gpointer)&method_entry))
+        {
+            if (method_entry->function == NULL)
+            {
+                /* place-holder with schema for future method append (skip) */
+                continue;
+            }
+            raw_buffer key = j_cstr_to_buffer(method_name);
+            jvalue_ref method_descr;
+            if (jobject_get_exists(methods, key, &method_descr))
+            {
+                jobject_set(entry_methods, key, method_descr);
+            }
+            else
+            {
+                /* we'll re-use single empty object for all such entires */
+                jobject_put(entry_methods, jstring_create_nocopy(key), jobject_create());
+            }
+        }
     }
 
     return categories;

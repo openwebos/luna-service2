@@ -22,7 +22,6 @@
 #include "base.h"
 #include "category.h"
 #include "simple_pbnjson.h"
-#include "lserror_pbnjson.h"
 
 #ifdef MALLOC_DEBUG
 #include <malloc.h>

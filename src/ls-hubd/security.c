@@ -24,7 +24,6 @@
 #include <pbnjson.h>
 
 #include "simple_pbnjson.h"
-#include "lserror_pbnjson.h"
 
 #include "transport.h"
 #include "transport_utils.h"

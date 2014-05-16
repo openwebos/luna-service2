@@ -19,13 +19,11 @@
  ****************************************************************/
 
 /**
- *  @file lserror_pbnjson.c
+ *  @file simple_pbnjson.c
  */
 
-#include <pbnjson.h>
-
-#include  "error.h"
-#include  "lserror_pbnjson.h"
+#include "error.h"
+#include "simple_pbnjson.h"
 
 static bool
 LSError_parser(void *ctx, JSAXContextRef parseCtxt)
@@ -60,4 +58,31 @@ SetLSErrorCallbacks(struct JErrorCallbacks *callbacks, LSError *lserror)
         .m_unknown = LSError_misc,
         .m_ctxt = lserror
     };
+}
+
+jvalue_ref jvalue_shallow(jvalue_ref value)
+{
+    if (jis_array(value))
+    {
+        jvalue_ref array = jarray_create_hint(NULL, jarray_size(value));
+        jarray_splice_append(array, value, SPLICE_COPY);
+        return array;
+    }
+    else if (jis_object(value))
+    {
+        jobject_iter iter;
+        if (!jobject_iter_init(&iter, value))
+        { return jinvalid(); }
+
+        jvalue_ref object = jobject_create();
+
+        jobject_key_value keyval;
+        while (jobject_iter_next(&iter, &keyval))
+        {
+            jobject_set2(object, keyval.key, keyval.value);
+        }
+        return object;
+    }
+    else
+    { return jvalue_duplicate(value); }
 }

@@ -26,10 +26,12 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <pbnjson.h>
 
 #include "utils.h"
 #include "transport.h"
 #include "monitor_queue.h"
+#include "debug_methods.h"
 
 #define DYNAMIC_SERVICE_STR         "dynamic"
 #define STATIC_SERVICE_STR          "static"
@@ -68,6 +70,7 @@ typedef struct SubscriptionReplyData
 
 static GHashTable *dup_hash_table;
 
+static const char *list_servicename_methods = NULL;
 static const char *message_filter_str = NULL;
 static gboolean list_clients = false;
 static gboolean list_subscriptions = false;
@@ -85,6 +88,12 @@ static _LSTransport *transport_pub = NULL;
 static GSList *public_sub_replies = NULL;
 static bool transport_pub_local = false;
 static _LSMonitorQueue *public_queue = NULL;
+
+#ifndef PUBLIC_ONLY
+static int hubs_answers_count = 2;
+#else
+static int hubs_answers_count = 1;
+#endif
 
 #ifndef PUBLIC_ONLY
 static _LSTransport *transport_priv = NULL;
@@ -421,7 +430,6 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
 {
     LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeListClientsReply);
 
-    static int call_count = 0;
     const char *unique_name = NULL;
     const char *service_name = NULL;
     int32_t pid = 0;
@@ -488,11 +496,7 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
     }
 
     /* Process and display when we receive public and private responses */
-#ifndef PUBLIC_ONLY
-    if (++call_count == 2)
-#else
-    if (++call_count == 1)
-#endif
+    if (--hubs_answers_count == 0)
     {
         if (list_subscriptions || list_malloc)
         {
@@ -561,6 +565,82 @@ Done:
     return LSMessageHandlerResultHandled;
 }
 
+static LSMessageHandlerResult
+_LSMonitorMethodListMessageHandler(_LSTransportMessage *message, void *context)
+{
+    LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeReply);
+
+    int hub_type = *(int*)context;
+
+    JSchemaInfo schemaInfo;
+
+    // TO-DO: Validate against service.schema when
+    // local resolver will be available.
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+    jvalue_ref params = jdom_parse(j_cstr_to_buffer(_LSTransportMessageGetPayload(message)),
+                                   DOMOPT_NOOPT, &schemaInfo);
+
+    bool succeeded = false;
+    jboolean_get(jobject_get(params, J_CSTR_TO_BUF("returnValue")), &succeeded);
+
+    if (!succeeded)
+    {
+        fprintf(stdout, "Client returned error instead of methods list: %s.\n",
+                jvalue_tostring_simple(jobject_get(params, J_CSTR_TO_BUF("errorText"))));
+    }
+    else
+    {
+        fprintf(stdout, "\nMETHODS AND SIGNALS REGISTERED BY SERVICE '%s' WITH UNIQUE NAME '%s' AT %s HUB\n\n",
+                _LSTransportMessageGetSenderServiceName(message),
+                _LSTransportMessageGetSenderUniqueName(message),
+                hub_type == HUB_TYPE_PUBLIC ? "PUBLIC" : "PRIVATE");
+
+        jobject_iter cat_iterator, meth_iterator;
+        jobject_key_value category, method;
+        jobject_iter_init(&cat_iterator, jobject_get(params, J_CSTR_TO_BUF("categories")));
+        while (jobject_iter_next(&cat_iterator, &category))
+        {
+            fprintf(stdout, "%*s\%s:\n", 2, "", jvalue_tostring_simple(category.key));
+
+            jobject_iter_init(&meth_iterator, jobject_get(category.value, J_CSTR_TO_BUF("methods")));
+            while (jobject_iter_next(&meth_iterator, &method))
+            {
+                fprintf(stdout, "%*s\%s: %s\n", 6, "", jvalue_tostring_simple(method.key), jvalue_tostring_simple(method.value));
+            }
+        }
+    }
+
+    if (--hubs_answers_count == 0)
+        g_main_loop_quit(mainloop);
+
+    return LSMessageHandlerResultHandled;
+}
+
+void
+_LSMonitorMethodListFailureHandler(LSMessageToken global_token, _LSTransportMessageFailureType failure_type, void *context)
+{
+    int type = *(int*)context;
+    const char *hub_name = HUB_TYPE_PUBLIC == type ? "public" : "private";
+
+    switch (failure_type)
+    {
+    case _LSTransportMessageFailureTypeServiceNotExist:
+        fprintf(stdout, "Service '%s' is not registered at %s hub\n",
+                list_servicename_methods, hub_name);
+        break;
+    case _LSTransportMessageFailureTypeServiceUnavailable:
+        fprintf(stdout, "Service '%s' currently is not available at %s hub\n",
+                list_servicename_methods, hub_name);
+        break;
+    default:
+        fprintf(stdout, "Recieved error from %s hub for service '%s': %d\n",
+                hub_name, list_servicename_methods, failure_type);
+    }
+
+    if (--hubs_answers_count == 0)
+        g_main_loop_quit(mainloop);
+}
+
 static void
 _HandleShutdown(int signal)
 {
@@ -579,6 +659,7 @@ _HandleCommandline(int argc, char *argv[])
         {"filter", 'f', 0, G_OPTION_ARG_STRING, &message_filter_str, "Filter by service name (or unique name)", "com.palm.foo"},
         {"list", 'l', 0, G_OPTION_ARG_NONE, &list_clients, "List all entities connected to the hub", NULL},
         {"subscriptions", 's', 0, G_OPTION_ARG_NONE, &list_subscriptions, "List all subscriptions in the system", NULL},
+        {"introspection", 'i', 0, G_OPTION_ARG_STRING, &list_servicename_methods, "List service methods and signals", "com.palm.foo"},
         {"malloc", 'm', 0, G_OPTION_ARG_NONE, &list_malloc, "List malloc data from all services in the system", NULL},
         {"debug", 'd', 0, G_OPTION_ARG_NONE, &debug_output, "Print extra output for debugging monitor but with UNBOUNDED MEMORY GROWTH", NULL},
         {"compact", 'c', 0, G_OPTION_ARG_NONE, &compact_output, "Print compact output to fit terminal. Take precedence over debug", NULL},
@@ -603,6 +684,14 @@ _HandleCommandline(int argc, char *argv[])
     }
 
     g_option_context_free(opt_context);
+
+#ifndef INTROSPECTION_DEBUG
+    if (list_servicename_methods)
+    {
+        g_message("Library is built without introspection support, please rebuild with INTROSPECTION_DEBUG.");
+        exit(EXIT_FAILURE);
+    }
+#endif
 
     if (compact_output)
     {
@@ -697,6 +786,17 @@ main(int argc, char *argv[])
 #endif
         handler_pub.msg_handler = _LSMonitorListMessageHandler;
     }
+    else if (list_servicename_methods)
+    {
+#ifndef PUBLIC_ONLY
+        handler_priv.msg_handler = _LSMonitorMethodListMessageHandler;
+        handler_priv.message_failure_handler = _LSMonitorMethodListFailureHandler;
+        handler_priv.message_failure_context = &private;
+#endif
+        handler_pub.msg_handler = _LSMonitorMethodListMessageHandler;
+        handler_pub.message_failure_handler = _LSMonitorMethodListFailureHandler;
+        handler_pub.message_failure_context = &public;
+    }
 
 #ifndef PUBLIC_ONLY
     if (!_LSTransportInit(&transport_priv, FINAL_MONITOR_NAME, &handler_priv, &lserror))
@@ -760,6 +860,20 @@ main(int argc, char *argv[])
 #endif
 
         if (!_LSTransportSendMessageListClients(transport_pub, &lserror))
+        {
+            goto error;
+        }
+    }
+    else if (list_servicename_methods)
+    {
+#ifndef PUBLIC_ONLY
+        if (!_LSTransportSendMessageListServiceMethods(transport_priv, list_servicename_methods, &lserror))
+        {
+            goto error;
+        }
+#endif
+
+        if (!_LSTransportSendMessageListServiceMethods(transport_pub, list_servicename_methods, &lserror))
         {
             goto error;
         }

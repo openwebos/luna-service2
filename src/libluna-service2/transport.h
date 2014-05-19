@@ -196,6 +196,7 @@ bool LSTransportPushRole(_LSTransport *transport, const char *path, LSError *lse
 /* TODO: move these */
 bool LSTransportSendMessageMonitorRequest(_LSTransport *transport, LSError *lserror);
 bool _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror);
+bool _LSTransportSendMessageListServiceMethods(_LSTransport *transport, const char *service_name, LSError *lserror);
 bool LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_name, LSMessageToken *serial, LSError *lserror);
 bool LSTransportSendQueryServiceCategory(_LSTransport *transport,
                                          const char *service_name, const char *category,

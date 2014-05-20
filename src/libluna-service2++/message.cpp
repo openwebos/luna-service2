@@ -18,9 +18,26 @@
 
 #include "message.hpp"
 #include "error.hpp"
+#include "service.hpp"
 
 namespace LS
 {
+
+Message::Message(const Message &o)
+{
+    _message = o._message;
+    if (_message) LSMessageRef(_message);
+}
+
+Message& Message::operator=(const Message &o)
+{
+    if (this == &o)
+        return *this;
+    if (_message) LSMessageUnref(_message);
+    _message = o._message;
+    if (_message) LSMessageRef(_message);
+    return *this;
+}
 
 Message &Message::operator=(Message &&other)
 {
@@ -28,7 +45,6 @@ Message &Message::operator=(Message &&other)
     {
         LSMessageUnref(_message);
     }
-    _service = other._service;
     _message = other._message;
     other._message = nullptr;
     return *this;

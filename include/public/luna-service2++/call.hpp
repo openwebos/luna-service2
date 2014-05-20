@@ -30,6 +30,7 @@
 #include <memory>
 
 #include <luna-service2/lunaservice.h>
+#include "message.hpp"
 
 
 namespace LS {
@@ -58,9 +59,9 @@ public:
 
     void continueWith(LSFilterFunc callback, void *context);
 
-    LSMessage *get();
+    Message get();
 
-    LSMessage *get(unsigned long msTimeout);
+    Message get(unsigned long msTimeout);
 
 private:
 
@@ -73,7 +74,7 @@ private:
     std::unique_ptr<CallPtr> _context;
     std::mutex _mutex;
     std::condition_variable _cv;
-    std::queue<LSMessage *> _queue;
+    std::queue<Message> _queue;
     GMainContext *_mainloopCtx;
     volatile bool _timeoutExpired;
 
@@ -87,15 +88,15 @@ private:
 
     bool isMainLoopThread() const;
 
-    LSMessage *tryGet();
+    Message tryGet();
 
-    LSMessage *waitOnMainLoop();
+    Message waitOnMainLoop();
 
-    LSMessage *waitTimeoutOnMainLoop(unsigned long msTimeout);
+    Message waitTimeoutOnMainLoop(unsigned long msTimeout);
 
-    LSMessage *wait();
+    Message wait();
 
-    LSMessage *waitTimeout(unsigned long msTimeout);
+    Message waitTimeout(unsigned long msTimeout);
 
     bool handleReply(LSHandle *sh, LSMessage *reply);
 

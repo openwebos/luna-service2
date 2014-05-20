@@ -45,3 +45,22 @@ foreach (TEST ${UNIT_TEST_SOURCES})
     target_link_libraries(${TEST} ${LIBRARIES} ${TESTLIBNAME})
     add_test(${TEST} ${TEST})
 endforeach ()
+
+set(INTEGRATION_TEST_SOURCES
+    "test_example"
+    )
+
+foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
+    foreach(SOURCE ${SOURCES})
+        add_executable(${SOURCE} ${SOURCE}.c)
+        target_link_libraries(${SOURCES} ${PROJECT_NAME} ${TESTLIBNAME})
+    endforeach()
+    list(GET SOURCES 0 TEST)
+    add_test(
+        NAME integration.c.${TEST}
+        COMMAND ${CMAKE_SOURCE_DIR}/src/libluna-service2/test/run_with_hub
+                ${CMAKE_SOURCE_DIR}
+                ${CMAKE_BINARY_DIR}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${TEST}.conf
+            )
+endforeach()

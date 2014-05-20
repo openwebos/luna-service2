@@ -122,13 +122,11 @@ void PerformanceTest::make_server_call(const char* payload, bool with_reply)
 {
     if (with_reply)
     {
-        // TODO: RAII
-        LSMessageUnref(client.callOneReply("luna://com.palm.ls_performance/reply_on_call/call", payload).get());
+        client.callOneReply("luna://com.palm.ls_performance/reply_on_call/call", payload).get();
     }
     else
     {
-        // TODO: RAII
-        LSMessageUnref(client.callOneReply("luna://com.palm.ls_performance/reply_on_call_empty/call", payload).get());
+        client.callOneReply("luna://com.palm.ls_performance/reply_on_call_empty/call", payload).get();
 
         // TODO: measure call without callback. Do not ref outgoing message in
         //       _LSTransportSerialSave if reply is not expected.

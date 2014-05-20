@@ -410,7 +410,7 @@ test_LSTransportMessageGetMonitorMessageData(TestData *fixture, gconstpointer us
     body += padding_bytes;
     memcpy(body, &message_data, sizeof(message_data));
 
-    _LSMonitorMessageData *result_data = _LSTransportMessageGetMonitorMessageData(monitor_message);
+    const _LSMonitorMessageData *result_data = _LSTransportMessageGetMonitorMessageData(monitor_message);
 
     g_assert(result_data != NULL);
 

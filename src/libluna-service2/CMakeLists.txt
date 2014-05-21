@@ -21,7 +21,7 @@ set(SOURCE
     callmap.c
     category.c
     clock.c
-    lserror_pbnjson.c
+    simple_pbnjson.c
     debug_methods.c
     mainloop.c
     message.c

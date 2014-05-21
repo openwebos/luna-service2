@@ -1,6 +1,6 @@
 /* @@@LICENSE
 *
-*      Copyright (c) 2008-2013 LG Electronics, Inc.
+*      Copyright (c) 2008-2014 LG Electronics, Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -196,6 +196,7 @@ bool LSTransportPushRole(_LSTransport *transport, const char *path, LSError *lse
 /* TODO: move these */
 bool LSTransportSendMessageMonitorRequest(_LSTransport *transport, LSError *lserror);
 bool _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror);
+bool _LSTransportSendMessageListServiceMethods(_LSTransport *transport, const char *service_name, LSError *lserror);
 bool LSTransportSendQueryServiceStatus(_LSTransport *transport, const char *service_name, LSMessageToken *serial, LSError *lserror);
 bool LSTransportSendQueryServiceCategory(_LSTransport *transport,
                                          const char *service_name, const char *category,

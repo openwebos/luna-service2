@@ -23,7 +23,6 @@
  */
 
 #include "category.h"
-#include "lserror_pbnjson.h"
 #include "simple_pbnjson.h"
 
 #include "luna-service2/lunaservice.h"
@@ -109,7 +108,10 @@ static void LSMethodEntrySet(LSMethodEntry *entry, LSMethod *method)
 
     /* clean out call schema if no validation needed */
     if (!(entry->flags & LUNA_METHOD_FLAG_VALIDATE_IN))
-    { jschema_release(&entry->schema_call); }
+    {
+        jschema_release(&entry->schema_call);
+        entry->schema_call = NULL;
+    }
 }
 
 static void LSMethodEntryFree(void *methodEntry)
@@ -124,33 +126,6 @@ static void LSMethodEntryFree(void *methodEntry)
     jschema_release(&entry->schema_firstReply);
 
     g_slice_free(LSMethodEntry, methodEntry);
-}
-
-static jvalue_ref jvalue_shallow(jvalue_ref value)
-{
-    if (jis_array(value))
-    {
-        jvalue_ref array = jarray_create_hint(NULL, jarray_size(value));
-        jarray_splice_append(array, value, SPLICE_COPY);
-        return array;
-    }
-    else if (jis_object(value))
-    {
-        jobject_iter iter;
-        if (!jobject_iter_init(&iter, value))
-        { return jinvalid(); }
-
-        jvalue_ref object = jobject_create();
-
-        jobject_key_value keyval;
-        while (jobject_iter_next(&iter, &keyval))
-        {
-            jobject_set2(object, keyval.key, keyval.value);
-        }
-        return object;
-    }
-    else
-    { return jvalue_duplicate(value); }
 }
 
 /* unfortunately J_CSTR_TO_JVAL(xxx) is not a constant */
@@ -526,6 +501,10 @@ bool LSCategorySetDescription(
             { entry->schema_call = prepare_schema(value, defs); }
             else
             { entry->schema_call = jschema_all(); }
+        }
+        else
+        {
+            entry->schema_call = NULL;
         }
 
         /* TODO: introduce global switch that turns on replies validation */

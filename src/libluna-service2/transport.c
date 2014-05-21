@@ -4120,6 +4120,24 @@ _LSTransportSendMessageListClients(_LSTransport *transport, LSError *lserror)
     return ret;
 }
 
+/**
+*******************************************************************************
+* @brief Send a message to the service requesting a list of all registered methods and signals.
+*
+* @param transport IN transport connected to the hub
+* @param service_name IN service name which methods we want to know
+* @param lserror OUT set on error
+*
+* @retval true on success
+* @retval false on failure
+*******************************************************************************
+*/
+bool
+_LSTransportSendMessageListServiceMethods(_LSTransport *transport, const char *service_name, LSError *lserror)
+{
+    return LSTransportSend(transport, service_name, "/com/palm/luna/private", "introspection",
+                           "{\"type\":\"description\"}", NULL, NULL, lserror);
+}
 
 /**
  *******************************************************************************

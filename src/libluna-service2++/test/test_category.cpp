@@ -243,9 +243,38 @@ TEST_F(TestCategory, BasicScenario)
     EXPECT_TRUE(havePong);
 }
 
-TEST_F(TestCategory, Introspection)
+TEST_F(TestCategory, IntrospectionFlat)
 {
-    ASSERT_NO_THROW({ sh.registerCategory("/", nullptr, nullptr, nullptr); });
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+
+    LS::Call call;
+    LS::Message reply;
+    ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", "{}"); });
+    ASSERT_NO_THROW({ reply = call.get(100); });
+
+    ASSERT_TRUE(bool(reply));
+    auto response = fromJson(reply.getPayload());
+    JRef simple_introspection {
+        { "/", {
+            { "ping", "METHOD"},
+        }},
+    };
+    EXPECT_EQ(simple_introspection, response);
+}
+
+TEST_F(TestCategory, IntrospectionDescription)
+{
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
 
     JRef description {
         { "methods", {
@@ -261,7 +290,170 @@ TEST_F(TestCategory, Introspection)
 
     ASSERT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
 
-    // TODO: call for introspection
+    LS::Call call;
+    LS::Message reply;
+    ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "description"})""); });
+    ASSERT_NO_THROW({ reply = call.get(100); });
+
+    ASSERT_TRUE(bool(reply));
+    auto response = fromJson(reply.getPayload());
+    JRef descr_introspection {
+        { "returnValue", true },
+        { "categories", {
+            { "/", description },
+        }},
+    };
+    EXPECT_EQ(descr_introspection, response);
+}
+
+TEST_F(TestCategory, IntrospectionEffectiveMethods)
+{
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { "ping2", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+
+    JRef description {
+        { "methods", {
+            { "ping", {
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
+            }},
+            { "pong", {
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple pong" },
+                    { "additionalProperties", false },
+                }},
+            }},
+        }},
+    };
+
+    ASSERT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
+
+    LS::Call call;
+    LS::Message reply;
+    JRef response;
+
+    EXPECT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "description"})""); });
+    EXPECT_NO_THROW({ reply = call.get(100); });
+
+    EXPECT_TRUE(bool(reply));
+    if (reply)
+    {
+        response = fromJson(reply.getPayload());;
+        JRef answer_from_mixed_descr {
+            { "returnValue", true },
+            { "categories", {
+                { "/", {
+                    { "methods", {
+                        { "ping", description["methods"]["ping"] },
+                        { "ping2", {{}} },
+                    }},
+                } },
+            }},
+        };
+        EXPECT_EQ(answer_from_mixed_descr, response);
+    }
+
+    LSMethod method_pong[] = {
+        { "pong", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategoryAppend("/", method_pong, nullptr); });
+
+    EXPECT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "description"})""); });
+    reply = {};
+    EXPECT_NO_THROW({ reply = call.get(100); });
+
+    EXPECT_TRUE(bool(reply));
+    if (reply)
+    {
+        response = fromJson(reply.getPayload());;
+        JRef answer_from_mixed_descr {
+            { "returnValue", true },
+            { "categories", {
+                { "/", {
+                    { "methods", {
+                        { "ping", description["methods"]["ping"] },
+                        { "pong", description["methods"]["pong"] },
+                        { "ping2", {{}} },
+                    }},
+                } },
+            }},
+        };
+        EXPECT_EQ(answer_from_mixed_descr, response);
+    }
+}
+
+TEST_F(TestCategory, IntrospectionBad)
+{
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>() },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+
+    LS::Call call;
+    LS::Message reply;
+    JRef response;
+
+    SCOPED_TRACE("introspection while no description");
+
+    EXPECT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "description"})""); });
+    EXPECT_NO_THROW({ reply = call.get(100); });
+
+    EXPECT_TRUE(bool(reply));
+    if (reply)
+    {
+        response = fromJson(reply.getPayload());
+        JRef answer_for_no_description {
+            { "returnValue", true },
+            { "categories", {
+                { "/", {
+                    { "methods", {
+                        { "ping", {{}} },
+                    }},
+                } },
+            }},
+        };
+        EXPECT_EQ(answer_for_no_description, response);
+    }
+
+    JRef description {
+        { "methods", {
+            { "ping", {
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
+            }},
+        }},
+    };
+
+    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
+
+    SCOPED_TRACE("introspection with a wrong type in params");
+    EXPECT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/com/palm/luna/private/introspection", R""({"type": "wrong"})""); });
+    reply = {};
+    EXPECT_NO_THROW({ reply = call.get(100); });
+
+    EXPECT_TRUE(bool(reply));
+    if (reply)
+    {
+        response = fromJson(reply.getPayload());
+        EXPECT_EQ(JRef(false), response["returnValue"])
+            << "Expected schema failure but got response: " << ::testing::PrintToString(response);
+    }
 }
 
 TEST_F(TestCategory, Validation)

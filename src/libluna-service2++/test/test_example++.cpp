@@ -139,11 +139,11 @@ void Test1()
 
 //! [memfun service registration]
 class Category
-    : private LS::Service
+    : private LS::Handle
 {
 public:
     Category(GMainLoop *mainLoop)
-        : LS::Service(LS::registerService("com.palm.contacts"))
+        : LS::Handle(LS::registerService("com.palm.contacts"))
     {
         attachToLoop(mainLoop);
 

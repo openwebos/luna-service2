@@ -20,7 +20,7 @@
 #include <memory>
 #include <functional>
 
-class LS2Service : public LS::Service
+class LS2Service : public LS::Handle
 {
     typedef std::function<void(LSHandle *sh, LSMessage *msg)> LS2Method;
     std::vector< std::shared_ptr<LS2Method> > methods;
@@ -50,7 +50,7 @@ inline bool LS2Service::callback(LSHandle *sh, LSMessage *msg, void *category_co
 }
 
 inline LS2Service::LS2Service(const std::string &name, bool public_service)
-        : LS::Service(LS::registerService(name.c_str(), public_service))
+        : LS::Handle(LS::registerService(name.c_str(), public_service))
         , loop(g_main_loop_new(nullptr, false), g_main_loop_unref)
         , loop_thread(std::bind(&LS2Service::loop_thread_func, this))
 {

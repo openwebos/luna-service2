@@ -71,7 +71,7 @@ protected:
     }
 
     GMainLoop * _mainloop;
-    LS::Service _service;
+    LS::Handle _service;
     LS::Call * _call;
 
     enum ResultFlag
@@ -138,7 +138,7 @@ TEST_F(CallTest, ExceptionOnInvalidPayload)
 // Tests LS::Call throw exception if LSCallXXXX fails
 TEST_F(CallTest, ExceptionOnInvalidHandle)
 {
-    LS::Service service;
+    LS::Handle service;
     ASSERT_THROW(service.callOneReply(SIMPLE_URI, "{}"), LS::Error);
 }
 

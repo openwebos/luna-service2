@@ -78,7 +78,7 @@ private:
 TEST_F(TestService, SimpleCall)
 {
     LS::Error e;
-    LS::Service s, c;
+    LS::Handle s, c;
 
     LSMessageToken token;
     bool havePong;
@@ -116,7 +116,7 @@ TEST_F(TestService, SimpleCall)
 TEST_F(TestService, DISABLED_CallTimeout)
 {
     LS::Error e;
-    LS::Service s, c;
+    LS::Handle s, c;
 
     LSMessageToken token;
     bool havePong;
@@ -156,7 +156,7 @@ TEST_F(TestService, DISABLED_CallTimeout)
 TEST_F(TestService, DISABLED_UnregisterConnected)
 {
     LS::Error e;
-    LS::Service s, c;
+    LS::Handle s, c;
 
     LSMessageToken token;
     bool havePong;
@@ -184,7 +184,7 @@ TEST_F(TestService, DISABLED_UnregisterConnected)
     loop(100);
     ASSERT_TRUE(havePong);
 
-    ASSERT_NO_THROW({ s = LS::Service(); }); // unregister
+    ASSERT_NO_THROW({ s = LS::Handle(); }); // unregister
 
     // let service to settle down
     loop(100);
@@ -221,7 +221,7 @@ TEST_F(TestService, DISABLED_UnregisterConnected)
 TEST_F(TestService, DISABLED_UnregisterUnconnected)
 {
     LS::Error e;
-    LS::Service s, c;
+    LS::Handle s, c;
 
     LSMessageToken token;
     bool havePong;
@@ -235,7 +235,7 @@ TEST_F(TestService, DISABLED_UnregisterUnconnected)
     // give some time for both sides to settle down
     loop(200);
 
-    ASSERT_NO_THROW({ s = LS::Service(); }); // unregister
+    ASSERT_NO_THROW({ s = LS::Handle(); }); // unregister
 
     // let receiver to settle down
     loop(100);
@@ -270,20 +270,20 @@ TEST_F(TestService, DISABLED_UnregisterUnconnected)
 
 TEST_F(TestService, ServiceMoveCtor)
 {
-    LS::Service s1;
+    LS::Handle s1;
     EXPECT_FALSE( !!s1 );
 
     ASSERT_NO_THROW({ s1 = LS::registerService("com.palm.test"); });
     EXPECT_TRUE( !!s1 );
 
-    EXPECT_NO_THROW({ LS::Service s2 { std::move(s1) }; });
+    EXPECT_NO_THROW({ LS::Handle s2 { std::move(s1) }; });
     EXPECT_FALSE( !!s1 );
 }
 
 TEST_F(TestService, ServiceMoveAssign)
 {
     LS::Error e;
-    LS::Service s1, s2, s3;
+    LS::Handle s1, s2, s3;
 
     LSMessageToken token;
     bool havePong;

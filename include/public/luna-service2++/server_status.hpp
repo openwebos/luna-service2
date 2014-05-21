@@ -27,14 +27,14 @@
 
 namespace LS {
 
-class Service;
+class Handle;
 class ServerStatus;
 
 typedef std::function<bool(bool)> ServerStatusCallback;
 
 class ServerStatus
 {
-    friend class Service;
+    friend class Handle;
 
 public:
     ServerStatus() : _handle(nullptr), _cookie(nullptr) {}

@@ -18,7 +18,7 @@
 
 #include "message.hpp"
 #include "error.hpp"
-#include "service.hpp"
+#include "handle.hpp"
 
 namespace LS
 {
@@ -58,11 +58,11 @@ std::ostream &operator<<(std::ostream &os, const Message &message)
         << message.getPayload();
 }
 
-void Message::reply(Service &service, const char *reply_payload)
+void Message::reply(Handle &service_handle, const char *reply_payload)
 {
     Error error;
 
-    if (!LSMessageReply(service.get(), _message, reply_payload, error.get()))
+    if (!LSMessageReply(service_handle.get(), _message, reply_payload, error.get()))
     {
         throw error;
     }

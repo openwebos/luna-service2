@@ -16,24 +16,24 @@
 //
 // LICENSE@@@
 
-#include "service.hpp"
+#include "handle.hpp"
 #include "error.hpp"
 #include "message.hpp"
 
 namespace LS
 {
 
-Service::Service()
+Handle::Handle()
     : _handle(nullptr)
 {
 }
 
-Service::Service(Service &&other)
+Handle::Handle(Handle &&other)
     : _handle(other.release())
 {
 }
 
-Service::Service(const char *name, bool public_service)
+Handle::Handle(const char *name, bool public_service)
 {
     Error error;
     LSHandle *handle;
@@ -46,7 +46,7 @@ Service::Service(const char *name, bool public_service)
     _handle = handle;
 }
 
-Service &Service::operator=(Service &&other)
+Handle &Handle::operator=(Handle &&other)
 {
     if (_handle)
     {
@@ -61,7 +61,7 @@ Service &Service::operator=(Service &&other)
     return *this;
 }
 
-Service::~Service()
+Handle::~Handle()
 {
     if (_handle)
     {
@@ -74,15 +74,15 @@ Service::~Service()
     }
 }
 
-const char *Service::getName() const
+const char *Handle::getName() const
 {
     return LSHandleGetName(_handle);
 }
 
-void Service::registerCategory(const char *category,
-                               const LSMethod *methods,
-                               const LSSignal *signal,
-                               const LSProperty *properties)
+void Handle::registerCategory(const char *category,
+                              const LSMethod *methods,
+                              const LSSignal *signal,
+                              const LSProperty *properties)
 {
     Error error;
     if (!LSRegisterCategory(_handle,
@@ -96,9 +96,9 @@ void Service::registerCategory(const char *category,
     }
 }
 
-void Service::registerCategoryAppend(const char *category,
-                                     LSMethod *methods,
-                                     LSSignal *signal)
+void Handle::registerCategoryAppend(const char *category,
+                                    LSMethod *methods,
+                                    LSSignal *signal)
 {
     Error error;
 
@@ -109,8 +109,8 @@ void Service::registerCategoryAppend(const char *category,
     }
 }
 
-void Service::setDisconnectHandler(LSDisconnectHandler disconnect_handler,
-                                   void *user_data)
+void Handle::setDisconnectHandler(LSDisconnectHandler disconnect_handler,
+                                  void *user_data)
 {
     Error error;
 
@@ -121,7 +121,7 @@ void Service::setDisconnectHandler(LSDisconnectHandler disconnect_handler,
     }
 }
 
-void Service::setCategoryData(const char *category, void *user_data)
+void Handle::setCategoryData(const char *category, void *user_data)
 {
     Error error;
 
@@ -131,8 +131,8 @@ void Service::setCategoryData(const char *category, void *user_data)
     }
 }
 
-void Service::setCategoryDescription(const char *category,
-                                     jvalue_ref description)
+void Handle::setCategoryDescription(const char *category,
+                                    jvalue_ref description)
 {
     Error error;
 
@@ -142,7 +142,7 @@ void Service::setCategoryDescription(const char *category,
     }
 }
 
-void Service::pushRole(const char *role_path)
+void Handle::pushRole(const char *role_path)
 {
     Error error;
 
@@ -152,7 +152,7 @@ void Service::pushRole(const char *role_path)
     }
 }
 
-void Service::attachToLoop(GMainContext *context) const
+void Handle::attachToLoop(GMainContext *context) const
 {
     Error error;
 
@@ -162,7 +162,7 @@ void Service::attachToLoop(GMainContext *context) const
     }
 }
 
-void Service::attachToLoop(GMainLoop *loop) const
+void Handle::attachToLoop(GMainLoop *loop) const
 {
     Error error;
 
@@ -172,7 +172,7 @@ void Service::attachToLoop(GMainLoop *loop) const
     }
 }
 
-void Service::detach()
+void Handle::detach()
 {
     Error error;
 
@@ -183,7 +183,7 @@ void Service::detach()
     release();
 }
 
-void Service::setPriority(int priority) const
+void Handle::setPriority(int priority) const
 {
     Error error;
 
@@ -193,7 +193,7 @@ void Service::setPriority(int priority) const
     }
 }
 
-void Service::sendSignal(const char *uri, const char *payload, bool typecheck) const
+void Handle::sendSignal(const char *uri, const char *payload, bool typecheck) const
 {
     Error error;
 
@@ -213,20 +213,20 @@ void Service::sendSignal(const char *uri, const char *payload, bool typecheck) c
     }
 }
 
-Call Service::callOneReply(const char *uri,
-                           const char *payload,
-                           const char *appID)
+Call Handle::callOneReply(const char *uri,
+                          const char *payload,
+                          const char *appID)
 {
     Call call;
     call.call(_handle, uri, payload, true, appID);
     return call;
 }
 
-Call Service::callOneReply(const char *uri,
-                           const char *payload,
-                           LSFilterFunc func,
-                           void *context,
-                           const char *appID)
+Call Handle::callOneReply(const char *uri,
+                          const char *payload,
+                          LSFilterFunc func,
+                          void *context,
+                          const char *appID)
 {
     Call call;
     call.continueWith(func, context);
@@ -234,20 +234,20 @@ Call Service::callOneReply(const char *uri,
     return call;
 }
 
-Call Service::callMultiReply(const char *uri,
-                             const char *payload,
-                             const char *appID)
+Call Handle::callMultiReply(const char *uri,
+                            const char *payload,
+                            const char *appID)
 {
     Call call;
     call.call(_handle, uri, payload, false, appID);
     return call;
 }
 
-Call Service::callMultiReply(const char *uri,
-                             const char *payload,
-                             LSFilterFunc func,
-                             void *context,
-                             const char *appID)
+Call Handle::callMultiReply(const char *uri,
+                            const char *payload,
+                            LSFilterFunc func,
+                            void *context,
+                            const char *appID)
 {
     Call call;
     call.continueWith(func, context);
@@ -255,10 +255,10 @@ Call Service::callMultiReply(const char *uri,
     return call;
 }
 
-Call Service::callSignal(const char *category,
-                         const char *methodName,
-                         LSFilterFunc func,
-                         void *context)
+Call Handle::callSignal(const char *category,
+                        const char *methodName,
+                        LSFilterFunc func,
+                        void *context)
 {
     Call call;
     call.continueWith(func, context);
@@ -266,18 +266,18 @@ Call Service::callSignal(const char *category,
     return call;
 }
 
-ServerStatus Service::registerServerStatus(const char *service_name,
-                                           const ServerStatusCallback &callback)
+ServerStatus Handle::registerServerStatus(const char *service_name,
+                                          const ServerStatusCallback &callback)
 {
     return ServerStatus(_handle, service_name, callback);
 }
 
-Service::Service(LSHandle *handle)
+Handle::Handle(LSHandle *handle)
     : _handle(handle)
 {
 }
 
-LSHandle *Service::release()
+LSHandle *Handle::release()
 {
     LSHandle *handle = _handle;
     _handle = nullptr;
@@ -285,12 +285,12 @@ LSHandle *Service::release()
     return handle;
 }
 
-std::ostream &operator<<(std::ostream &os, const Service &service)
+std::ostream &operator<<(std::ostream &os, const Handle &service_handle)
 {
-    return os << "LUNA SERVICE '" << service.getName() << "'";
+    return os << "LUNA SERVICE '" << service_handle.getName() << "'";
 }
 
-Service registerService(const char *name, bool public_service)
+Handle registerService(const char *name, bool public_service)
 {
     return { name, public_service };
 }

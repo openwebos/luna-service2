@@ -38,7 +38,7 @@ namespace LS {
 
 class Call
 {
-    friend class Service;
+    friend class Handle;
 
 public:
 

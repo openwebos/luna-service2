@@ -32,7 +32,7 @@ class TestCategory
     : public ::testing::Test
 {
 protected:
-    LS::Service sh, sh_client;
+    LS::Handle sh, sh_client;
     GMainLoop *main_loop;
 
 private:
@@ -55,8 +55,8 @@ private:
 
     virtual void TearDown()
     {
-        ASSERT_NO_THROW({ sh = LS::Service(); });
-        ASSERT_NO_THROW({ sh_client = LS::Service(); });
+        ASSERT_NO_THROW({ sh = LS::Handle(); });
+        ASSERT_NO_THROW({ sh_client = LS::Handle(); });
         g_main_loop_unref(main_loop);
     }
 
@@ -65,7 +65,7 @@ protected:
 
     template<bool (TestCategory::*M)(LSMessage&)>
     static constexpr LSFilterFunc wrap()
-    { return &LS::Service::methodWraper<TestCategory, M>; }
+    { return &LS::Handle::methodWraper<TestCategory, M>; }
 
     void finish(bool done = true)
     { this->done = done; }

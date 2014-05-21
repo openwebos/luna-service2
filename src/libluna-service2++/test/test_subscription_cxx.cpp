@@ -52,7 +52,7 @@ public:
         _service.registerCategory("/testCalls", methods, nullptr, nullptr);
         _service.setCategoryData("/testCalls", this);
         _service.attachToLoop(_mainloop);
-        _sp.setService(&_service);
+        _sp.setServiceHandle(&_service);
     }
 
     ~TestService()
@@ -124,7 +124,7 @@ public:
 private:
     int32_t _postId;
     GMainLoop * _mainloop;
-    LS::Service _service;
+    LS::Handle _service;
     LS::SubscriptionPoint _sp;
 
 };
@@ -149,7 +149,7 @@ void serviceThreadFunc()
 void clientThreadFunc()
 {
     GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
-    LS::Service client = LS::registerService();
+    LS::Handle client = LS::registerService();
     client.attachToLoop(mainloop);
 
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
@@ -186,7 +186,7 @@ TEST(TestSubscriptionPoint, SubscriptionDisconnectTest)
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
-    LS::Service client = LS::registerService();
+    LS::Handle client = LS::registerService();
     client.attachToLoop(mainloop);
 
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
@@ -233,7 +233,7 @@ TEST(TestSubscriptionPoint, SubscriptionCancelTest)
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
-    LS::Service client = LS::registerService("com.palm.test_subscription_client");
+    LS::Handle client = LS::registerService("com.palm.test_subscription_client");
     client.attachToLoop(mainloop);
 
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
@@ -286,7 +286,7 @@ TEST(TestSubscriptionPoint, SubscriptionTestMultiClientTest)
 
     ASSERT_EQ(uint{3}, g_counter);
     GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
-    LS::Service client = LS::registerService("com.palm.test_subscription_client");
+    LS::Handle client = LS::registerService("com.palm.test_subscription_client");
     client.attachToLoop(mainloop);
 
     client.callOneReply("palm://com.palm.test_subscription_service/testCalls/stopCall", "{}");

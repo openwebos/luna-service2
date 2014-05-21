@@ -24,7 +24,7 @@
 
 namespace LS {
 
-class Service;
+class Handle;
 
 class Message
 {
@@ -128,7 +128,7 @@ public:
 
     void respond(const char *reply_payload);
 
-    void reply(Service &service, const char *reply_payload);
+    void reply(Handle &service_handle, const char *reply_payload);
 
 private:
     LSMessage *_message;

@@ -35,7 +35,7 @@ namespace LS {
       constexpr static const LSMethod table[] = {
 
 #define LS_CATEGORY_METHOD(name) { #name,               \
-      &LS::Service::methodWraper<cl_t, &cl_t::name>,    \
+      &LS::Handle::methodWraper<cl_t, &cl_t::name>,     \
       static_cast<LSMethodFlags>(0) },
 
 #define LS_CATEGORY_END };                              \
@@ -43,10 +43,9 @@ namespace LS {
     setCategoryData(category_name, this); \
     }
 
-
-class Service
+class Handle
 {
-    friend Service registerService(const char *, bool);
+    friend Handle registerService(const char *, bool);
 
 public:
     template<typename ClassT, bool (ClassT::*MethT)(LSMessage&)>
@@ -57,18 +56,18 @@ public:
     }
 
 
-    Service();
+    Handle();
 
-    Service(const Service &) = delete;
-    Service &operator=(const Service &) = delete;
+    Handle(const Handle &) = delete;
+    Handle &operator=(const Handle &) = delete;
 
-    Service(Service &&other);
+    Handle(Handle &&other);
 
-    Service(const char *name, bool public_service = false);
+    Handle(const char *name, bool public_service = false);
 
-    Service &operator=(Service &&other);
+    Handle &operator=(Handle &&other);
 
-    ~Service();
+    ~Handle();
 
     LSHandle *get() { return _handle; }
     const LSHandle *get() const { return _handle; }
@@ -128,13 +127,13 @@ private:
     LSHandle *_handle;
 
 private:
-    explicit Service(LSHandle *handle);
+    explicit Handle(LSHandle *handle);
 
     LSHandle *release();
 
-    friend std::ostream &operator<<(std::ostream &os, const Service &service);
+    friend std::ostream &operator<<(std::ostream &os, const Handle &service_handle);
 };
 
-Service registerService(const char *name = nullptr, bool public_service = false);
+Handle registerService(const char *name = nullptr, bool public_service = false);
 
 } //namespace LS;

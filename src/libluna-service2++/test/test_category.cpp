@@ -110,9 +110,11 @@ TEST_F(TestCategory, SetDescription)
     JRef description {
         { "methods", {
             { "ping", {
-                { "type", "object" },
-                { "description", "simple ping" },
-                { "additionalProperties", false },
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
             }},
         }},
     };
@@ -125,18 +127,99 @@ TEST_F(TestCategory, SetDescription)
     JRef description2 {
         { "methods", {
             { "ping", {
-                { "type", "object" },
-                { "description", "simple ping" },
-                { "additionalProperties", false },
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
             }},
             { "pong", {
+                { "call", {
+                    { "type", "object" },
+                    { "description", "simple ping" },
+                    { "additionalProperties", false },
+                }},
+            }},
+        }},
+    };
+    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description2.get()); });
+}
+
+TEST_F(TestCategory, ValidationWithRef)
+{
+    JRef description {
+        { "definitions", {
+            { "foo", {
                 { "type", "object" },
                 { "description", "simple ping" },
                 { "additionalProperties", false },
             }},
         }},
+        { "methods", {
+            { "ping", {
+                { "call", {
+                    { "$ref", "#/definitions/foo" }
+                    // { "oneOf", JRef::array({ { { "$ref", "#/definitions/foo" } } })},
+                }},
+            }},
+        }},
     };
-    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description2.get()); });
+
+    LSMethod methods[] = {
+        { "ping", wrap<&TestCategory::cbPing>(), LUNA_METHOD_FLAG_VALIDATE_IN },
+        { nullptr, nullptr },
+    };
+
+    ASSERT_NO_THROW({ sh.registerCategory("/", methods, nullptr, nullptr); });
+    ASSERT_NO_THROW({ sh.setCategoryData("/", this); });
+    EXPECT_NO_THROW({ sh.setCategoryDescription("/", description.get()); });
+
+    bool havePing = false;
+    ping = [&](LSMessage *m) {
+        finish();
+        havePing = true;
+        LS::Error e;
+        EXPECT_TRUE(LSMessageRespond(m, "{\"returnValue\":true, \"answer\":42}", e.get())) << e.what();
+        return true;
+    };
+
+    LS::Call call;
+    LS::Message reply;
+    JRef response;
+
+    {
+        SCOPED_TRACE("test against wrong param");
+        ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/ping", "{\"abc\":3}"); });
+        ASSERT_NO_THROW({ reply = call.get(100); });
+        EXPECT_FALSE(havePing);
+        EXPECT_TRUE(bool(reply));
+
+        if (reply)
+        {
+            response = fromJson(reply.getPayload());
+            EXPECT_EQ(JRef(false), response["returnValue"])
+                << "Actual response: " << ::testing::PrintToString(response);
+        }
+    }
+
+    {
+        SCOPED_TRACE("test against correct param");
+        ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/ping", "{}"); });
+        reply = {};
+        ASSERT_NO_THROW({ reply = call.get(100); });
+        EXPECT_TRUE(bool(reply));
+        EXPECT_TRUE(havePing);
+
+        if (reply)
+        {
+            response = fromJson(reply.getPayload());
+            JRef expected_answer {
+                { "returnValue", true },
+                { "answer", 42 },
+            };
+            EXPECT_EQ(expected_answer, response);
+        }
+    }
 }
 
 TEST_F(TestCategory, RegisterByMacro)

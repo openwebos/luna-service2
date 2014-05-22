@@ -22,62 +22,62 @@ namespace LS
 {
 
 PalmService::PalmService()
-    : _private_service(),
-      _public_service()
+    : _private_handle(),
+      _public_handle()
 {
 }
 
 void PalmService::registerCategory(const char *category,
                                    LSMethod *methods_public,
                                    LSMethod *methods_private,
-                                   LSSignal *langis)
+                                   LSSignal *signal)
 {
-    _public_service.registerCategory(category, methods_public, langis, NULL);
+    _public_handle.registerCategory(category, methods_public, signal, NULL);
 
-    _private_service.registerCategory(category, methods_private, langis, NULL);
-    _private_service.registerCategoryAppend(category, methods_public, langis);
+    _private_handle.registerCategory(category, methods_private, signal, NULL);
+    _private_handle.registerCategoryAppend(category, methods_public, signal);
 }
 
 void PalmService::pushRole(const char *role_path)
 {
-    _public_service.pushRole(role_path);
-    _private_service.pushRole(role_path);
+    _public_handle.pushRole(role_path);
+    _private_handle.pushRole(role_path);
 }
 
 void PalmService::attachToLoop(GMainLoop *loop) const
 {
-    _public_service.attachToLoop(loop);
-    _private_service.attachToLoop(loop);
+    _public_handle.attachToLoop(loop);
+    _private_handle.attachToLoop(loop);
 }
 
 void PalmService::attachToLoop(GMainContext *context) const
 {
-    _public_service.attachToLoop(context);
-    _private_service.attachToLoop(context);
+    _public_handle.attachToLoop(context);
+    _private_handle.attachToLoop(context);
 }
 
 void PalmService::setPriority(int priority) const
 {
-    _public_service.setPriority(priority);
-    _private_service.setPriority(priority);
+    _public_handle.setPriority(priority);
+    _private_handle.setPriority(priority);
 }
 
-PalmService::PalmService(Service &&private_handle, Service &&public_handle)
-    : _private_service(std::move(private_handle)),
-      _public_service(std::move(public_handle))
+PalmService::PalmService(Handle &&private_handle, Handle &&public_handle)
+    : _private_handle(std::move(private_handle)),
+      _public_handle(std::move(public_handle))
 {
 }
 
 std::ostream &operator<<(std::ostream &os, const PalmService &service)
 {
-    return os << "LUNA PALM SERVICE '" << service.getPrivateConnection().getName() << "'";
+    return os << "LUNA PALM SERVICE '" << service.getPrivateHandle().getName() << "'";
 
 }
 
 PalmService registerPalmService(const char *name)
 {
-    Service public_handle = registerService(name, true);
-    Service private_handle = registerService(name, false);
+    Handle public_handle = registerService(name, true);
+    Handle private_handle = registerService(name, false);
 
     return PalmService(std::move(private_handle), std::move(public_handle));
 }

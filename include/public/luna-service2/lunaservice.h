@@ -41,77 +41,21 @@ extern "C" {
 #endif
 
 /**
- * @page
- * @addtogroup LunaServiceExample
- *
- * <h1>LunaService</h1>
- *
- * <em>Example client usage:</em>
- *
-@code
-bool retVal;
-LSError lserror;
-LSErrorInit(&lserror);
+@page
+@addtogroup LunaServiceExample
 
-LSHandle *serviceHandle;
-retVal = LSRegister(NULL, &serviceHandle, &lserror);
-if (!retVal) goto error;
+<h1>LunaService</h1>
 
-retVal = LSCall(serviceHandle, "luna://com.palm.contacts/category/listContacts",
-        "{ \"json payload\" }", listContactsHandler, user_data, &token, &lserror);
-if (!retVal) goto error;
+<em>Example client usage:</em>
 
-LSGmainAttach(serviceHandle, gmainLoop, &lserror);
-g_main_loop_run(gmainLoop);
-@endcode
+@snippet test_example.c client call
 
 
 <em>Example service usage.</em>
 
-@code
-// callback
-static bool
-listContacts(LSHandle *sh, LSMessage *message)
-{
-     LSMessage *reply = NULL;
+@snippet test_example.c method implementation
 
-     bool retVal;
-     LSError lserror;
-     LSErrorInit(&lserror);
-
-     retVal = LSMessageReply(sh, message, "{ JSON REPLY PAYLOAD }", &lserror);
-     if (!retVal)
-     {
-         LSErrorLog(loggingCtx, msgId, &lserror);
-         LSErrorFree(&lserror);
-     }
-
-     return retVal;
-}
-
-static LSMethod ipcMethods[] = {
-   { "listContacts", listContacts },
-   { },
-};
-...
-
-// Service registration thread
-bool retVal;
-LSError lserror;
-LSErrorInit(&lserror);
-
-LSHandle *serviceHandle;
-retVal = LSRegister("com.palm.contacts", &serviceHandle, &lserror);
-if (!retVal) goto error;
-
-retVal = LSRegisterCategory(serviceHandle, "/category",  ipcMethods, NULL, NULL, &lserror);
-if (!retVal) goto error;
-
-retVal = LSGmainAttach(serviceHandle, gmainLoop, &lserror);
-if (!retVal) goto error;
-
-g_main_loop_run(gmainLoop);
-@endcode
+@snippet test_example.c service registration
 
 <em>Storing a message for replying in another thread.</em>
 @code
@@ -149,84 +93,6 @@ SomeOtherThread()
     }
 
     ....
-}
-
-@endcode
-
-<em>Example run loop via select.  See LSCustomSelectExample() for
-latest example.</em>
-
-@code
-
-bool retVal;
-
-do
-{
-    int nfd = -1;
-    fd_set rdfds, wrfds, exfds;
-
-    FD_ZERO(&rdfds);
-    FD_ZERO(&wrfds);
-    FD_ZERO(&exfds);
-
-    retVal = LSCustomGetFds(sh, &nfd, &rdfds, &wrfds, &exfds, lserror);
-    if (!retVal) return -1;
-
-    int ret = select(nfd, &rdfds, &wrfds, &exfds, NULL);
-    if (ret < 0)
-    {
-        perror("select");
-        break;
-    }
-
-    // Pull incoming bytes off socket and push outgoing bytes onto it.
-    retVal = LSCustomSendRecvBytes(sh, &rdfds, &wrfds, &exfds, lserror);
-    if (!retVal)
-    {
-        break;
-    }
-
-    // Transmit byte and Dispatch incomming at most 1 message
-    retVal = LSCustomDispatchMessage(sh, NULL, lserror);
-    if (!retVal)
-    {
-        break;
-    }
-
-} while (true);
-
-@endcode
-
-<em>Example run loop via select if you want to handle messages directly.</em>
-
-@code
-
-while (serviceRunning)
-{
-    fd_set rdfds, wrfds, exfds;
-    FD_ZERO(&rdfds);
-    FD_ZERO(&wrfds);
-    FD_ZERO(&exfds);
-
-    LSGetFd(serviceHandle, &maxfd, &rdfds, &wrfds, &exfds, &lserror);
-
-    ret = select(maxfd, &rdfds, &wrfds, &exfds, NULL);
-    if (ret > 0)
-    {
-        LSMessage *message;
-        char *reply = NULL;
-
-        LSMessageFetch(serviceHandle, &message, &lserror);
-
-        if (strcmp(LSMessageGetName(message), "listContacts"))
-        {
-            char *payload;
-            payload = LSMessageGetPayload(message);
-            ...
-            reply = "{ JSON PAYLOAD }";
-            LSMessageReply(serviceHandle, message, reply, &lserror);
-        }
-    }
 }
 
 @endcode

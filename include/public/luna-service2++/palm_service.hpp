@@ -19,7 +19,7 @@
 #pragma once
 
 #include <luna-service2/lunaservice.h>
-#include "service.hpp"
+#include "handle.hpp"
 #include <cstring>
 #include <iostream>
 
@@ -39,14 +39,13 @@ public:
     PalmService &operator=(PalmService &&) = default;
 
     void registerCategory(const char *category, LSMethod *methods_public,
-                          LSMethod *methods_private, LSSignal *langis);
+                          LSMethod *methods_private, LSSignal *signal);
 
-    Service &getPublicConnection() { return _public_service; }
-    const Service &getPublicConnection() const { return _public_service; }
+    Handle &getPublicHandle() { return _public_handle; }
+    const Handle &getPublicHandle() const { return _public_handle; }
 
-    Service &getPrivateConnection() { return _private_service; }
-    const Service &getPrivateConnection() const { return _private_service; }
-
+    Handle &getPrivateHandle() { return _private_handle; }
+    const Handle &getPrivateHandle() const { return _private_handle; }
 
     void pushRole(const char *role_path);
 
@@ -57,10 +56,10 @@ public:
     void setPriority(int priority) const;
 
 private:
-    Service _private_service, _public_service;
+    Handle _private_handle, _public_handle;
 
 private:
-    explicit PalmService(Service &&private_handle, Service &&public_handle);
+    explicit PalmService(Handle &&private_handle, Handle &&public_handle);
 
     friend std::ostream &operator<<(std::ostream &os, const PalmService &service);
 };

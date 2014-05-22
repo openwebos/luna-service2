@@ -71,7 +71,7 @@ protected:
     }
 
     GMainLoop * _mainloop;
-    LS::Service _service;
+    LS::Handle _service;
     LS::Call * _call;
 
     enum ResultFlag
@@ -138,7 +138,7 @@ TEST_F(CallTest, ExceptionOnInvalidPayload)
 // Tests LS::Call throw exception if LSCallXXXX fails
 TEST_F(CallTest, ExceptionOnInvalidHandle)
 {
-    LS::Service service;
+    LS::Handle service;
     ASSERT_THROW(service.callOneReply(SIMPLE_URI, "{}"), LS::Error);
 }
 
@@ -215,28 +215,28 @@ TEST_F(CallTest, DISABLED_CallTimeoutExpiration)
 TEST_F(CallTest, MainLoopGet)
 {
     LS::Call call = _service.callMultiReply(SUBSCRIBE_URI, R"({"subscribe": true, "timeout": 100})");
-    LSMessage * reply = call.get();
-    ASSERT_NE(nullptr, reply);
+    auto reply = call.get();
+    ASSERT_TRUE(bool(reply));
     reply = call.get();
-    ASSERT_NE(nullptr, reply);
+    ASSERT_TRUE(bool(reply));
 }
 
 // Tests get interface with timeout (wait failed)
 TEST_F(CallTest, MainLoopGetTimeoutFail)
 {
     LS::Call call = _service.callMultiReply(TIMEOUT_URI, R"({"subscribe": true, "timeout": 300})");
-    LSMessage * reply = call.get(150);
-    ASSERT_EQ(nullptr, reply);
+    auto reply = call.get(150);
+    ASSERT_FALSE(bool(reply));
     reply = call.get();
-    ASSERT_NE(nullptr, reply);
+    ASSERT_TRUE(bool(reply));
 }
 
 // Tests get interface with timeout (wait succeeded)
 TEST_F(CallTest, MainLoopGetTimeoutSuccess)
 {
     LS::Call call = _service.callMultiReply(TIMEOUT_URI, R"({"subscribe": true, "timeout": 200})");
-    LSMessage * reply = call.get(250);
-    ASSERT_NE(nullptr, reply);
+    auto reply = call.get(250);
+    ASSERT_TRUE(bool(reply));
 }
 
 }  // anonymous namespace

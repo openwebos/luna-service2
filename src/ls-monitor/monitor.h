@@ -26,7 +26,7 @@
 #include "transport.h"
 
 void _LSMonitorGetTime(struct timespec *time);
-void _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool public_bus);
-double _LSMonitorTimeDiff(struct timespec *time1, struct timespec *time2);
+void _LSMonitorMessagePrint(_LSTransportMessage *message, bool public_bus);
+double _LSMonitorTimeDiff(const struct timespec const *time1, const struct timespec const *time2);
 
 #endif  /* _MONITOR_H */

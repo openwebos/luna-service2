@@ -56,6 +56,7 @@
 #define MSGID_LSHUB_NO_SERVICE                  "LSHUB_NO_SERVICE"      /** Failed to get service name for message */
 #define MSGID_LSHUB_NO_SIGNAL_PERMS             "LSHUB_NO_SIGNAL_PERMS" /** Not allowed to send signals */
 #define MSGID_LSHUB_PEER_NAME_ERR               "LSHUB_PEER_NAME"       /** Getpeername failed */
+#define MSGID_LSHUB_PENDING_CONNECT_ERR         "LSHUB_PNDING_CONN_ERR" /** Failed to connect to the pending client */
 #define MSGID_LSHUB_PIPE_ERR                    "LSHUB_PIPE"            /** Pipe error */
 #define MSGID_LSHUB_PUSH_ROLE_ERR               "LSHUB_PUSH_ROLE"       /** Error due role pushing */
 #define MSGID_LSHUB_REG_REPLY_ERR               "LSHUB_REG_REPLY"       /** error sending signal registration reply */
@@ -97,6 +98,7 @@
 #define MSGID_LS_CANT_PING                      "LS_CANT_PING"          /** Sending ping failed */
 #define MSGID_LS_CANT_CANCEL_METH               "LS_CANC_METH"          /** Can't cancel method */
 #define MSGID_LS_CATALOG_ERR                    "LS_CATALOG_REG"        /** Error in subscription catalog */
+#define MSGID_LS_CATEGORY_FIRST_SLASH           "LS_CATEG_FIRST_SLASH"  /** Category MUST begin with slash*/
 #define MSGID_LS_CATEGORY_REGISTERED            "LS_CATEG_REG"          /** Category is already registered */
 #define MSGID_LS_CHANNEL_ERR                    "LS_CHAN"               /** Channel error */
 #define MSGID_LS_CLOCK_ERROR                    "LS_CLOCK"              /** Monotonic clock error */

@@ -23,7 +23,6 @@
  */
 
 #include "category.h"
-#include "lserror_pbnjson.h"
 #include "simple_pbnjson.h"
 
 #include "luna-service2/lunaservice.h"
@@ -56,25 +55,15 @@ _LSCategoryTableFree(LSCategoryTable *table)
     g_free(table);
 }
 
-static char*
-_category_to_object_path_alloc(const char *category)
+inline const char*
+_category_to_object_path(const char *category)
 {
-    char *category_path;
-
     if (NULL == category)
-    {
-        category_path = g_strdup("/"); // default category
-    }
-    else if ('/' == category[0])
-    {
-        category_path = g_strdup(category);
-    }
-    else
-    {
-        category_path = g_strdup_printf("/%s", category);
-    }
+        return "/"; // default category
 
-    return category_path;
+    assert(*category=='/');
+
+    return category;
 }
 
 static bool
@@ -82,24 +71,15 @@ _category_exists(LSHandle *sh, const char *category)
 {
     if (!sh->tableHandlers) return false;
 
-    char *category_path = _category_to_object_path_alloc(category);
-    bool exists = false;
-
-    if (g_hash_table_lookup(sh->tableHandlers, category_path))
-    {
-        exists = true;
-    }
-
-    g_free(category_path);
-
-    return exists;
+    const char *category_path = _category_to_object_path(category);
+    return g_hash_table_lookup(sh->tableHandlers, category_path);
 }
 
 static LSCategoryTable *
 LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
 {
     LSCategoryTable *table;
-    char *categoryPath = _category_to_object_path_alloc(category);
+    const char *categoryPath = _category_to_object_path(category);
 
     _LSErrorGotoIfFail(fail, sh->tableHandlers != NULL, error, MSGID_LS_NO_CATEGORY_TABLE,
         -1, "%s: %s not registered.", __FUNCTION__, category);
@@ -108,12 +88,9 @@ LSHandleGetCategory(LSHandle *sh, const char *category, LSError *error)
     _LSErrorGotoIfFail(fail, table != NULL, error, MSGID_LS_NO_CATEGORY,
         -1, "%s: %s not registered.", __FUNCTION__, category);
 
-    g_free(categoryPath);
     return table;
 
 fail:
-    g_free(categoryPath);
-
     return NULL;
 }
 
@@ -133,7 +110,10 @@ static void LSMethodEntrySet(LSMethodEntry *entry, LSMethod *method)
 
     /* clean out call schema if no validation needed */
     if (!(entry->flags & LUNA_METHOD_FLAG_VALIDATE_IN))
-    { jschema_release(&entry->schema_call); }
+    {
+        jschema_release(&entry->schema_call);
+        entry->schema_call = NULL;
+    }
 }
 
 static void LSMethodEntryFree(void *methodEntry)
@@ -148,33 +128,6 @@ static void LSMethodEntryFree(void *methodEntry)
     jschema_release(&entry->schema_firstReply);
 
     g_slice_free(LSMethodEntry, methodEntry);
-}
-
-static jvalue_ref jvalue_shallow(jvalue_ref value)
-{
-    if (jis_array(value))
-    {
-        jvalue_ref array = jarray_create_hint(NULL, jarray_size(value));
-        jarray_splice_append(array, value, SPLICE_COPY);
-        return array;
-    }
-    else if (jis_object(value))
-    {
-        jobject_iter iter;
-        if (!jobject_iter_init(&iter, value))
-        { return jinvalid(); }
-
-        jvalue_ref object = jobject_create();
-
-        jobject_key_value keyval;
-        while (jobject_iter_next(&iter, &keyval))
-        {
-            jobject_set2(object, keyval.key, keyval.value);
-        }
-        return object;
-    }
-    else
-    { return jvalue_duplicate(value); }
 }
 
 /* unfortunately J_CSTR_TO_JVAL(xxx) is not a constant */
@@ -407,6 +360,13 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
 {
     LSHANDLE_VALIDATE(sh);
 
+    if (category && *category != '/')
+    {
+        _LSErrorSet(lserror, MSGID_LS_CATEGORY_FIRST_SLASH, -1,
+                    "Category MUST begin with slash. Category: \"%s\"", category);
+        return false;
+    }
+
     LSCategoryTable *table = NULL;
 
     if (!sh->tableHandlers)
@@ -416,7 +376,7 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
             /*value*/ (GDestroyNotify)_LSCategoryTableFree);
     }
 
-    char *category_path = _category_to_object_path_alloc(category);
+    const char *category_path = _category_to_object_path(category);
 
     table =  g_hash_table_lookup(sh->tableHandlers, category_path);
     if (!table)
@@ -429,19 +389,8 @@ LSRegisterCategoryAppend(LSHandle *sh, const char *category,
         table->category_user_data = NULL;
         table->description = NULL;
 
-        g_hash_table_replace(sh->tableHandlers, category_path, table);
+        g_hash_table_replace(sh->tableHandlers, strdup(category_path), table);
 
-    }
-    else
-    {
-        /*
-         * We've already registered the category, so free the unneeded
-         * category_path. This will happen when we call
-         * LSRegisterCategoryAppend multiple times with the same category
-         * (i.e., LSPalmServiceRegisterCategory)
-         */
-        g_free(category_path);
-        category_path = NULL;
     }
 
     /* Add methods to table. */
@@ -627,6 +576,10 @@ bool LSCategorySetDescription(
             }
             else
             { entry->schema_call = jschema_all(); }
+        }
+        else
+        {
+            entry->schema_call = NULL;
         }
 
         /* TODO: introduce global switch that turns on replies validation */

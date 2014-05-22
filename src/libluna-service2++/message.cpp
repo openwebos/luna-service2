@@ -18,9 +18,26 @@
 
 #include "message.hpp"
 #include "error.hpp"
+#include "handle.hpp"
 
 namespace LS
 {
+
+Message::Message(const Message &o)
+{
+    _message = o._message;
+    if (_message) LSMessageRef(_message);
+}
+
+Message& Message::operator=(const Message &o)
+{
+    if (this == &o)
+        return *this;
+    if (_message) LSMessageUnref(_message);
+    _message = o._message;
+    if (_message) LSMessageRef(_message);
+    return *this;
+}
 
 Message &Message::operator=(Message &&other)
 {
@@ -28,7 +45,6 @@ Message &Message::operator=(Message &&other)
     {
         LSMessageUnref(_message);
     }
-    _service = other._service;
     _message = other._message;
     other._message = nullptr;
     return *this;
@@ -42,11 +58,11 @@ std::ostream &operator<<(std::ostream &os, const Message &message)
         << message.getPayload();
 }
 
-void Message::reply(Service &service, const char *reply_payload)
+void Message::reply(Handle &service_handle, const char *reply_payload)
 {
     Error error;
 
-    if (!LSMessageReply(service.get(), _message, reply_payload, error.get()))
+    if (!LSMessageReply(service_handle.get(), _message, reply_payload, error.get()))
     {
         throw error;
     }

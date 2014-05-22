@@ -29,7 +29,7 @@ TEST(TestClient, RegisterService)
     // TO-DO: Test category registration with new method tables
     const char *service_name = "com.palm.test_client";
 
-    LS::Service srv;
+    LS::Handle srv;
 
     EXPECT_NO_THROW(srv = LS::registerService(service_name));
     EXPECT_THROW(LS::registerService(service_name), LS::Error);
@@ -51,8 +51,8 @@ TEST(TestClient, RegisterPalmService)
     EXPECT_THROW(LS::registerService(service_name), LS::Error);
     EXPECT_THROW(LS::registerService(service_name, true), LS::Error);
 
-    EXPECT_STREQ(srv.getPrivateConnection().getName(), service_name);
-    EXPECT_STREQ(srv.getPublicConnection().getName(), service_name);
+    EXPECT_STREQ(srv.getPrivateHandle().getName(), service_name);
+    EXPECT_STREQ(srv.getPublicHandle().getName(), service_name);
 
     EXPECT_NO_THROW(srv.registerCategory("/test_cat", nullptr, nullptr, nullptr));
 }
@@ -63,7 +63,7 @@ TEST(TestClient, Mainloop)
 
     GMainLoop *main_loop = g_main_loop_new(nullptr, false);
 
-    LS::Service srv = LS::registerService(service_name);
+    LS::Handle srv = LS::registerService(service_name);
     EXPECT_NO_THROW(srv.attachToLoop(main_loop));
     EXPECT_NO_THROW(srv.detach());
 
@@ -75,8 +75,8 @@ TEST(TestClient, Mainloop)
     LS::PalmService plmsrv = LS::registerPalmService(service_name);
     EXPECT_NO_THROW(plmsrv.attachToLoop(g_main_loop_get_context(main_loop)));
     EXPECT_NO_THROW(plmsrv.setPriority(5));
-    EXPECT_NO_THROW(plmsrv.getPrivateConnection().detach());
-    EXPECT_NO_THROW(plmsrv.getPublicConnection().detach());
+    EXPECT_NO_THROW(plmsrv.getPrivateHandle().detach());
+    EXPECT_NO_THROW(plmsrv.getPublicHandle().detach());
 }
 
 namespace {
@@ -101,10 +101,10 @@ TEST(TestClient, Signals)
     GMainLoop *receiver_main_loop = g_main_loop_new(nullptr, false);
     threads.emplace_back([&](){ g_main_loop_run(receiver_main_loop); });
 
-    LS::Service provider = LS::registerService("com.palm.test_signal_provider");
+    LS::Handle provider = LS::registerService("com.palm.test_signal_provider");
     provider.attachToLoop(provider_main_loop);
 
-    LS::Service receiver = LS::registerService("com.palm.test_signal_receiver");
+    LS::Handle receiver = LS::registerService("com.palm.test_signal_receiver");
     receiver.attachToLoop(receiver_main_loop);
 
     LS::Call signal;
@@ -144,7 +144,7 @@ TEST(TestClient, ServerStatus)
     GMainLoop *listener_main_loop = g_main_loop_new(nullptr, false);
     threads.emplace_back([&](){ g_main_loop_run(listener_main_loop); });
 
-    LS::Service listener = LS::registerService("com.palm.test_status_listener");
+    LS::Handle listener = LS::registerService("com.palm.test_status_listener");
     listener.attachToLoop(listener_main_loop);
 
     LS::ServerStatus status;
@@ -152,7 +152,7 @@ TEST(TestClient, ServerStatus)
     usleep(1000);
     EXPECT_FALSE(is_active);
 
-    LS::Service server = LS::registerService("com.palm.test_status_server");
+    LS::Handle server = LS::registerService("com.palm.test_status_server");
     server.attachToLoop(listener_main_loop);
     usleep(1000);
     EXPECT_TRUE(is_active);

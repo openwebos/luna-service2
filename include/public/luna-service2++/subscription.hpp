@@ -36,7 +36,7 @@ class SubscriptionPoint
     friend class SubscriptionPoint;
 
     private:
-        SubscriptionItem(LS::Message &&_message,
+        SubscriptionItem(LS::Message _message,
                          LS::SubscriptionPoint *_parent);
 
     public:
@@ -59,7 +59,7 @@ friend struct SubscriptionItem;
 public:
     SubscriptionPoint() : SubscriptionPoint{nullptr} {}
 
-    explicit SubscriptionPoint(Service *service);
+    explicit SubscriptionPoint(Handle *service_handle);
 
     ~SubscriptionPoint();
 
@@ -68,14 +68,14 @@ public:
     SubscriptionPoint(SubscriptionPoint &&) = delete;
     SubscriptionPoint &operator=(SubscriptionPoint &&) = delete;
 
-    void setService(Service *service);
+    void setServiceHandle(Handle *service_handle);
 
     bool subscribe(LS::Message &message);
 
     bool post(const char *payload);
 
 private:
-    Service *_service;
+    Handle *_service_handle;
     std::vector<SubscriptionItem *> _subs;
 
     void setCancelNotificationCallback();

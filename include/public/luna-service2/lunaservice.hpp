@@ -20,8 +20,38 @@
 
 #include "luna-service2++/error.hpp"
 #include "luna-service2++/message.hpp"
-#include "luna-service2++/service.hpp"
+#include "luna-service2++/handle.hpp"
 #include "luna-service2++/palm_service.hpp"
 #include "luna-service2++/call.hpp"
 #include "luna-service2++/payload.hpp"
 #include "luna-service2++/subscription.hpp"
+
+
+/// @defgroup LunaServicePP
+/// @ingroup Luna
+/// @brief Luna Services C++ API.
+
+/// @page
+/// @defgroup LunaServicePPExample
+/// @ingroup LunaServicePP
+/// @brief Luna Services C++ API examples.
+///
+/// <h1>LunaService++</h1>
+///
+/// <em>Example synchronous client usage:</em>
+///
+/// @snippet test_example++.cpp synchronous client call
+///
+/// <em>Example asynchronous client usage:</em>
+///
+/// @snippet test_example++.cpp asynchronous client call
+///
+/// <em>Example service usage:</em>
+///
+/// @snippet test_example++.cpp method implementation
+/// @snippet test_example++.cpp service registration
+///
+/// <em>Example C++ service usage:</em>
+///
+/// @snippet test_example++.cpp memfun service registration
+/// @snippet test_example++.cpp memfun service initialization

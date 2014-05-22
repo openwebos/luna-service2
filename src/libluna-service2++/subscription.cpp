@@ -17,10 +17,12 @@
 // LICENSE@@@
 
 #include "subscription.hpp"
+#include "error.hpp"
+#include "handle.hpp"
 
 namespace LS {
 
-inline SubscriptionPoint::SubscriptionItem::SubscriptionItem(LS::Message &&_message,
+inline SubscriptionPoint::SubscriptionItem::SubscriptionItem(LS::Message _message,
                                                              LS::SubscriptionPoint *_parent)
     : message{ std::move(_message) },
       parent{ _parent },
@@ -36,7 +38,7 @@ SubscriptionPoint::SubscriptionItem::~SubscriptionItem()
     }
 }
 
-SubscriptionPoint::SubscriptionPoint(LS::Service *service): _service {service}
+SubscriptionPoint::SubscriptionPoint(LS::Handle *service_handle): _service_handle {service_handle}
 {
     setCancelNotificationCallback();
 }
@@ -49,18 +51,18 @@ SubscriptionPoint::~SubscriptionPoint()
 
 bool SubscriptionPoint::subscribe(LS::Message &message)
 {
-    if (!_service)
+    if (!_service_handle)
         return false;
     bool retVal {false};
     try
     {
         std::unique_ptr<SubscriptionItem> item
-        {new SubscriptionItem({&message.getService(), message.get()}, this)};
+        {new SubscriptionItem(message, this)};
 
         LS::Error error;
         LS::JSONPayload payload;
         payload.set("serviceName", message.getSender());
-        retVal = LSCall(_service->get(), "palm://com.palm.bus/signal/registerServerStatus",
+        retVal = LSCall(_service_handle->get(), "palm://com.palm.bus/signal/registerServerStatus",
                         payload.getJSONString().c_str(), subscriberDownCB, item.get(),
                         &item->statusToken, error.get());
         if (retVal)
@@ -75,22 +77,22 @@ bool SubscriptionPoint::subscribe(LS::Message &message)
     return retVal;
 }
 
-void SubscriptionPoint::setService(LS::Service *service)
+void SubscriptionPoint::setServiceHandle(LS::Handle *service_handle)
 {
-    _service = service;
+    _service_handle = service_handle;
     setCancelNotificationCallback();
 }
 
 bool SubscriptionPoint::post(const char *payload)
 {
-    if (!_service)
+    if (!_service_handle)
         return false;
 
     try
     {
         for (auto subscriber: _subs)
         {
-            subscriber->message.reply(*_service, payload);
+            subscriber->message.reply(*_service_handle, payload);
         }
     }
     catch(LS::Error &e)
@@ -107,14 +109,14 @@ bool SubscriptionPoint::post(const char *payload)
 
 void SubscriptionPoint::setCancelNotificationCallback()
 {
-    if (_service)
-        LSCallCancelNotificationAdd(_service->get(), subscriberCancelCB, this, LS::Error().get());
+    if (_service_handle)
+        LSCallCancelNotificationAdd(_service_handle->get(), subscriberCancelCB, this, LS::Error().get());
 }
 
 void SubscriptionPoint::unsetCancelNotificationCallback()
 {
-    if (_service)
-        LSCallCancelNotificationRemove(_service->get(), subscriberCancelCB, this, LS::Error().get());
+    if (_service_handle)
+        LSCallCancelNotificationRemove(_service_handle->get(), subscriberCancelCB, this, LS::Error().get());
 }
 
 bool SubscriptionPoint::subscriberCancelCB(LSHandle *sh, const char *uniqueToken, void *context)
@@ -180,7 +182,7 @@ void SubscriptionPoint::cleanItem(LS::SubscriptionPoint::SubscriptionItem *item)
     if (item->statusToken != LSMESSAGE_TOKEN_INVALID)
     {
         LS::Error error;
-        LSCallCancel(_service->get(), item->statusToken, error.get());
+        LSCallCancel(_service_handle->get(), item->statusToken, error.get());
         item->statusToken = LSMESSAGE_TOKEN_INVALID;
     }
 }

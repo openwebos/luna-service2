@@ -33,7 +33,7 @@ set(SOURCE
     palm_service.cpp
     payload.cpp
     server_status.cpp
-    service.cpp
+    handle.cpp
     subscription.cpp
 )
 

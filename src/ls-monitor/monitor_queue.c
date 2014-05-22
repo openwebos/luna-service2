@@ -16,13 +16,12 @@
 *
 * LICENSE@@@ */
 
-
+#include "clock.h"
 #include "monitor.h"
 #include "monitor_queue.h"
 
 struct _LSMonitorQueueItem
 {
-    struct timespec timestamp;
     _LSTransportMessage *message;
 };
 
@@ -58,7 +57,6 @@ _LSMonitorQueueMessage(_LSMonitorQueue *queue, _LSTransportMessage *message)
     /* save the time that the message was received along with the message */
     _LSMonitorQueueItem *item = g_slice_new0(_LSMonitorQueueItem);
 
-    _LSMonitorGetTime(&item->timestamp);
     item->message = message;
     _LSTransportMessageRef(message);
 
@@ -110,76 +108,52 @@ _LSMonitorQueueSerialsSortFunc(gconstpointer a, gconstpointer b, gpointer user_d
     const _LSMonitorQueueItem *item_a = a;
     const _LSMonitorQueueItem *item_b = b;
 
-    _LSTransportMonitorSerial serial_a = _LSTransportMessageGetMonitorSerial(item_a->message);
-    _LSTransportMonitorSerial serial_b = _LSTransportMessageGetMonitorSerial(item_b->message);
+    const _LSMonitorMessageData *message_data_a = _LSTransportMessageGetMonitorMessageData(item_a->message);
+    const _LSMonitorMessageData *message_data_b = _LSTransportMessageGetMonitorMessageData(item_b->message);
 
-    return (serial_a - serial_b);
-}
-
-static gint
-_LSMonitorQueueTimestampsSortFunc(gconstpointer a, gconstpointer b, gpointer user_data)
-{
-    const _LSMonitorQueueItem *item_a = a;
-    const _LSMonitorQueueItem *item_b = b;
-
-    int sec_diff = item_a->timestamp.tv_sec - item_b->timestamp.tv_sec;
-
-    return sec_diff ? sec_diff : item_a->timestamp.tv_nsec - item_b->timestamp.tv_nsec;
+    return (message_data_a->serial - message_data_b->serial);
 }
 
 void
-_LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, gboolean debug_output, gboolean sort_by_timestamps)
+_LSMonitorQueuePrint(_LSMonitorQueue *queue, int msecs, GHashTable *hash_table, gboolean debug_output)
 {
     struct timespec now;
-    _LSMonitorGetTime(&now);
+    ClockGetTime(&now);
 
     /* Get all messages older than msecs and save in a new queue */
     GQueue *orig_queue = queue->queue;
-    GQueue *print_queue = g_queue_new();
     _LSMonitorQueueItem *item = NULL;
 
-    while ((item = g_queue_peek_head(orig_queue)) != NULL)
-    {
-        double time_diff = _LSMonitorTimeDiff(&now, &item->timestamp);
-
-        if (time_diff * 1000.0 >= msecs)
-        {
-            g_queue_push_tail(print_queue, g_queue_pop_head(orig_queue));
-        }
-        else
-        {
-           break;
-        }
-    }
-
-    if (sort_by_timestamps)
-    {
-        /* sort the print list by timestamps */
-        g_queue_sort(print_queue, _LSMonitorQueueTimestampsSortFunc, NULL);
-    }
-    else
-    {
-        /* sort the print list by serial number */
-        g_queue_sort(print_queue, _LSMonitorQueueSerialsSortFunc, NULL);
-    }
+    /* sort the print list by serial number */
+    g_queue_sort(orig_queue, _LSMonitorQueueSerialsSortFunc, NULL);
 
     char first = 'F';
     /* print and free the sorted items */
-    while (!g_queue_is_empty(print_queue))
+    while (!g_queue_is_empty(orig_queue))
     {
-        item = g_queue_pop_head(print_queue);
+        item = g_queue_pop_head(orig_queue);
 
-        if (debug_output)
+        const _LSMonitorMessageData *message_data = _LSTransportMessageGetMonitorMessageData(item->message);
+
+        if (message_data)
         {
-            char last = g_queue_is_empty(print_queue) ? 'L' : ' ';
-            fprintf(stdout, "[%c%c%c %"PRIu64"]\t", _OutOfOrder(hash_table, item->message) ? 'X' : ' ', first, last, _LSTransportMessageGetMonitorSerial(item->message));
+            double time_diff = _LSMonitorTimeDiff(&now, &message_data->timestamp);
+
+            if (time_diff * 1000.0 < msecs)
+            {
+                g_queue_push_tail(orig_queue, item);
+                break;
+            }
+
+            if (debug_output)
+            {
+                char last = g_queue_is_empty(orig_queue) ? 'L' : ' ';
+                fprintf(stdout, "[%c%c%c %"PRIu64"]\t", _OutOfOrder(hash_table, item->message) ? 'X' : ' ', first, last, message_data->serial);
+            }
+            _LSMonitorMessagePrint(item->message, queue->public);
+            _LSMonitorQueueItemFree(item);
+
+            first = ' ';
         }
-
-        _LSMonitorMessagePrint(item->message, &item->timestamp, queue->public);
-        _LSMonitorQueueItemFree(item);
-
-        first = ' ';
     }
-
-    g_queue_free(print_queue);
 }

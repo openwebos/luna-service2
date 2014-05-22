@@ -27,8 +27,9 @@
 
 #include <stdbool.h>
 #include <string.h>
-
 #include <pbnjson.h>
+
+#include "luna-service2/lunaservice.h"
 
 /**
  * Handy macro to define local C-string from raw_buffer
@@ -52,5 +53,23 @@ buffer_eq_cstr(raw_buffer buf, const char *cstr)
 	return strlen(cstr) == buf.m_len
 		&& memcmp(cstr, buf.m_str, buf.m_len) == 0;
 }
+
+/**
+ * Test jstring representation with C-string representation for equivalence
+ */
+static inline bool
+jstr_eq_cstr(jvalue_ref jstr, const char *cstr)
+{ return buffer_eq_cstr(jstring_get_fast(jstr), cstr); }
+
+/**
+ * Create shallow copy of jvalue
+ */
+jvalue_ref jvalue_shallow(jvalue_ref value);
+
+/*
+ * Setup JErrorCallbacks to fillup LSError on any error event
+ */
+void
+SetLSErrorCallbacks(struct JErrorCallbacks *callbacks, LSError *lserror);
 
 #endif

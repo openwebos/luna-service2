@@ -42,6 +42,7 @@ set(INTEGRATION_TEST_SOURCES
     "test_call\;test_call_service"
     test_subscription_cxx
     category_notification
+    "test_example++"
     )
 
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
@@ -51,7 +52,7 @@ foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
     endforeach()
     list(GET SOURCES 0 TEST)
     add_test(
-        NAME integration.${TEST}
+        NAME integration.c++.${TEST}
         COMMAND ${CMAKE_SOURCE_DIR}/src/libluna-service2/test/run_with_hub
                 ${CMAKE_SOURCE_DIR}
                 ${CMAKE_BINARY_DIR}

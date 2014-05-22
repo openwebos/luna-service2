@@ -20,16 +20,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-#ifdef __APPLE__
-#include <mach/mach_time.h>
-#endif
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <pbnjson.h>
 
 #include "utils.h"
 #include "transport.h"
+#include "clock.h"
 #include "monitor_queue.h"
+#include "debug_methods.h"
 
 #define DYNAMIC_SERVICE_STR         "dynamic"
 #define STATIC_SERVICE_STR          "static"
@@ -68,6 +68,7 @@ typedef struct SubscriptionReplyData
 
 static GHashTable *dup_hash_table;
 
+static const char *list_servicename_methods = NULL;
 static const char *message_filter_str = NULL;
 static gboolean list_clients = false;
 static gboolean list_subscriptions = false;
@@ -87,6 +88,12 @@ static bool transport_pub_local = false;
 static _LSMonitorQueue *public_queue = NULL;
 
 #ifndef PUBLIC_ONLY
+static int hubs_answers_count = 2;
+#else
+static int hubs_answers_count = 1;
+#endif
+
+#ifndef PUBLIC_ONLY
 static _LSTransport *transport_priv = NULL;
 /* List of _SubscriptionReplyData for public and private hubs */
 static GSList *private_sub_replies = NULL;
@@ -94,26 +101,9 @@ static bool transport_priv_local = false;
 static _LSMonitorQueue *private_queue = NULL;
 #endif
 
-void
-_LSMonitorGetTime(struct timespec *time)
-{
-#ifdef __APPLE__
-    static mach_timebase_info_data_t info = {0,0};
-
-    if (info.denom == 0) {
-      mach_timebase_info(&info);
-    }
-    uint64_t curtime = mach_absolute_time() * (info.numer / info.denom);
-    time->tv_sec = curtime * 1e-9;
-    time->tv_nsec = curtime - (time->tv_sec * 1e9);
-#else
-    clock_gettime(CLOCK_MONOTONIC, time);
-#endif
-}
-
 /* time1 - time2 */
 double
-_LSMonitorTimeDiff(struct timespec *time1, struct timespec *time2)
+_LSMonitorTimeDiff(const struct timespec const *time1, const struct timespec const *time2)
 {
     double diff_time;
 
@@ -132,14 +122,30 @@ _LSMonitorTimeDiff(struct timespec *time1, struct timespec *time2)
 }
 
 /**
- * Print the time that a message was *received*. It doesn't give us the
- * actual time that the message was sent, but it's the best that we can
- * do without sending a timestamp in the message itself
+ * Print message timestamp
  */
 static int
-_LSMonitorPrintTime(struct timespec *time)
+_LSMonitorPrintTime(const struct timespec *time)
 {
     return fprintf(stdout, "%.3f", ((double)(time->tv_sec)) + (((double)time->tv_nsec) / (double)1000000000.0));
+}
+
+/**
+ * Print monitor message type
+ */
+static int
+_LSMonitorPrintType(const _LSMonitorMessageType message_type)
+{
+    switch (message_type)
+    {
+    case _LSMonitorMessageTypeTx:
+        return fprintf(stdout, " TX  ");
+    case _LSMonitorMessageTypeRx:
+        return fprintf(stdout, " RX ");
+    default:
+        LOG_LS_ERROR(MSGID_LS_UNKNOWN_MSG, 1, PMLOGKFV("TYPE", "%d", message_type), "Unknown monitor message type");
+        return fprintf(stdout, " UN ");
+    }
 }
 
 #ifndef PUBLIC_ONLY
@@ -147,7 +153,7 @@ static gboolean
 _LSMonitorIdleHandlerPrivate(gpointer data)
 {
     _LSMonitorQueue *queue = data;
-    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output, sort_by_timestamps);
+    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
     return TRUE;
 }
 #endif
@@ -156,30 +162,22 @@ static gboolean
 _LSMonitorIdleHandlerPublic(gpointer data)
 {
     _LSMonitorQueue *queue = data;
-    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output, sort_by_timestamps);
+    _LSMonitorQueuePrint(queue, 1000, dup_hash_table, debug_output);
     return TRUE;
 }
 
 void
-_LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool public_bus)
+_LSMonitorMessagePrint(_LSTransportMessage *message, bool public_bus)
 {
     if (LSTransportMessageFilterMatch(message, message_filter_str))
     {
-        struct timespec _time;
-
-        if (time)
-        {
-            _time = *time;
-        }
-        else
-        {
-            _LSMonitorGetTime(&_time);
-        }
+        const _LSMonitorMessageData *message_data = _LSTransportMessageGetMonitorMessageData(message);
 
         if (compact_output)
         {
             int nchar = 0;
-            nchar += _LSMonitorPrintTime(&_time);
+            nchar += _LSMonitorPrintTime(&message_data->timestamp);
+            nchar += _LSMonitorPrintType(message_data->type);
             nchar += fprintf(stdout, public_bus?" pub ":" prv ");
 
             int mchar = LSTransportMessagePrintCompactHeader(message, stdout);
@@ -209,7 +207,8 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
         }
         else
         {
-            _LSMonitorPrintTime(&_time);
+            _LSMonitorPrintTime(&message_data->timestamp);
+            _LSMonitorPrintType(message_data->type);
             fprintf(stdout, public_bus?"\t[PUB]\t":"\t[PRV]\t");
             LSTransportMessagePrint(message, stdout);
         }
@@ -221,9 +220,9 @@ _LSMonitorMessagePrint(_LSTransportMessage *message, struct timespec *time, bool
 static LSMessageHandlerResult
 _LSMonitorMessageHandlerPrivate(_LSTransportMessage *message, void *context)
 {
-    if (!transport_priv_local)
+    if (!transport_priv_local || sort_by_timestamps)
     {
-        _LSMonitorMessagePrint(message, NULL, false);
+        _LSMonitorMessagePrint(message, false);
     }
     else
     {
@@ -238,9 +237,9 @@ _LSMonitorMessageHandlerPrivate(_LSTransportMessage *message, void *context)
 static LSMessageHandlerResult
 _LSMonitorMessageHandlerPublic(_LSTransportMessage *message, void *context)
 {
-    if (!transport_pub_local)
+    if (!transport_pub_local || sort_by_timestamps)
     {
-        _LSMonitorMessagePrint(message, NULL, true);
+        _LSMonitorMessagePrint(message, true);
     }
     else
     {
@@ -421,7 +420,6 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
 {
     LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeListClientsReply);
 
-    static int call_count = 0;
     const char *unique_name = NULL;
     const char *service_name = NULL;
     int32_t pid = 0;
@@ -488,11 +486,7 @@ _LSMonitorListMessageHandler(_LSTransportMessage *message, void *context)
     }
 
     /* Process and display when we receive public and private responses */
-#ifndef PUBLIC_ONLY
-    if (++call_count == 2)
-#else
-    if (++call_count == 1)
-#endif
+    if (--hubs_answers_count == 0)
     {
         if (list_subscriptions || list_malloc)
         {
@@ -561,6 +555,82 @@ Done:
     return LSMessageHandlerResultHandled;
 }
 
+static LSMessageHandlerResult
+_LSMonitorMethodListMessageHandler(_LSTransportMessage *message, void *context)
+{
+    LS_ASSERT(_LSTransportMessageGetType(message) == _LSTransportMessageTypeReply);
+
+    int hub_type = *(int*)context;
+
+    JSchemaInfo schemaInfo;
+
+    // TO-DO: Validate against service.schema when
+    // local resolver will be available.
+    jschema_info_init(&schemaInfo, jschema_all(), NULL, NULL);
+    jvalue_ref params = jdom_parse(j_cstr_to_buffer(_LSTransportMessageGetPayload(message)),
+                                   DOMOPT_NOOPT, &schemaInfo);
+
+    bool succeeded = false;
+    jboolean_get(jobject_get(params, J_CSTR_TO_BUF("returnValue")), &succeeded);
+
+    if (!succeeded)
+    {
+        fprintf(stdout, "Client returned error instead of methods list: %s.\n",
+                jvalue_tostring_simple(jobject_get(params, J_CSTR_TO_BUF("errorText"))));
+    }
+    else
+    {
+        fprintf(stdout, "\nMETHODS AND SIGNALS REGISTERED BY SERVICE '%s' WITH UNIQUE NAME '%s' AT %s HUB\n\n",
+                _LSTransportMessageGetSenderServiceName(message),
+                _LSTransportMessageGetSenderUniqueName(message),
+                hub_type == HUB_TYPE_PUBLIC ? "PUBLIC" : "PRIVATE");
+
+        jobject_iter cat_iterator, meth_iterator;
+        jobject_key_value category, method;
+        jobject_iter_init(&cat_iterator, jobject_get(params, J_CSTR_TO_BUF("categories")));
+        while (jobject_iter_next(&cat_iterator, &category))
+        {
+            fprintf(stdout, "%*s\%s:\n", 2, "", jvalue_tostring_simple(category.key));
+
+            jobject_iter_init(&meth_iterator, jobject_get(category.value, J_CSTR_TO_BUF("methods")));
+            while (jobject_iter_next(&meth_iterator, &method))
+            {
+                fprintf(stdout, "%*s\%s: %s\n", 6, "", jvalue_tostring_simple(method.key), jvalue_tostring_simple(method.value));
+            }
+        }
+    }
+
+    if (--hubs_answers_count == 0)
+        g_main_loop_quit(mainloop);
+
+    return LSMessageHandlerResultHandled;
+}
+
+void
+_LSMonitorMethodListFailureHandler(LSMessageToken global_token, _LSTransportMessageFailureType failure_type, void *context)
+{
+    int type = *(int*)context;
+    const char *hub_name = HUB_TYPE_PUBLIC == type ? "public" : "private";
+
+    switch (failure_type)
+    {
+    case _LSTransportMessageFailureTypeServiceNotExist:
+        fprintf(stdout, "Service '%s' is not registered at %s hub\n",
+                list_servicename_methods, hub_name);
+        break;
+    case _LSTransportMessageFailureTypeServiceUnavailable:
+        fprintf(stdout, "Service '%s' currently is not available at %s hub\n",
+                list_servicename_methods, hub_name);
+        break;
+    default:
+        fprintf(stdout, "Recieved error from %s hub for service '%s': %d\n",
+                hub_name, list_servicename_methods, failure_type);
+    }
+
+    if (--hubs_answers_count == 0)
+        g_main_loop_quit(mainloop);
+}
+
 static void
 _HandleShutdown(int signal)
 {
@@ -579,6 +649,7 @@ _HandleCommandline(int argc, char *argv[])
         {"filter", 'f', 0, G_OPTION_ARG_STRING, &message_filter_str, "Filter by service name (or unique name)", "com.palm.foo"},
         {"list", 'l', 0, G_OPTION_ARG_NONE, &list_clients, "List all entities connected to the hub", NULL},
         {"subscriptions", 's', 0, G_OPTION_ARG_NONE, &list_subscriptions, "List all subscriptions in the system", NULL},
+        {"introspection", 'i', 0, G_OPTION_ARG_STRING, &list_servicename_methods, "List service methods and signals", "com.palm.foo"},
         {"malloc", 'm', 0, G_OPTION_ARG_NONE, &list_malloc, "List malloc data from all services in the system", NULL},
         {"debug", 'd', 0, G_OPTION_ARG_NONE, &debug_output, "Print extra output for debugging monitor but with UNBOUNDED MEMORY GROWTH", NULL},
         {"compact", 'c', 0, G_OPTION_ARG_NONE, &compact_output, "Print compact output to fit terminal. Take precedence over debug", NULL},
@@ -603,6 +674,14 @@ _HandleCommandline(int argc, char *argv[])
     }
 
     g_option_context_free(opt_context);
+
+#ifndef INTROSPECTION_DEBUG
+    if (list_servicename_methods)
+    {
+        g_message("Library is built without introspection support, please rebuild with INTROSPECTION_DEBUG.");
+        exit(EXIT_FAILURE);
+    }
+#endif
 
     if (compact_output)
     {
@@ -697,6 +776,17 @@ main(int argc, char *argv[])
 #endif
         handler_pub.msg_handler = _LSMonitorListMessageHandler;
     }
+    else if (list_servicename_methods)
+    {
+#ifndef PUBLIC_ONLY
+        handler_priv.msg_handler = _LSMonitorMethodListMessageHandler;
+        handler_priv.message_failure_handler = _LSMonitorMethodListFailureHandler;
+        handler_priv.message_failure_context = &private;
+#endif
+        handler_pub.msg_handler = _LSMonitorMethodListMessageHandler;
+        handler_pub.message_failure_handler = _LSMonitorMethodListFailureHandler;
+        handler_pub.message_failure_context = &public;
+    }
 
 #ifndef PUBLIC_ONLY
     if (!_LSTransportInit(&transport_priv, FINAL_MONITOR_NAME, &handler_priv, &lserror))
@@ -764,6 +854,20 @@ main(int argc, char *argv[])
             goto error;
         }
     }
+    else if (list_servicename_methods)
+    {
+#ifndef PUBLIC_ONLY
+        if (!_LSTransportSendMessageListServiceMethods(transport_priv, list_servicename_methods, &lserror))
+        {
+            goto error;
+        }
+#endif
+
+        if (!_LSTransportSendMessageListServiceMethods(transport_pub, list_servicename_methods, &lserror))
+        {
+            goto error;
+        }
+    }
     else
     {
         /* send the message to the hub to tell clients to connect to us */
@@ -781,15 +885,15 @@ main(int argc, char *argv[])
 
         if (debug_output)
         {
-            fprintf(stdout, "Debug\tTime\t\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
+            fprintf(stdout, "Debug\t\tTime\tStatus\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
         }
         else if (compact_output)
         {
-            fprintf(stdout, "Time Prot&Type Caller.Serial Callee/Method Payload\n");
+            fprintf(stdout, "Time \tStatus Prot&Type Caller.Serial Callee/Method Payload\n");
         }
         else
         {
-            fprintf(stdout, "Time\t\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
+            fprintf(stdout, "Time\tStatus\tProt\tType\tSerial\t\tSender\t\tDestination\t\tMethod                            \tPayload\n");
         }
         fflush(stdout);
     }

@@ -21,12 +21,14 @@
 #include "subscription.h"
 #include "base.h"
 #include "category.h"
+#include "simple_pbnjson.h"
 
 #ifdef MALLOC_DEBUG
 #include <malloc.h>
 #define __USE_GNU
 #include <dlfcn.h>
 #endif
+#include <pthread.h>
 
 #include <string.h>
 
@@ -286,12 +288,9 @@ error:
 #endif  /* MALLOC_DEBUG */
 
 #ifdef INTROSPECTION_DEBUG
-bool
-_LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
+static jvalue_ref
+build_categories_flat(LSHandle *sh)
 {
-    LSError lserror;
-    LSErrorInit(&lserror);
-
     GHashTableIter iter_category, iter_element;
     gpointer name_category, table_category, name_element, callback;
     struct LSCategoryTable *pTable = NULL;
@@ -336,25 +335,154 @@ _LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
                     jstring_create_copy(j_cstr_to_buffer(name_category)),
                     category_obj);
     }
+    return ret_obj;
+}
 
-    bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(ret_obj), &lserror);
+static jvalue_ref
+build_categories_description(LSHandle *sh)
+{
+    jvalue_ref categories = jobject_create();
+
+    GHashTableIter iter_category;
+    const char *category_name;
+    struct LSCategoryTable *category_table;
+
+    g_hash_table_iter_init(&iter_category, sh->tableHandlers);
+    while (g_hash_table_iter_next(&iter_category, (gpointer*)&category_name, (gpointer*)&category_table))
+    {
+        /* skip hidden category */
+        if (strcmp("/com/palm/luna/private", category_name) == 0)
+            continue;
+
+        /* Note: category information outlives our categories jobject which
+         *       created only to be serialized into json right away. So no need
+         *       to create a copy
+         */
+
+        jvalue_ref entry_methods = jobject_create();
+        jvalue_ref description = category_table->description;
+        jvalue_ref methods;
+        if (description == NULL)
+        {
+            /* ok, lets generate from scratch */
+            methods = NULL;
+
+            jobject_put(categories,
+                        jstring_create_nocopy(j_cstr_to_buffer(category_name)),
+                        jobject_create_var(
+                            jkeyval( J_CSTR_TO_JVAL("methods"), entry_methods ),
+                            J_END_OBJ_DECL
+                        ));
+        }
+        else
+        {
+            methods = jobject_get(description, J_CSTR_TO_BUF("methods"));
+            LS_ASSERT(jis_valid(methods));
+
+            jvalue_ref category_entry = jvalue_shallow(description);
+
+            (void) jobject_remove(category_entry, J_CSTR_TO_BUF("methods"));
+            jobject_put(category_entry,  J_CSTR_TO_JVAL("methods"), entry_methods);
+
+            jobject_put(categories, j_cstr_to_jval(category_name), category_entry);
+        }
+
+        GHashTableIter iter_method;
+        const char *method_name;
+        LSMethodEntry *method_entry;
+
+        g_hash_table_iter_init(&iter_method, category_table->methods);
+        while (g_hash_table_iter_next(&iter_method, (gpointer)&method_name, (gpointer)&method_entry))
+        {
+            if (method_entry->function == NULL)
+            {
+                /* place-holder with schema for future method append (skip) */
+                continue;
+            }
+            raw_buffer key = j_cstr_to_buffer(method_name);
+            jvalue_ref method_descr;
+            if (jobject_get_exists(methods, key, &method_descr))
+            {
+                jobject_set(entry_methods, key, method_descr);
+            }
+            else
+            {
+                /* we'll re-use single empty object for all such entires */
+                jobject_put(entry_methods, jstring_create_nocopy(key), jobject_create());
+            }
+        }
+    }
+
+    return categories;
+}
+
+static jschema_ref introspection_params_schema;
+static void init_introspection_params_schema()
+{
+    const char *schema_text = "{\"type\":\"object\",\"properties\":{"
+        "\"type\":{\"enum\":[\"flat\",\"description\"],\"default\":\"flat\"}"
+    "},\"additionalProperties\":false}";
+    introspection_params_schema = jschema_parse(j_cstr_to_buffer(schema_text), JSCHEMA_DOM_NOOPT, NULL);
+}
+static jschema_ref get_introspection_params_schema()
+{
+    static pthread_once_t initialized = PTHREAD_ONCE_INIT;
+    (void) pthread_once(&initialized, init_introspection_params_schema);
+    return introspection_params_schema;
+}
+
+bool
+_LSPrivateInrospection(LSHandle* sh, LSMessage *message, void *ctx)
+{
+    LSError lserror;
+    LSErrorInit(&lserror);
+
+    jvalue_ref reply;
+
+    // parse params
+    struct JErrorCallbacks errorCallbacks;
+    JSchemaInfo schemaInfo;
+
+    SetLSErrorCallbacks(&errorCallbacks, &lserror);
+
+    jschema_info_init(&schemaInfo, get_introspection_params_schema(), NULL, &errorCallbacks);
+    jvalue_ref params = jdom_parse(j_cstr_to_buffer(LSMessageGetPayload(message)),
+                                   DOMOPT_NOOPT, &schemaInfo);
+
+    if (!jis_valid(params))
+    {
+        LOG_LSERROR(MSGID_LS_INVALID_JSON, &lserror);
+        reply = jobject_create_var(
+            jkeyval( J_CSTR_TO_JVAL("returnValue"), jboolean_create(false) ),
+            jkeyval( J_CSTR_TO_JVAL("errorText"), jstring_create(lserror.message) ),
+            J_END_OBJ_DECL
+        );
+        LSErrorInit(&lserror); /* re-init it back */
+    }
+    else if (jstr_eq_cstr(jobject_get(params, J_CSTR_TO_BUF("type")), "description"))
+    {
+        reply = jobject_create_var(
+            jkeyval( J_CSTR_TO_JVAL("returnValue"), jboolean_create(true) ),
+            jkeyval( J_CSTR_TO_JVAL("categories"), build_categories_description(sh) ),
+            J_END_OBJ_DECL
+        );
+    }
+    else
+    {
+        /* FIXME: for compatibility reasons this were kept as-is (without
+         *        supplying answer with returnValue indicator)
+         */
+        reply = build_categories_flat(sh);
+    }
+
+    bool reply_ret = LSMessageReply(sh, message, jvalue_tostring_simple(reply), &lserror);
     if (!reply_ret)
     {
         LOG_LSERROR(MSGID_LS_INTROS_SEND_FAILED, &lserror);
         LSErrorFree(&lserror);
-        goto error;
     }
+    j_release(&reply);
 
-    j_release(&ret_obj);
-
-    return true;
-
-error:
-
-    j_release(&ret_obj);
-    j_release(&category_obj);
-    j_release(&element_obj);
-
-    return false;
+    return reply_ret; /* false if unable to reply */
 }
 #endif  /* INTROSPECTION_DEBUG */

@@ -115,15 +115,14 @@ void Call::continueWith(LSFilterFunc callback, void *context)
 
     while (!_queue.empty())
     {
-        (_callCB)(_sh, _queue.front(), _callCtx);
-        LSMessageUnref(_queue.front());
+        (_callCB)(_sh, _queue.front().get(), _callCtx);
         _queue.pop();
     }
 }
 
-LSMessage *Call::get()
+Message Call::get()
 {
-    LSMessage * result = tryGet();
+    auto result = tryGet();
     if (result)
         return result;
 
@@ -137,9 +136,9 @@ LSMessage *Call::get()
     }
 }
 
-LSMessage *Call::get(long unsigned int msTimeout)
+Message Call::get(long unsigned int msTimeout)
 {
-    LSMessage * result = tryGet();
+    Message result = tryGet();
     if (result)
         return result;
 
@@ -233,26 +232,26 @@ bool Call::isMainLoopThread() const
     return false;
 }
 
-LSMessage *Call::tryGet()
+Message Call::tryGet()
 {
     std::lock_guard < std::mutex > lockg { _mutex };
-    LSMessage * result { nullptr };
+    Message result;
     if (!_queue.empty())
     {
-        result = _queue.front();
+        result = std::move(_queue.front());
         _queue.pop();
     }
     return result;
 }
 
-LSMessage *Call::waitOnMainLoop()
+Message Call::waitOnMainLoop()
 {
     LS::Error error;
     _mainloopCtx = LSGmainGetContext(_sh, error.get());
     if (!_mainloopCtx)
         return nullptr;
 
-    LSMessage * reply { nullptr };
+    Message reply;
     while (true)
     {
         g_main_context_iteration(_mainloopCtx, TRUE);
@@ -261,7 +260,7 @@ LSMessage *Call::waitOnMainLoop()
         std::lock_guard < std::mutex > lockg { _mutex };
         if (!_queue.empty())
         {
-            reply = _queue.front();
+            reply = std::move(_queue.front());
             _queue.pop();
             break;
         }
@@ -269,7 +268,7 @@ LSMessage *Call::waitOnMainLoop()
     return reply;
 }
 
-LSMessage *Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
+Message Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
 {
     ::LS::Error error;
     _mainloopCtx = LSGmainGetContext(_sh, error.get());
@@ -277,7 +276,7 @@ LSMessage *Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
     if (!_mainloopCtx)
         return nullptr;
 
-    LSMessage * reply { nullptr };
+    Message reply;
     _timeoutExpired = false;
     guint timeoutID = g_timeout_add(msTimeout, onWaitCB, this);
     while (!_timeoutExpired)
@@ -291,7 +290,7 @@ LSMessage *Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
         std::lock_guard < std::mutex > lockg { _mutex };
         if (!_queue.empty())
         {
-            reply = _queue.front();
+            reply = std::move(_queue.front());
             _queue.pop();
             break;
         }
@@ -300,16 +299,16 @@ LSMessage *Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
     return reply;
 }
 
-LSMessage *Call::wait()
+Message Call::wait()
 {
     std::unique_lock < std::mutex > ul{_mutex};
     _cv.wait(ul, [this] { return !_queue.empty(); });
-    LSMessage * result = _queue.front();
+    Message result = std::move(_queue.front());
     _queue.pop();
     return result;
 }
 
-LSMessage *Call::waitTimeout(long unsigned int msTimeout)
+Message Call::waitTimeout(long unsigned int msTimeout)
 {
     std::unique_lock < std::mutex > ul { _mutex };
     bool gotMessage = _cv.wait_for(ul,
@@ -317,11 +316,11 @@ LSMessage *Call::waitTimeout(long unsigned int msTimeout)
                                    [this] { return !_queue.empty();});
     if (gotMessage)
     {
-        LSMessage * result = _queue.front();
+        Message result = std::move(_queue.front());
         _queue.pop();
         return result;
     }
-    return nullptr;
+    return {};
 }
 
 bool Call::handleReply(LSHandle* sh, LSMessage* reply)
@@ -339,7 +338,6 @@ bool Call::handleReply(LSHandle* sh, LSMessage* reply)
     }
     else
     {
-        LSMessageRef(reply);
         _queue.push(reply);
         _cv.notify_one();
     }

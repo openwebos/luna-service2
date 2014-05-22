@@ -2003,7 +2003,15 @@ _LSHubHandleConnectReady(GIOChannel *channel, GIOCondition cond, _LSTransportMes
         else
         {
             LS_ASSERT(type == _LSTransportMessageTypeMonitorConnected);
-            unique_name = _LSTransportMessageGetBody(message);
+
+            struct _LSTransportMessageIter iter;
+            _LSTransportMessageIterInit(message, &iter);
+
+            if (!_LSTransportMessageGetString(&iter, &unique_name))
+            {
+                LOG_LS_ERROR(MSGID_LSHUB_PENDING_CONNECT_ERR, 0,
+                             "Could not get monitor unique_name from pending message");
+            }
         }
 
         /* attempt to connect() the existing socket */

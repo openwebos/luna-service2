@@ -107,8 +107,10 @@ _padding_bytes(unsigned int align_bytes, unsigned int size_bytes)
 #define EMULATOR_DESKTOP_INET_ADDRESS_PUBLIC    (XSTR(EMULATOR_DEFAULT_INET_ADDRESS)":"XSTR(EMULATOR_INET_PORT_PUBLIC))
 #define EMULATOR_DESKTOP_INET_ADDRESS_PRIVATE   (XSTR(EMULATOR_DEFAULT_INET_ADDRESS)":"XSTR(EMULATOR_INET_PORT_PRIVATE))
 
-#define HUB_LOCAL_ADDRESS_PUBLIC        "/tmp/com.palm.public_hub"
-#define HUB_LOCAL_ADDRESS_PRIVATE       "/tmp/com.palm.private_hub"
+#define HUB_LOCAL_SOCKET_DIRECTORY      "/tmp"
+#define HUB_LOCAL_ADDRESS_PUBLIC_NAME   "com.palm.public_hub"
+#define HUB_LOCAL_ADDRESS_PRIVATE_NAME  "com.palm.private_hub"
+
 #define HUB_NAME                        "com.palm.hub"
 
 #define MONITOR_NAME                    "com.palm.monitor"

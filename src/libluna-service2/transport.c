@@ -381,7 +381,7 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
  * @param  client       IN  client that is shutting down
  * @param  last_serial  IN  last serial processed
  * @param  type         IN  disconnect reason
- * $param  no_fail      IN  if true don't call failure callback for pending messages
+ * @param  no_fail      IN  if true don't call failure callback for pending messages
  *******************************************************************************
  */
 void
@@ -3219,7 +3219,7 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
     LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
 
     bool ret = false;
-    const char *hub_addr = NULL;
+    const char *hub_addr = _LSGetHubLocalSocketAddress(public_bus);
 
     /* ignore SIGPIPE -- we'll handle the synchronous return val (EPIPE) */
     signal(SIGPIPE, SIG_IGN);
@@ -3238,14 +3238,7 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
 
     transport->type = _LSTransportTypeLocal;
 
-    if (public_bus)
-    {
-        hub_addr = HUB_LOCAL_ADDRESS_PUBLIC;
-    }
-    else
-    {
-        hub_addr = HUB_LOCAL_ADDRESS_PRIVATE;
-    }
+    LOG_LS_DEBUG("Trying to find a hub at: %s", hub_addr);
 
     /* try to connect to the local hub */
     _LSTransportClient *hub = _LSTransportConnectClient(transport, HUB_NAME, hub_addr, -1, NULL, lserror);

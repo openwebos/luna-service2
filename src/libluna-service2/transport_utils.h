@@ -40,6 +40,7 @@ void DumpHashTable(GHashTable *table);
 bool _LSTransportSetupSignalHandler(int signal, void (*handler)(int));
 void _LSTransportFdSetBlock(int fd, bool *prev_state_blocking);
 void _LSTransportFdSetNonBlock(int fd, bool *prev_state_blocking);
+const char *_LSGetHubLocalSocketAddress(bool is_public_bus);
 
 /* compile-time type check */
 #define TYPECHECK(type,val)             \

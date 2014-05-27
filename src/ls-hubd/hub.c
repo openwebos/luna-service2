@@ -4445,16 +4445,9 @@ int main(int argc, char *argv[])
     }
     else
     {
-        const char *hub_local_addr = NULL;
+        const char *hub_local_addr = _LSGetHubLocalSocketAddress(public);
 
-        if (public)
-        {
-            hub_local_addr = HUB_LOCAL_ADDRESS_PUBLIC;
-        }
-        else
-        {
-            hub_local_addr = HUB_LOCAL_ADDRESS_PRIVATE;
-        }
+        LOG_LS_DEBUG("Using socket path: %s", hub_local_addr);
 
         /* everyone needs to be able to talk to the hub */
         if (!_LSTransportSetupListenerLocal(hub_transport, hub_local_addr, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &lserror))

@@ -46,10 +46,12 @@ set(INTEGRATION_TEST_SOURCES
     metainfo_example
     )
 
+add_library(util STATIC util.cpp)
+
 foreach(SOURCES ${INTEGRATION_TEST_SOURCES})
     foreach(SOURCE ${SOURCES})
         add_executable(${SOURCE} ${SOURCE}.cpp)
-        target_link_libraries(${SOURCE} ${PROJECT_NAME} ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
+        target_link_libraries(${SOURCE} ${PROJECT_NAME} util ${TESTLIBNAME} ${WEBOS_GTEST_LIBRARIES} ${PBNJSON_CXX_LIBRARIES})
     endforeach()
     list(GET SOURCES 0 TEST)
     add_test(

@@ -26,15 +26,6 @@
 using namespace std;
 using namespace pbnjson;
 
-namespace {
-
-template <typename T, typename D>
-std::unique_ptr<T, D> mk_ptr(T *t, D d)
-{
-    return std::unique_ptr<T, D>(t, d);
-}
-
-} //namespace;
 
 TEST(CategoryNotification, First)
 {
@@ -42,8 +33,7 @@ TEST(CategoryNotification, First)
     NotificationsT notifications;
 
     // Start background main loop
-    auto main_loop = mk_ptr(g_main_loop_new(nullptr, false), g_main_loop_unref);
-    thread t([&main_loop](){ g_main_loop_run(main_loop.get()); });
+    auto context = mk_ptr(g_main_context_new(), g_main_context_unref);
 
     // Register a watch service to collect notifications
     struct Watch
@@ -57,7 +47,7 @@ TEST(CategoryNotification, First)
     };
 
     auto watch = LS::registerService("a.b.watch");
-    watch.attachToLoop(main_loop.get());
+    watch.attachToLoop(context.get());
 
     auto call = watch.callMultiReply("luna://com.palm.bus/signal/registerServiceCategory",
                                      "{\"serviceName\": \"com.palm.A\"}",
@@ -66,7 +56,7 @@ TEST(CategoryNotification, First)
         call.cancel();
     } BOOST_SCOPE_EXIT_END
 
-    usleep(50000);
+    process_context(context.get());
 
     // Register and kick-off watched service
     struct A
@@ -78,7 +68,7 @@ TEST(CategoryNotification, First)
     };
 
     auto a = LS::registerService("com.palm.A");
-    a.attachToLoop(main_loop.get());
+    a.attachToLoop(context.get());
 
     // Register part of /category1
     static LSMethod methods[] =
@@ -107,7 +97,7 @@ TEST(CategoryNotification, First)
     };
     a.registerCategory("/category2", methods3, nullptr, nullptr);
 
-    usleep(50000);
+    process_context(context.get(), 100);
 
     ASSERT_EQ(4, notifications.size());
 
@@ -122,7 +112,4 @@ TEST(CategoryNotification, First)
     auto ref3 = JRef{{"/category1", JRef::array({"baz","bar", "baz2", "bar2"})},
                      {"/category2", JRef::array({"bar","foo"})}};
     EXPECT_EQ(ref3, fromJson(notifications[3]));
-
-    g_main_loop_quit(main_loop.get());
-    t.join();
 }

@@ -159,44 +159,34 @@ bool onSignalCallback(LSHandle *sh, LSMessage *reply, void *ctx)
 
 TEST(TestClient, Signals)
 {
-    list<thread> threads;
-    GMainLoop *provider_main_loop = g_main_loop_new(nullptr, false);
-    threads.emplace_back([&](){ g_main_loop_run(provider_main_loop); });
-
-    GMainLoop *receiver_main_loop = g_main_loop_new(nullptr, false);
-    threads.emplace_back([&](){ g_main_loop_run(receiver_main_loop); });
+    auto context = mk_ptr(g_main_context_new(), g_main_context_unref);
 
     LS::Handle provider = LS::registerService("com.palm.test_signal_provider");
-    provider.attachToLoop(provider_main_loop);
+    provider.attachToLoop(context.get());
 
     LS::Handle receiver = LS::registerService("com.palm.test_signal_receiver");
-    receiver.attachToLoop(receiver_main_loop);
+    receiver.attachToLoop(context.get());
 
     LS::Call signal;
 
     EXPECT_NO_THROW(signal = receiver.callSignal("/test", "activated", onSignalCallback, nullptr));
-    usleep(1000);
+    process_context(context.get(), 100);
     // Hub returns registration response
     EXPECT_EQ(call_count, 1);
 
     EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
-    usleep(1000);
+    process_context(context.get(), 100);
     EXPECT_EQ(call_count, 2);
 
     EXPECT_NO_THROW(signal.cancel());
+    process_context(context.get(), 100);
     EXPECT_NO_THROW(provider.sendSignal("luna://com.palm.test_signal_receiver/test/activated", "{}"));
-    usleep(1000);
+    process_context(context.get(), 100);
     EXPECT_EQ(call_count, 2);
-
-    // ensure that no mainloops will run after LSUnregister called
-    g_main_loop_quit(provider_main_loop);
-    g_main_loop_quit(receiver_main_loop);
-    for (auto &t : threads) t.join();
 }
 
 TEST(TestClient, ServerStatus)
 {
-    list<thread> threads;
     bool is_active = false;
 
     LS::ServerStatusCallback statusCallback = [&](bool isact)
@@ -206,27 +196,22 @@ TEST(TestClient, ServerStatus)
         return true;
     };
 
-    GMainLoop *listener_main_loop = g_main_loop_new(nullptr, false);
-    threads.emplace_back([&](){ g_main_loop_run(listener_main_loop); });
+    auto context = mk_ptr(g_main_context_new(), g_main_context_unref);
 
     LS::Handle listener = LS::registerService("com.palm.test_status_listener");
-    listener.attachToLoop(listener_main_loop);
+    listener.attachToLoop(context.get());
 
     LS::ServerStatus status;
     EXPECT_NO_THROW(status = listener.registerServerStatus("com.palm.test_status_server", statusCallback));
-    usleep(1000);
+    process_context(context.get(), 100);
     EXPECT_FALSE(is_active);
 
     LS::Handle server = LS::registerService("com.palm.test_status_server");
-    server.attachToLoop(listener_main_loop);
-    usleep(1000);
+    server.attachToLoop(context.get());
+    process_context(context.get(), 100);
     EXPECT_TRUE(is_active);
 
     server.detach();
-    usleep(1000);
+    process_context(context.get(), 100);
     EXPECT_FALSE(is_active);
-
-    // ensure that no mainloops will run after LSUnregister called
-    g_main_loop_quit(listener_main_loop);
-    for (auto &t : threads) t.join();
 }

@@ -26,6 +26,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 class JRef : public pbnjson::JValue
 {
 public:
@@ -62,35 +64,17 @@ public:
     }
 };
 
-JRef fromJson(const std::string &s)
-{
-    static pbnjson::JDomParser parser(nullptr);
-    static pbnjson::JSchemaFragment schema("{}");
+JRef fromJson(const std::string &s);
 
-    if (parser.parse(s, schema)) return JRef(parser.getDom());
-    else return JRef::invalid();
-}
+std::string toJson(const JRef &x);
 
-std::string toJson(const JRef &x)
-{
-    static pbnjson::JSchemaFragment schema("{}");
-    static pbnjson::JGenerator gen(nullptr);
-    static std::string invalid = "(invalid)";
-
-    std::string s;
-
-    // we'll work-around pbnjson inability to serialize primitives
-    if (!gen.toString(JRef::array({x}), schema, s)) return invalid;
-    return s.substr(1, s.size()-2);
-}
-
-void PrintTo(const JRef& x, ::std::ostream* os)
+inline void PrintTo(const JRef &x, ::std::ostream *os)
 { *os << toJson(x); }
 
 namespace pbnjson {
-    void PrintTo(const JValue& x, ::std::ostream* os)
+    inline void PrintTo(const JValue &x, ::std::ostream *os)
     { *os << toJson(JRef(x)); }
-    void PrintTo(const JValueArrayElement& x, ::std::ostream* os)
+    inline void PrintTo(const JValueArrayElement &x, ::std::ostream *os)
     { *os << toJson(JRef(x)); }
 }
 
@@ -130,3 +114,12 @@ public:
     void attach(GMainContext *context = nullptr)
     { (void)g_source_attach(s, context); }
 };
+
+template <typename T, typename D>
+std::unique_ptr<T, D> mk_ptr(T *t, D d)
+{
+    return std::unique_ptr<T, D>(t, d);
+}
+
+// Process events from Glib context for specified amount of time.
+void process_context(GMainContext *context, int timeout_ms = 2);

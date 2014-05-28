@@ -46,8 +46,7 @@ protected:
     virtual void SetUp()
     {
         LS::Error error;
-        GMainContext *mainctx = g_main_context_new();
-        _mainloop = g_main_loop_new(mainctx, FALSE);
+        _mainloop = g_main_loop_new(nullptr, FALSE);
         ASSERT_NE(nullptr, _mainloop);
         ASSERT_NO_THROW(_service = LS::registerService("com.palm.test_call"));
         ASSERT_NO_THROW(_service.attachToLoop(_mainloop));
@@ -55,7 +54,6 @@ protected:
 
     virtual void TearDown()
     {
-        g_main_context_unref(g_main_loop_get_context(_mainloop));
         g_main_loop_unref(_mainloop);
     }
 
@@ -235,6 +233,94 @@ TEST_F(CallTest, MainLoopGetTimeoutSuccess)
     LS::Call call = _service.callMultiReply(TIMEOUT_URI, R"({"subscribe": true, "timeout": 200})");
     auto reply = call.get(250);
     ASSERT_TRUE(bool(reply));
+}
+
+struct CallTimeoutCallbacks
+{
+    static bool stopOnceCB_LS(LSHandle * sh, LSMessage * reply, void * context)
+    {
+        g_main_loop_quit(static_cast<GMainLoop *>(context));
+        return true;
+    }
+    static bool stopMultiCB_LS(LSHandle * sh, LSMessage * reply, void * context)
+    {
+        static int counter{0};
+        ++counter;
+        if (counter > 1)
+        {
+            g_main_loop_quit(static_cast<GMainLoop *>(context));
+        }
+        return true;
+    }
+    static gboolean stopCB_GLIB(gpointer context)
+    {
+        g_main_loop_quit(static_cast<GMainLoop *>(context));
+        return FALSE;
+    }
+};
+
+TEST(CallTimeoutTest, BHV_7106_CallTimeoutAfterUnregisterOneReply)
+{
+    GMainLoop *mainloop = g_main_loop_new(g_main_context_new(), FALSE);
+    {
+        LS::Handle service;
+        ASSERT_NO_THROW(service = LS::registerService("com.palm.test_call"));
+        ASSERT_NO_THROW(service.attachToLoop(mainloop));
+
+        LS::Call call = service.callOneReply(TIMEOUT_URI, R"({"timeout": 50})",
+            CallTimeoutCallbacks::stopOnceCB_LS, mainloop);
+        call.setTimeout(100);
+        g_main_loop_run(mainloop);
+    }
+    GSource *source = g_timeout_source_new(200);
+    g_source_set_callback(source, CallTimeoutCallbacks::stopCB_GLIB, mainloop, nullptr);
+    g_source_attach(source, g_main_loop_get_context(mainloop));
+    g_main_loop_run(mainloop);
+    g_main_context_unref(g_main_loop_get_context(mainloop));
+    g_main_loop_unref(mainloop);
+}
+
+TEST(CallTimeoutTest, BHV_7106_CallTimeoutAfterUnregisterMultiReplyWithCancel)
+{
+    GMainLoop *mainloop = g_main_loop_new(g_main_context_new(), FALSE);
+    {
+        LS::Handle service;
+        ASSERT_NO_THROW(service = LS::registerService("com.palm.test_call"));
+        ASSERT_NO_THROW(service.attachToLoop(mainloop));
+
+        LS::Call call = service.callMultiReply(
+            SUBSCRIBE_URI, R"({"subscribe": true, "timeout": 50})", CallTimeoutCallbacks::stopMultiCB_LS, mainloop);
+        call.setTimeout(100);
+        g_main_loop_run(mainloop);
+    }
+    GSource *source = g_timeout_source_new(200);
+    g_source_set_callback(source, CallTimeoutCallbacks::stopCB_GLIB, mainloop, nullptr);
+    g_source_attach(source, g_main_loop_get_context(mainloop));
+    g_main_loop_run(mainloop);
+    g_main_context_unref(g_main_loop_get_context(mainloop));
+    g_main_loop_unref(mainloop);
+}
+
+TEST(CallTimeoutTest, BHV_7106_CallTimeoutAfterUnregisterMultiReplyNoCancel)
+{
+    GMainLoop *mainloop = g_main_loop_new(g_main_context_new(), FALSE);
+    {
+        LS::Handle service;
+        ASSERT_NO_THROW(service = LS::registerService("com.palm.test_call"));
+        ASSERT_NO_THROW(service.attachToLoop(mainloop));
+
+        LSMessageToken token;
+        LSCall(service.get(), SUBSCRIBE_URI, R"({"subscribe": true, "timeout": 50})",
+            CallTimeoutCallbacks::stopMultiCB_LS, mainloop, &token, LS::Error().get());
+        LSCallSetTimeout(service.get(), token, 100, LS::Error().get());
+        g_main_loop_run(mainloop);
+    }
+    GSource *source = g_timeout_source_new(200);
+    g_source_set_callback(source, CallTimeoutCallbacks::stopCB_GLIB, mainloop, nullptr);
+    g_source_attach(source, g_main_loop_get_context(mainloop));
+    g_main_loop_run(mainloop);
+    g_main_context_unref(g_main_loop_get_context(mainloop));
+    g_main_loop_unref(mainloop);
 }
 
 }  // anonymous namespace

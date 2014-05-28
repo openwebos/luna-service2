@@ -576,6 +576,8 @@ _service_watch_disable(LSHandle *sh, _Call *call)
     return false;
 }
 
+static void ResetCallTimeout(_Call *call);
+
 /**
 * @brief Insert a call into the callmap.
 *
@@ -641,6 +643,11 @@ _CallRemove(LSHandle *sh, _CallMap *map, _Call *call)
     _Call *orig_call = g_hash_table_lookup(map->tokenMap, (gpointer)call->token);
     if (orig_call == call)
     {
+        if (call->timer_source != NULL)
+        {
+            call->timeout_ms = 0;
+            ResetCallTimeout(call);
+        }
         switch(call->type)
         {
         case CALL_TYPE_METHOD_CALL:
@@ -754,6 +761,20 @@ _CallMapDeinit(LSHandle *sh, _CallMap *map)
     {
         g_hash_table_destroy(map->signalMap);
         g_hash_table_destroy(map->serviceMap);
+
+        //Destroy set timers for all remaining calls if any
+        GHashTableIter iter;
+        gpointer key, value;
+        g_hash_table_iter_init(&iter, map->tokenMap);
+        while (g_hash_table_iter_next(&iter, &key, &value))
+        {
+            _Call * call = (_Call *)value;
+            if (call->timer_source != NULL)
+            {
+                call->timeout_ms = 0;
+                ResetCallTimeout(call);
+            }
+        }
         g_hash_table_destroy(map->tokenMap);
 
         if (pthread_mutex_destroy(&map->lock))
@@ -987,8 +1008,6 @@ _LSMessageTranslate(LSHandle *sh, LSMessage *message,
 
     _CallRelease(call);
 }
-
-static void ResetCallTimeout(_Call *call);
 
 /**
 * @brief Dispatch a message to each callback in tokens list.

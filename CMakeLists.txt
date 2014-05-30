@@ -22,7 +22,7 @@ project(luna-service2)
 include(webOS/webOS)
 
 webos_modules_init(1 0 0 QUALIFIER RC7)
-webos_component(3 9 0)
+webos_component(3 9 1)
 
 include(FindPkgConfig)
 

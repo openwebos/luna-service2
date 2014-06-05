@@ -616,7 +616,10 @@ _LSHubRoleTypeStringToType(raw_buffer type)
     }
 }
 
-static LSHubPermission*
+#ifndef UNIT_TESTS
+static
+#endif
+LSHubPermission*
 LSHubPermissionNew(raw_buffer service_name)
 {
     LS_ASSERT(service_name.m_str != NULL);
@@ -647,7 +650,10 @@ LSHubPermissionNewRef(raw_buffer service_name)
     return perm;
 }
 
-static void
+#ifndef UNIT_TESTS
+static
+#endif
+void
 LSHubPermissionFree(LSHubPermission *perm)
 {
     LS_ASSERT(perm != NULL);
@@ -693,7 +699,10 @@ LSHubPermissionUnref(LSHubPermission *perm)
     return false;
 }
 
-static bool
+#ifndef UNIT_TESTS
+static
+#endif
+bool
 LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSError *lserror)
 {
     LS_ASSERT(perm != NULL);
@@ -708,7 +717,10 @@ LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSErro
     return true;
 }
 
-static bool
+#ifndef UNIT_TESTS
+static
+#endif
+bool
 LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSError *lserror)
 {
     LS_ASSERT(perm != NULL);
@@ -723,7 +735,10 @@ LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSErr
     return true;
 }
 
-static bool
+#ifndef UNIT_TESTS
+static
+#endif
+bool
 LSHubPermissionIsEqual(const LSHubPermission *a, const LSHubPermission *b)
 {
     LS_ASSERT(a != NULL);

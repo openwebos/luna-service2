@@ -89,6 +89,58 @@ test_LSHubPermissionMapLookup(void *fixture, gconstpointer user_data)
     _ConfigFreeSettings();
 }
 
+static void
+test_LSHubPermissionIsEqual(void *fixture, gconstpointer user_data)
+{
+    LSError error;
+    LSErrorInit(&error);
+
+    LSHubPermission *a = LSHubPermissionNew(J_CSTR_TO_BUF("com.palm.a"));
+    LSHubPermission *b = LSHubPermissionNew(J_CSTR_TO_BUF("com.palm.a"));
+
+    g_assert(LSHubPermissionIsEqual(a, a));
+    g_assert(LSHubPermissionIsEqual(b, b));
+    g_assert(LSHubPermissionIsEqual(a, b));
+    g_assert(LSHubPermissionIsEqual(b, a));
+
+    /* Two patterns in the list of inbound */
+    g_assert(LSHubPermissionAddAllowedInbound(a, "com.palm.b", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedInbound(a, "com.palm.c*", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedInbound(b, "com.palm.c*", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedInbound(b, "com.palm.b", &error));
+    g_assert(LSHubPermissionIsEqual(a, b) && LSHubPermissionIsEqual(b, a));
+
+    /* Three patterns in the list of outbound */
+    g_assert(LSHubPermissionAddAllowedOutbound(a, "com.palm.b", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedOutbound(a, "com.palm.c*", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedOutbound(a, "*", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedOutbound(b, "com.palm.c*", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedOutbound(b, "com.palm.b", &error));
+    g_assert(!LSHubPermissionIsEqual(a, b) && !LSHubPermissionIsEqual(b, a));
+
+    g_assert(LSHubPermissionAddAllowedOutbound(b, "*", &error));
+    g_assert(LSHubPermissionIsEqual(a, b) && LSHubPermissionIsEqual(b, a));
+
+    LSHubPermissionFree(a);
+    LSHubPermissionFree(b);
+    LSErrorFree(&error);
+}
+
+
 int
 main(int argc, char *argv[])
 {
@@ -98,6 +150,7 @@ main(int argc, char *argv[])
     g_log_set_fatal_mask ("LunaServiceHub", G_LOG_LEVEL_ERROR);
 
     g_test_add("/hub/LSHubPermissionMapLookup", void, NULL, NULL, test_LSHubPermissionMapLookup, NULL);
+    g_test_add("/hub/LSHubPermissionIsEqual", void, NULL, NULL, test_LSHubPermissionIsEqual, NULL);
 
     return g_test_run();
 }

@@ -243,6 +243,22 @@ _LSHubPatternQueuePushTail(_LSHubPatternQueue *q, _LSHubPatternSpec *pattern)
     q->q = g_slist_prepend(q->q, pattern);
 }
 
+static int
+PatternSpecStringCompare(const _LSHubPatternSpec *a, const _LSHubPatternSpec *b)
+{
+    return strcmp(a->pattern_str, b->pattern_str);
+}
+
+static void
+_LSHubPatternQueueInsertSorted(_LSHubPatternQueue *q, _LSHubPatternSpec *pattern)
+{
+    LS_ASSERT(q != NULL);
+    LS_ASSERT(pattern != NULL);
+
+    _LSHubPatternSpecRef(pattern);
+    q->q = g_slist_insert_sorted(q->q, pattern, (GCompareFunc) &PatternSpecStringCompare);
+}
+
 void
 _LSHubPatternQueueShallowCopy(_LSHubPatternSpec *pattern, _LSHubPatternQueue *q)
 {
@@ -659,7 +675,7 @@ LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSErro
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    _LSHubPatternQueuePushTail(perm->inbound, pattern); /* increments ref count */
+    _LSHubPatternQueueInsertSorted(perm->inbound, pattern); /* increments ref count */
     _LSHubPatternSpecUnref(pattern);
     return true;
 }
@@ -674,7 +690,7 @@ LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSErr
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    _LSHubPatternQueuePushTail(perm->outbound, pattern); /* increments ref count */
+    _LSHubPatternQueueInsertSorted(perm->outbound, pattern); /* increments ref count */
     _LSHubPatternSpecUnref(pattern);
     return true;
 }

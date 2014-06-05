@@ -49,8 +49,8 @@ public:
             { "subscribeCall", onRequest },
             { },
         };
-        _service.registerCategory("/testCalls", methods, nullptr, nullptr);
-        _service.setCategoryData("/testCalls", this);
+        _service.registerCategory("testCalls", methods, nullptr, nullptr);
+        _service.setCategoryData("testCalls", this);
         _service.attachToLoop(_mainloop);
         _sp.setServiceHandle(&_service);
     }

@@ -25,6 +25,10 @@
 
 namespace LS {
 
+/**
+ * @ingroup LunaServicePP
+ * @brief This class is wrapper for service that have both public and private representations
+ */
 class PalmService
 {
     friend PalmService registerPalmService(const char *);
@@ -38,13 +42,33 @@ public:
     PalmService(PalmService &&) = default;
     PalmService &operator=(PalmService &&) = default;
 
+    /**
+     * Register public and private methods
+     * @param category name
+     * @param methods_public LSMethod array that should end with {0}
+     * @param methods_private LSMethod array that should end with {0}
+     * @param signals LSSignal array that should end with {0}
+     */
     void registerCategory(const char *category, LSMethod *methods_public,
-                          LSMethod *methods_private, LSSignal *signal);
+                          LSMethod *methods_private, LSSignal *signals);
 
+    /**
+     * @return public service handle
+     */
     Handle &getPublicHandle() { return _public_handle; }
+
+    /**
+     * @return public service handle
+     */
     const Handle &getPublicHandle() const { return _public_handle; }
 
+    /**
+     * @return private service handle
+     */
     Handle &getPrivateHandle() { return _private_handle; }
+    /**
+     * @return private service handle
+     */
     const Handle &getPrivateHandle() const { return _private_handle; }
 
     void pushRole(const char *role_path);

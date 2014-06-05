@@ -147,7 +147,7 @@ public:
     {
         attachToLoop(mainLoop);
 
-        LS_CATEGORY_BEGIN(Category, /category)
+        LS_CATEGORY_BEGIN(Category, "/category")
             LS_CATEGORY_METHOD(listContacts)
         LS_CATEGORY_END
     }

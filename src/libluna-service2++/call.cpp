@@ -136,7 +136,7 @@ Message Call::get()
     }
 }
 
-Message Call::get(long unsigned int msTimeout)
+Message Call::get(unsigned long msTimeout)
 {
     Message result = tryGet();
     if (result)
@@ -278,7 +278,9 @@ Message Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
 
     Message reply;
     _timeoutExpired = false;
-    guint timeoutID = g_timeout_add(msTimeout, onWaitCB, this);
+    GSource *timeoutSrc = g_timeout_source_new(msTimeout);
+    g_source_set_callback(timeoutSrc, (GSourceFunc)onWaitCB, this, nullptr);
+    g_source_attach(timeoutSrc, _mainloopCtx);
     while (!_timeoutExpired)
     {
         if (FALSE == g_main_context_iteration(_mainloopCtx, TRUE))
@@ -295,7 +297,8 @@ Message Call::waitTimeoutOnMainLoop(long unsigned int msTimeout)
             break;
         }
     }
-    g_source_remove(timeoutID);
+    g_source_destroy(timeoutSrc);
+    g_source_unref(timeoutSrc);
     return reply;
 }
 

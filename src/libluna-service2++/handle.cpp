@@ -81,14 +81,14 @@ const char *Handle::getName() const
 
 void Handle::registerCategory(const char *category,
                               const LSMethod *methods,
-                              const LSSignal *signal,
+                              const LSSignal *signals,
                               const LSProperty *properties)
 {
     Error error;
     if (!LSRegisterCategory(_handle,
                             category,
                             const_cast<LSMethod *>(methods),
-                            const_cast<LSSignal *>(signal),
+                            const_cast<LSSignal *>(signals),
                             const_cast<LSProperty *>(properties),
                             error.get()))
     {
@@ -98,11 +98,11 @@ void Handle::registerCategory(const char *category,
 
 void Handle::registerCategoryAppend(const char *category,
                                     LSMethod *methods,
-                                    LSSignal *signal)
+                                    LSSignal *signals)
 {
     Error error;
 
-    if (!LSRegisterCategoryAppend(_handle, category, methods, signal,
+    if (!LSRegisterCategoryAppend(_handle, category, methods, signals,
         error.get()))
     {
         throw error;

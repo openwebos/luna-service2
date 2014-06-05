@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 #include <luna-service2/lunaservice.hpp>
+#include "util.hpp"
 
 #include <thread>
 #include <chrono>
@@ -30,20 +31,6 @@ namespace
 #define SIMPLE_URI "palm://com.palm.test_call_service/testCalls/simpleCall"
 #define TIMEOUT_URI "palm://com.palm.test_call_service/testCalls/timeoutCall"
 #define SUBSCRIBE_URI "palm://com.palm.test_call_service/testCalls/subscribeCall"
-
-class TimeoutRemover
-{
-    guint id;
-public:
-    TimeoutRemover(guint _id)
-        : id(_id)
-    {
-    }
-    ~TimeoutRemover()
-    {
-        g_source_remove(id);
-    }
-};
 
 class CallTest : public ::testing::Test
 {
@@ -59,7 +46,7 @@ protected:
     virtual void SetUp()
     {
         LS::Error error;
-        _mainloop = g_main_loop_new(NULL, FALSE);
+        _mainloop = g_main_loop_new(nullptr, FALSE);
         ASSERT_NE(nullptr, _mainloop);
         ASSERT_NO_THROW(_service = LS::registerService("com.palm.test_call"));
         ASSERT_NO_THROW(_service.attachToLoop(_mainloop));
@@ -147,7 +134,8 @@ TEST_F(CallTest, SetReplyCBBeforeLoop)
 {
     LS::Call call = _service.callOneReply(SIMPLE_URI, "{}");
     call.continueWith(onReplyCB, this);
-    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
+    GTimeout hangingCB{1000, [this]{return onHangingCB(this);}};
+    hangingCB.attach(g_main_loop_get_context(_mainloop));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -158,8 +146,10 @@ TEST_F(CallTest, SetReplyCBAfterLoop)
 {
     LS::Call call = _service.callOneReply(SIMPLE_URI, "{}");
     _call = &call;
-    TimeoutRemover cancel(g_timeout_add(100, onTimeoutSetCB, this));
-    TimeoutRemover cancel_1(g_timeout_add(1000, onHangingCB, this));
+    GTimeout setCB{100, [this]{return onTimeoutSetCB(this);}};
+    setCB.attach(g_main_loop_get_context(_mainloop));
+    GTimeout hangingCB{1000, [this]{return onHangingCB(this);}};
+    hangingCB.attach(g_main_loop_get_context(_mainloop));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -169,7 +159,8 @@ TEST_F(CallTest, SetReplyCBAfterLoop)
 TEST_F(CallTest, CallCBBeforeLoop)
 {
     LS::Call call = _service.callOneReply(SIMPLE_URI, "{}", onReplyCB, this);
-    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
+    GTimeout hangingCB{1000, [this]{return onHangingCB(this);}};
+    hangingCB.attach(g_main_loop_get_context(_mainloop));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
@@ -180,32 +171,37 @@ TEST_F(CallTest, CallCBAfterLoop)
 {
     LS::Call call;
     _call = &call;
-    TimeoutRemover cancel(g_timeout_add(100, onTimeoutCallWithCB, this));
-    TimeoutRemover cancel_1(g_timeout_add(1000, onHangingCB, this));
+    GTimeout callWithCB{100, [this]{return onTimeoutCallWithCB(this);}};
+    callWithCB.attach(g_main_loop_get_context(_mainloop));
+    GTimeout hangingCB{1000, [this]{return onHangingCB(this);}};
+    hangingCB.attach(g_main_loop_get_context(_mainloop));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
 }
 
 // Tests call timeout
-TEST_F(CallTest, DISABLED_CallTimeout)
+TEST_F(CallTest, CallTimeout)
 {
     LS::Call call = _service.callOneReply(TIMEOUT_URI, R"({"timeout": 100})", onReplyCB, this);
     call.setTimeout(200);
-    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
+    GTimeout hangingCB{1000, [this]{return onHangingCB(this);}};
+    hangingCB.attach(g_main_loop_get_context(_mainloop));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_REPLY, _resultFlag);
 }
 
 // Tests call timeout expiration
-TEST_F(CallTest, DISABLED_CallTimeoutExpiration)
+TEST_F(CallTest, CallTimeoutExpiration)
 {
     LS::Call call = _service.callOneReply(TIMEOUT_URI, R"({"timeout": 300})", onReplyCB, this);
     call.setTimeout(150);
     _resultFlag = ON_TIMEOUT;
-    TimeoutRemover cancel(g_timeout_add(1000, onHangingCB, this));
-    TimeoutRemover cancel_1(g_timeout_add(500, onTimeoutCB, this));
+    GTimeout hangingCB{1000, [this]{return onHangingCB(this);}};
+    hangingCB.attach(g_main_loop_get_context(_mainloop));
+    GTimeout timeoutCB{500, [this]{return onTimeoutCB(this);}};
+    timeoutCB.attach(g_main_loop_get_context(_mainloop));
     g_main_loop_run(_mainloop);
     ASSERT_FALSE(ON_MAINLOOP_FAILURE == _resultFlag) << "Main loop quit condition failed - loop not finished in time";
     ASSERT_EQ(ON_TIMEOUT, _resultFlag);
@@ -237,6 +233,94 @@ TEST_F(CallTest, MainLoopGetTimeoutSuccess)
     LS::Call call = _service.callMultiReply(TIMEOUT_URI, R"({"subscribe": true, "timeout": 200})");
     auto reply = call.get(250);
     ASSERT_TRUE(bool(reply));
+}
+
+struct CallTimeoutCallbacks
+{
+    static bool stopOnceCB_LS(LSHandle * sh, LSMessage * reply, void * context)
+    {
+        g_main_loop_quit(static_cast<GMainLoop *>(context));
+        return true;
+    }
+    static bool stopMultiCB_LS(LSHandle * sh, LSMessage * reply, void * context)
+    {
+        static int counter{0};
+        ++counter;
+        if (counter > 1)
+        {
+            g_main_loop_quit(static_cast<GMainLoop *>(context));
+        }
+        return true;
+    }
+    static gboolean stopCB_GLIB(gpointer context)
+    {
+        g_main_loop_quit(static_cast<GMainLoop *>(context));
+        return FALSE;
+    }
+};
+
+TEST(CallTimeoutTest, BHV_7106_CallTimeoutAfterUnregisterOneReply)
+{
+    GMainLoop *mainloop = g_main_loop_new(g_main_context_new(), FALSE);
+    {
+        LS::Handle service;
+        ASSERT_NO_THROW(service = LS::registerService("com.palm.test_call"));
+        ASSERT_NO_THROW(service.attachToLoop(mainloop));
+
+        LS::Call call = service.callOneReply(TIMEOUT_URI, R"({"timeout": 50})",
+            CallTimeoutCallbacks::stopOnceCB_LS, mainloop);
+        call.setTimeout(100);
+        g_main_loop_run(mainloop);
+    }
+    GSource *source = g_timeout_source_new(200);
+    g_source_set_callback(source, CallTimeoutCallbacks::stopCB_GLIB, mainloop, nullptr);
+    g_source_attach(source, g_main_loop_get_context(mainloop));
+    g_main_loop_run(mainloop);
+    g_main_context_unref(g_main_loop_get_context(mainloop));
+    g_main_loop_unref(mainloop);
+}
+
+TEST(CallTimeoutTest, BHV_7106_CallTimeoutAfterUnregisterMultiReplyWithCancel)
+{
+    GMainLoop *mainloop = g_main_loop_new(g_main_context_new(), FALSE);
+    {
+        LS::Handle service;
+        ASSERT_NO_THROW(service = LS::registerService("com.palm.test_call"));
+        ASSERT_NO_THROW(service.attachToLoop(mainloop));
+
+        LS::Call call = service.callMultiReply(
+            SUBSCRIBE_URI, R"({"subscribe": true, "timeout": 50})", CallTimeoutCallbacks::stopMultiCB_LS, mainloop);
+        call.setTimeout(100);
+        g_main_loop_run(mainloop);
+    }
+    GSource *source = g_timeout_source_new(200);
+    g_source_set_callback(source, CallTimeoutCallbacks::stopCB_GLIB, mainloop, nullptr);
+    g_source_attach(source, g_main_loop_get_context(mainloop));
+    g_main_loop_run(mainloop);
+    g_main_context_unref(g_main_loop_get_context(mainloop));
+    g_main_loop_unref(mainloop);
+}
+
+TEST(CallTimeoutTest, BHV_7106_CallTimeoutAfterUnregisterMultiReplyNoCancel)
+{
+    GMainLoop *mainloop = g_main_loop_new(g_main_context_new(), FALSE);
+    {
+        LS::Handle service;
+        ASSERT_NO_THROW(service = LS::registerService("com.palm.test_call"));
+        ASSERT_NO_THROW(service.attachToLoop(mainloop));
+
+        LSMessageToken token;
+        LSCall(service.get(), SUBSCRIBE_URI, R"({"subscribe": true, "timeout": 50})",
+            CallTimeoutCallbacks::stopMultiCB_LS, mainloop, &token, LS::Error().get());
+        LSCallSetTimeout(service.get(), token, 100, LS::Error().get());
+        g_main_loop_run(mainloop);
+    }
+    GSource *source = g_timeout_source_new(200);
+    g_source_set_callback(source, CallTimeoutCallbacks::stopCB_GLIB, mainloop, nullptr);
+    g_source_attach(source, g_main_loop_get_context(mainloop));
+    g_main_loop_run(mainloop);
+    g_main_context_unref(g_main_loop_get_context(mainloop));
+    g_main_loop_unref(mainloop);
 }
 
 }  // anonymous namespace

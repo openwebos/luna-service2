@@ -27,6 +27,10 @@
 
 namespace LS {
 
+/**
+ * @ingroup LunaServicePP
+ * @brief Represent publishing point for a sender service
+ */
 class SubscriptionPoint
 {
 
@@ -68,10 +72,23 @@ public:
     SubscriptionPoint(SubscriptionPoint &&) = delete;
     SubscriptionPoint &operator=(SubscriptionPoint &&) = delete;
 
+    /**
+     * Assign a publisher service
+     */
     void setServiceHandle(Handle *service_handle);
 
+    /**
+     * Process subscription message. Subscribe sender of the given message.
+     * @param message
+     * @return true if succeed to add the subscriber the sent the message
+     */
     bool subscribe(LS::Message &message);
 
+    /**
+     * Post to subscribers
+     * @param payload - posted data
+     * @return true replies were posted successfully
+     */
     bool post(const char *payload);
 
 private:

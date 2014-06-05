@@ -226,7 +226,7 @@ TEST_F(TestCategory, RegisterByMacro)
 {
     // by some reason can't put it directly into ASSERT_NO_THROW
     auto reg = [&]() {
-        LS_CATEGORY_BEGIN(TestCategory, /)
+        LS_CATEGORY_BEGIN(TestCategory, "/")
             LS_CATEGORY_METHOD(cbPing)
         LS_CATEGORY_END
     };

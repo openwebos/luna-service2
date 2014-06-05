@@ -30,12 +30,12 @@ PalmService::PalmService()
 void PalmService::registerCategory(const char *category,
                                    LSMethod *methods_public,
                                    LSMethod *methods_private,
-                                   LSSignal *signal)
+                                   LSSignal *signals)
 {
-    _public_handle.registerCategory(category, methods_public, signal, NULL);
+    _public_handle.registerCategory(category, methods_public, signals, NULL);
 
-    _private_handle.registerCategory(category, methods_private, signal, NULL);
-    _private_handle.registerCategoryAppend(category, methods_public, signal);
+    _private_handle.registerCategory(category, methods_private, signals, NULL);
+    _private_handle.registerCategoryAppend(category, methods_public, signals);
 }
 
 void PalmService::pushRole(const char *role_path)

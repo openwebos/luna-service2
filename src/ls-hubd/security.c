@@ -125,7 +125,7 @@ jarray_get_string(jvalue_ref array, ssize_t index, raw_buffer *value, LSError *l
 
 struct _LSHubPatternQueue {
     int ref;
-    GQueue *q;
+    GSList *q;
 };
 
 typedef struct _LSHubPatternQueue _LSHubPatternQueue;
@@ -178,8 +178,6 @@ _LSHubPatternQueueNew(void)
 {
     _LSHubPatternQueue *q = g_slice_new0(_LSHubPatternQueue);
 
-    q->q = g_queue_new();
-
     return q;
 }
 
@@ -204,19 +202,18 @@ _LSHubPatternQueueRef(_LSHubPatternQueue *q)
 }
 #endif
 
+static void FreePatternSpec(gpointer data)
+{
+    _LSHubPatternSpecUnref((_LSHubPatternSpec *) data);
+}
+
 static void
 _LSHubPatternQueueFree(_LSHubPatternQueue *q)
 {
     LS_ASSERT(q != NULL);
 
-    /* free each pattern spec */
-    while (!g_queue_is_empty(q->q))
-    {
-        _LSHubPatternSpec *pattern = (_LSHubPatternSpec*)g_queue_pop_head(q->q);
-        _LSHubPatternSpecUnref(pattern);
-    }
+    g_slist_free_full(q->q, &FreePatternSpec);
 
-    g_queue_free(q->q);
     g_slice_free(_LSHubPatternQueue, q);
 }
 
@@ -243,7 +240,7 @@ _LSHubPatternQueuePushTail(_LSHubPatternQueue *q, _LSHubPatternSpec *pattern)
     LS_ASSERT(pattern != NULL);
 
     _LSHubPatternSpecRef(pattern);
-    g_queue_push_tail(q->q, pattern);
+    q->q = g_slist_prepend(q->q, pattern);
 }
 
 void
@@ -267,7 +264,7 @@ _LSHubPatternQueueCopyRef(const _LSHubPatternQueue *q)
     if (new_q)
     {
         new_q->ref = 1;
-        g_queue_foreach(q->q, (GFunc)_LSHubPatternQueueShallowCopy, new_q);
+        g_slist_foreach(q->q, (GFunc)_LSHubPatternQueueShallowCopy, new_q);
     }
 
     return new_q;
@@ -279,11 +276,9 @@ _LSHubPatternQueueHasMatch(const _LSHubPatternQueue *q, const char *str)
     LS_ASSERT(q != NULL);
     LS_ASSERT(str != NULL);
 
-    GList *list = NULL;
+    GSList *list = q->q;
     char *rev_str = NULL;
     bool ret = false;
-
-    list = q->q->head;
 
     if (!g_utf8_validate(str, -1, NULL))
     {
@@ -308,7 +303,7 @@ _LSHubPatternQueueHasMatch(const _LSHubPatternQueue *q, const char *str)
             goto Exit;
         }
 
-        list = list->next;
+        list = g_slist_next(list);
     }
 
     ret = false;
@@ -325,15 +320,13 @@ _LSHubPatternQueuePrint(const _LSHubPatternQueue *q, FILE *file)
     LS_ASSERT(q != NULL);
     LS_ASSERT(file != NULL);
 
-    GList *list = NULL;
-
-    list = q->q->head;
+    GSList *list = q->q;
 
     while (list)
     {
         _LSHubPatternSpec *pattern = (_LSHubPatternSpec*)list->data;
         fprintf(file, "%s ", pattern->pattern_str);
-        list = list->next;
+        list = g_slist_next(list);
     }
 }
 
@@ -507,9 +500,7 @@ LSHubRoleAllowedNamesForExe(const char * exe_path)
 
     LS_ASSERT(q != NULL);
 
-    GList *list = NULL;
-
-    list = q->q->head;
+    GSList *list = q->q;
 
     while (list)
     {
@@ -519,7 +510,7 @@ LSHubRoleAllowedNamesForExe(const char * exe_path)
         // FIXME: this doesn't attempt to escape characters, despite being used as JSON
         g_string_append_printf(str, "\"%s\"", pattern->pattern_str);
         sep = true;
-        list = list->next;
+        list = g_slist_next(list);
     }
 
     return g_string_free(str, FALSE);

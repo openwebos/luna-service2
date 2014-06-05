@@ -346,6 +346,34 @@ _LSHubPatternQueuePrint(const _LSHubPatternQueue *q, FILE *file)
     }
 }
 
+static bool
+_LSHubPatternQueueIsEqual(const _LSHubPatternQueue *a, const _LSHubPatternQueue *b)
+{
+    LS_ASSERT(a != NULL);
+    LS_ASSERT(b != NULL);
+
+    // Iterate over two sorted lists simultaneously.
+    // If a difference is spotted, they aren't equal.
+
+    GSList *i = a->q;
+    GSList *j = b->q;
+
+    while (i && j)
+    {
+        const _LSHubPatternSpec *pa = (const _LSHubPatternSpec *) i->data;
+        const _LSHubPatternSpec *pb = (const _LSHubPatternSpec *) j->data;
+
+        if (strcmp(pa->pattern_str, pb->pattern_str))
+            return false;
+
+        i = g_slist_next(i);
+        j = g_slist_next(j);
+    }
+
+    // Finally, both iterators should be NULL.
+    return i == j;
+}
+
 GHashTable*
 LSHubGetRoleMap(void)
 {
@@ -695,6 +723,19 @@ LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSErr
     return true;
 }
 
+static bool
+LSHubPermissionIsEqual(const LSHubPermission *a, const LSHubPermission *b)
+{
+    LS_ASSERT(a != NULL);
+    LS_ASSERT(b != NULL);
+
+    if (a == b)
+        return true;
+
+    return !strcmp(a->service_name, b->service_name) &&
+           _LSHubPatternQueueIsEqual(a->inbound, b->inbound) &&
+           _LSHubPatternQueueIsEqual(a->outbound, b->outbound);
+}
 
 /***************************** ROLE MAP ****************************/
 
@@ -878,7 +919,23 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
         if (!perm->service_name[0])
             return true;
 
-        _LSErrorSet(lserror, MSGID_LSHUB_SERVICE_EXISTS, -1, "Attempting to add duplicate service name to permission map: \"%s\"", perm->service_name);
+        /* Permissions are global, so they can't be duplicated.
+         * However, there's no point to complain on *equal* duplicates.
+         */
+        if (LSHubPermissionIsEqual(perm, lookup_perm))
+        {
+            LOG_LS_WARNING(MSGID_LSHUB_SERVICE_EXISTS, 3,
+                           PMLOGKS("FUNC", __FUNCTION__),
+                           PMLOGKS("FILE", LS__FILE__BASENAME),
+                           PMLOGKFV("LINE", "%d", __LINE__),
+                           "Allowing duplicate service name in permission map: \"%s\"",
+                           perm->service_name);
+            return true;
+        }
+
+        _LSErrorSet(lserror, MSGID_LSHUB_SERVICE_EXISTS, -1,
+                    "Skipping duplicate service name to permission map: \"%s\"",
+                    perm->service_name);
         LOG_LS_DEBUG("%s: failure\n", __func__);
         return false;
     }

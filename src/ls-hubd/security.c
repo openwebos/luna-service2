@@ -346,6 +346,28 @@ _LSHubPatternQueuePrint(const _LSHubPatternQueue *q, FILE *file)
     }
 }
 
+static gchar*
+_LSHubPatternQueueDump(const _LSHubPatternQueue *q)
+{
+    LS_ASSERT(q != NULL);
+
+    GString *str = g_string_new("[");
+
+    const GSList *list = q->q;
+
+    while (list)
+    {
+        const _LSHubPatternSpec *pattern = (const _LSHubPatternSpec *) list->data;
+        if (list != q->q)
+            str = g_string_append(str, ", ");
+        str = g_string_append(str, pattern->pattern_str);
+        list = g_slist_next(list);
+    }
+
+    str = g_string_append(str, "]");
+    return g_string_free(str, FALSE);
+}
+
 static bool
 _LSHubPatternQueueIsEqual(const _LSHubPatternQueue *a, const _LSHubPatternQueue *b)
 {
@@ -580,6 +602,27 @@ LSHubPermissionPrint(const LSHubPermission *perm, FILE *file)
     fprintf(file, " outbound: ");
     _LSHubPatternQueuePrint(perm->outbound, file);
     fprintf(file, "\n");
+}
+
+gchar*
+LSHubPermissionDump(const LSHubPermission *perm)
+{
+    GString *str = g_string_new("{service: ");
+    str = g_string_append(str, perm->service_name);
+    str = g_string_append(str, ", inbound: ");
+
+    gchar *inbound = _LSHubPatternQueueDump(perm->inbound);
+    str = g_string_append(str, inbound);
+    g_free(inbound);
+
+    str = g_string_append(str, ", outbound: ");
+
+    gchar *outbound = _LSHubPatternQueueDump(perm->outbound);
+    str = g_string_append(str, outbound);
+    g_free(outbound);
+
+    str = g_string_append(str, "}");
+    return g_string_free(str, FALSE);
 }
 
 bool
@@ -948,9 +991,16 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
             return true;
         }
 
+        gchar *perm_str = LSHubPermissionDump(perm);
+        gchar *lookup_perm_str = LSHubPermissionDump(lookup_perm);
+
         _LSErrorSet(lserror, MSGID_LSHUB_SERVICE_EXISTS, -1,
-                    "Skipping duplicate service name to permission map: \"%s\"",
-                    perm->service_name);
+                    "Skipping duplicate service name to permission map: %s (already there %s)",
+                    perm_str, lookup_perm_str);
+
+        g_free(perm_str);
+        g_free(lookup_perm_str);
+
         LOG_LS_DEBUG("%s: failure\n", __func__);
         return false;
     }

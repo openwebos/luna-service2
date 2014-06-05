@@ -135,6 +135,11 @@ test_LSHubPermissionIsEqual(void *fixture, gconstpointer user_data)
     g_assert(LSHubPermissionAddAllowedOutbound(b, "*", &error));
     g_assert(LSHubPermissionIsEqual(a, b) && LSHubPermissionIsEqual(b, a));
 
+    gchar *str = LSHubPermissionDump(a);
+    g_assert_cmpstr(str, ==, "{service: com.palm.a, inbound: [com.palm.b, com.palm.c*],"
+                             " outbound: [*, com.palm.b, com.palm.c*]}");
+    g_free(str);
+
     LSHubPermissionFree(a);
     LSHubPermissionFree(b);
     LSErrorFree(&error);

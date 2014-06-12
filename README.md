@@ -23,10 +23,10 @@ Below are the tools and libraries (and their minimum versions) required to build
 _luna-service2_:
 
 * cmake (version required by openwebos/cmake-modules-webos)
-* gcc 4.6.3
+* gcc 4.7.0
 * glib-2.0 2.32.1
 * make (any version)
-* openwebos/cmake-modules-webos 1.0.0 RC4
+* openwebos/cmake-modules-webos 1.0.0 RC7
 * openwebos/libpbnjson 2.5.0
 * openwebos/PmLogLib 3.0.2
 * pkg-config 0.26

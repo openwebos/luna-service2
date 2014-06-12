@@ -48,4 +48,15 @@ bool PermissionsAndRolesInit(LSError *lserror, bool from_volatile_dir);
 LSHubPermission* LSHubPermissionMapLookup(const char *service_name);
 void RolesCleanup();
 
+
+#ifdef UNIT_TESTS
+#include <pbnjson.h>
+LSHubPermission* LSHubPermissionNew(raw_buffer service_name);
+void LSHubPermissionFree(LSHubPermission *perm);
+bool LSHubPermissionIsEqual(const LSHubPermission *a, const LSHubPermission *b);
+bool LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSError *lserror);
+bool LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSError *lserror);
+gchar* LSHubPermissionDump(const LSHubPermission *perm);
+#endif //UNIT_TESTS
+
 #endif  /* _SECURITY_H */

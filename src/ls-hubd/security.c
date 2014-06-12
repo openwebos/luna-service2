@@ -125,7 +125,7 @@ jarray_get_string(jvalue_ref array, ssize_t index, raw_buffer *value, LSError *l
 
 struct _LSHubPatternQueue {
     int ref;
-    GQueue *q;
+    GSList *q;
 };
 
 typedef struct _LSHubPatternQueue _LSHubPatternQueue;
@@ -178,8 +178,6 @@ _LSHubPatternQueueNew(void)
 {
     _LSHubPatternQueue *q = g_slice_new0(_LSHubPatternQueue);
 
-    q->q = g_queue_new();
-
     return q;
 }
 
@@ -204,19 +202,18 @@ _LSHubPatternQueueRef(_LSHubPatternQueue *q)
 }
 #endif
 
+static void FreePatternSpec(gpointer data)
+{
+    _LSHubPatternSpecUnref((_LSHubPatternSpec *) data);
+}
+
 static void
 _LSHubPatternQueueFree(_LSHubPatternQueue *q)
 {
     LS_ASSERT(q != NULL);
 
-    /* free each pattern spec */
-    while (!g_queue_is_empty(q->q))
-    {
-        _LSHubPatternSpec *pattern = (_LSHubPatternSpec*)g_queue_pop_head(q->q);
-        _LSHubPatternSpecUnref(pattern);
-    }
+    g_slist_free_full(q->q, &FreePatternSpec);
 
-    g_queue_free(q->q);
     g_slice_free(_LSHubPatternQueue, q);
 }
 
@@ -243,7 +240,23 @@ _LSHubPatternQueuePushTail(_LSHubPatternQueue *q, _LSHubPatternSpec *pattern)
     LS_ASSERT(pattern != NULL);
 
     _LSHubPatternSpecRef(pattern);
-    g_queue_push_tail(q->q, pattern);
+    q->q = g_slist_prepend(q->q, pattern);
+}
+
+static int
+PatternSpecStringCompare(const _LSHubPatternSpec *a, const _LSHubPatternSpec *b)
+{
+    return strcmp(a->pattern_str, b->pattern_str);
+}
+
+static void
+_LSHubPatternQueueInsertSorted(_LSHubPatternQueue *q, _LSHubPatternSpec *pattern)
+{
+    LS_ASSERT(q != NULL);
+    LS_ASSERT(pattern != NULL);
+
+    _LSHubPatternSpecRef(pattern);
+    q->q = g_slist_insert_sorted(q->q, pattern, (GCompareFunc) &PatternSpecStringCompare);
 }
 
 void
@@ -267,7 +280,7 @@ _LSHubPatternQueueCopyRef(const _LSHubPatternQueue *q)
     if (new_q)
     {
         new_q->ref = 1;
-        g_queue_foreach(q->q, (GFunc)_LSHubPatternQueueShallowCopy, new_q);
+        g_slist_foreach(q->q, (GFunc)_LSHubPatternQueueShallowCopy, new_q);
     }
 
     return new_q;
@@ -279,11 +292,9 @@ _LSHubPatternQueueHasMatch(const _LSHubPatternQueue *q, const char *str)
     LS_ASSERT(q != NULL);
     LS_ASSERT(str != NULL);
 
-    GList *list = NULL;
+    GSList *list = q->q;
     char *rev_str = NULL;
     bool ret = false;
-
-    list = q->q->head;
 
     if (!g_utf8_validate(str, -1, NULL))
     {
@@ -308,7 +319,7 @@ _LSHubPatternQueueHasMatch(const _LSHubPatternQueue *q, const char *str)
             goto Exit;
         }
 
-        list = list->next;
+        list = g_slist_next(list);
     }
 
     ret = false;
@@ -325,16 +336,64 @@ _LSHubPatternQueuePrint(const _LSHubPatternQueue *q, FILE *file)
     LS_ASSERT(q != NULL);
     LS_ASSERT(file != NULL);
 
-    GList *list = NULL;
-
-    list = q->q->head;
+    GSList *list = q->q;
 
     while (list)
     {
         _LSHubPatternSpec *pattern = (_LSHubPatternSpec*)list->data;
         fprintf(file, "%s ", pattern->pattern_str);
-        list = list->next;
+        list = g_slist_next(list);
     }
+}
+
+static gchar*
+_LSHubPatternQueueDump(const _LSHubPatternQueue *q)
+{
+    LS_ASSERT(q != NULL);
+
+    GString *str = g_string_new("[");
+
+    const GSList *list = q->q;
+
+    while (list)
+    {
+        const _LSHubPatternSpec *pattern = (const _LSHubPatternSpec *) list->data;
+        if (list != q->q)
+            str = g_string_append(str, ", ");
+        str = g_string_append(str, pattern->pattern_str);
+        list = g_slist_next(list);
+    }
+
+    str = g_string_append(str, "]");
+    return g_string_free(str, FALSE);
+}
+
+static bool
+_LSHubPatternQueueIsEqual(const _LSHubPatternQueue *a, const _LSHubPatternQueue *b)
+{
+    LS_ASSERT(a != NULL);
+    LS_ASSERT(b != NULL);
+
+    // Iterate over two sorted lists simultaneously.
+    // If a difference is spotted, they aren't equal.
+
+    GSList *i = a->q;
+    GSList *j = b->q;
+
+    while (i && j)
+    {
+        const _LSHubPatternSpec *pa = (const _LSHubPatternSpec *) i->data;
+        const _LSHubPatternSpec *pb = (const _LSHubPatternSpec *) j->data;
+
+        if (strcmp(pa->pattern_str, pb->pattern_str))
+            return false;
+
+        i = g_slist_next(i);
+        j = g_slist_next(j);
+    }
+
+    // Finally, both iterators should be NULL.
+    return i == j;
 }
 
 GHashTable*
@@ -507,9 +566,7 @@ LSHubRoleAllowedNamesForExe(const char * exe_path)
 
     LS_ASSERT(q != NULL);
 
-    GList *list = NULL;
-
-    list = q->q->head;
+    GSList *list = q->q;
 
     while (list)
     {
@@ -519,7 +576,7 @@ LSHubRoleAllowedNamesForExe(const char * exe_path)
         // FIXME: this doesn't attempt to escape characters, despite being used as JSON
         g_string_append_printf(str, "\"%s\"", pattern->pattern_str);
         sep = true;
-        list = list->next;
+        list = g_slist_next(list);
     }
 
     return g_string_free(str, FALSE);
@@ -545,6 +602,27 @@ LSHubPermissionPrint(const LSHubPermission *perm, FILE *file)
     fprintf(file, " outbound: ");
     _LSHubPatternQueuePrint(perm->outbound, file);
     fprintf(file, "\n");
+}
+
+gchar*
+LSHubPermissionDump(const LSHubPermission *perm)
+{
+    GString *str = g_string_new("{service: ");
+    str = g_string_append(str, perm->service_name);
+    str = g_string_append(str, ", inbound: ");
+
+    gchar *inbound = _LSHubPatternQueueDump(perm->inbound);
+    str = g_string_append(str, inbound);
+    g_free(inbound);
+
+    str = g_string_append(str, ", outbound: ");
+
+    gchar *outbound = _LSHubPatternQueueDump(perm->outbound);
+    str = g_string_append(str, outbound);
+    g_free(outbound);
+
+    str = g_string_append(str, "}");
+    return g_string_free(str, FALSE);
 }
 
 bool
@@ -581,7 +659,10 @@ _LSHubRoleTypeStringToType(raw_buffer type)
     }
 }
 
-static LSHubPermission*
+#ifndef UNIT_TESTS
+static
+#endif
+LSHubPermission*
 LSHubPermissionNew(raw_buffer service_name)
 {
     LS_ASSERT(service_name.m_str != NULL);
@@ -612,7 +693,10 @@ LSHubPermissionNewRef(raw_buffer service_name)
     return perm;
 }
 
-static void
+#ifndef UNIT_TESTS
+static
+#endif
+void
 LSHubPermissionFree(LSHubPermission *perm)
 {
     LS_ASSERT(perm != NULL);
@@ -658,7 +742,10 @@ LSHubPermissionUnref(LSHubPermission *perm)
     return false;
 }
 
-static bool
+#ifndef UNIT_TESTS
+static
+#endif
+bool
 LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSError *lserror)
 {
     LS_ASSERT(perm != NULL);
@@ -668,12 +755,15 @@ LSHubPermissionAddAllowedInbound(LSHubPermission *perm, const char *name, LSErro
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    _LSHubPatternQueuePushTail(perm->inbound, pattern); /* increments ref count */
+    _LSHubPatternQueueInsertSorted(perm->inbound, pattern); /* increments ref count */
     _LSHubPatternSpecUnref(pattern);
     return true;
 }
 
-static bool
+#ifndef UNIT_TESTS
+static
+#endif
+bool
 LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSError *lserror)
 {
     LS_ASSERT(perm != NULL);
@@ -683,11 +773,27 @@ LSHubPermissionAddAllowedOutbound(LSHubPermission *perm, const char *name, LSErr
 
     _LSHubPatternSpec *pattern = _LSHubPatternSpecNewRef(name);
 
-    _LSHubPatternQueuePushTail(perm->outbound, pattern); /* increments ref count */
+    _LSHubPatternQueueInsertSorted(perm->outbound, pattern); /* increments ref count */
     _LSHubPatternSpecUnref(pattern);
     return true;
 }
 
+#ifndef UNIT_TESTS
+static
+#endif
+bool
+LSHubPermissionIsEqual(const LSHubPermission *a, const LSHubPermission *b)
+{
+    LS_ASSERT(a != NULL);
+    LS_ASSERT(b != NULL);
+
+    if (a == b)
+        return true;
+
+    return !strcmp(a->service_name, b->service_name) &&
+           _LSHubPatternQueueIsEqual(a->inbound, b->inbound) &&
+           _LSHubPatternQueueIsEqual(a->outbound, b->outbound);
+}
 
 /***************************** ROLE MAP ****************************/
 
@@ -871,7 +977,30 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
         if (!perm->service_name[0])
             return true;
 
-        _LSErrorSet(lserror, MSGID_LSHUB_SERVICE_EXISTS, -1, "Attempting to add duplicate service name to permission map: \"%s\"", perm->service_name);
+        /* Permissions are global, so they can't be duplicated.
+         * However, there's no point to complain on *equal* duplicates.
+         */
+        if (LSHubPermissionIsEqual(perm, lookup_perm))
+        {
+            LOG_LS_WARNING(MSGID_LSHUB_SERVICE_EXISTS, 3,
+                           PMLOGKS("FUNC", __FUNCTION__),
+                           PMLOGKS("FILE", LS__FILE__BASENAME),
+                           PMLOGKFV("LINE", "%d", __LINE__),
+                           "Allowing duplicate service name in permission map: \"%s\"",
+                           perm->service_name);
+            return true;
+        }
+
+        gchar *perm_str = LSHubPermissionDump(perm);
+        gchar *lookup_perm_str = LSHubPermissionDump(lookup_perm);
+
+        _LSErrorSet(lserror, MSGID_LSHUB_SERVICE_EXISTS, -1,
+                    "Skipping duplicate service name to permission map: %s (already there %s)",
+                    perm_str, lookup_perm_str);
+
+        g_free(perm_str);
+        g_free(lookup_perm_str);
+
         LOG_LS_DEBUG("%s: failure\n", __func__);
         return false;
     }

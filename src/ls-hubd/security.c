@@ -982,12 +982,7 @@ LSHubPermissionMapAddRef(LSHubPermission *perm, LSError *lserror)
          */
         if (LSHubPermissionIsEqual(perm, lookup_perm))
         {
-            LOG_LS_WARNING(MSGID_LSHUB_SERVICE_EXISTS, 3,
-                           PMLOGKS("FUNC", __FUNCTION__),
-                           PMLOGKS("FILE", LS__FILE__BASENAME),
-                           PMLOGKFV("LINE", "%d", __LINE__),
-                           "Allowing duplicate service name in permission map: \"%s\"",
-                           perm->service_name);
+            LOG_LS_DEBUG("Allowing duplicate service name in permission map: \"%s\"", perm->service_name);
             return true;
         }
 
@@ -1325,11 +1320,7 @@ ParseRoleDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
     {
         if (gerror->code == G_FILE_ERROR_NOENT)
         {
-            LOG_LS_WARNING(MSGID_LSHUB_ROLE_FILE_ERR, 3,
-                           PMLOGKS("FUNC", __FUNCTION__),
-                           PMLOGKS("FILE", LS__FILE__BASENAME),
-                           PMLOGKFV("LINE", "%d", __LINE__),
-                           "Skipping missing roles directory %s", path);
+            LOG_LS_DEBUG("Skipping missing roles directory %s", path);
             return true;
         }
         _LSErrorSetFromGError(lserror, MSGID_LSHUB_NO_ROLE_DIR, gerror);

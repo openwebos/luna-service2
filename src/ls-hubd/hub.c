@@ -1273,11 +1273,7 @@ ParseServiceDirectory(const char *path, LSError *lserror, bool is_volatile_dir)
     {
         if (gerror->code == G_FILE_ERROR_NOENT)
         {
-            LOG_LS_WARNING(MSGID_LSHUB_SERVICE_FILE_ERR, 3,
-                           PMLOGKS("FUNC", __FUNCTION__),
-                           PMLOGKS("FILE", LS__FILE__BASENAME),
-                           PMLOGKFV("LINE", "%d", __LINE__),
-                           "Skipping missing services directory %s", path);
+            LOG_LS_DEBUG("Skipping missing services directory %s", path);
             return true;
         }
         _LSErrorSetFromGError(lserror, MSGID_LSHUB_SERVICE_FILE_ERR, gerror);

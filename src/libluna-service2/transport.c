@@ -92,7 +92,7 @@ bool _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *ls
 
 
 bool _LSTransportSendMessageClientInfo(_LSTransportClient *client, const char *service_name, const char *unique_name, bool prepend, LSError *lserror);
-static bool _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *monitor, _LSMonitorMessageType type, LSError *lserror);
+static bool _LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *monitor, _LSMonitorMessageType type, const struct timespec *timestamp, LSError *lserror);
 static bool _LSTransportSendMessageRaw(_LSTransportMessage *message, _LSTransportClient *client, bool set_token, LSMessageToken *token, bool prepend, LSError *lserror);
 bool _LSTransportSendMessageToService(_LSTransport *transport, const char *service_name, _LSTransportMessage *message, LSMessageToken *token, LSError *lserror);
 bool _LSTransportAddPendingMessageWithToken(_LSTransport *transport, const char *service_name, _LSTransportMessage *message, LSMessageToken msg_token, LSError *lserror);
@@ -2821,7 +2821,7 @@ _LSTransportSendMessageMonitorHelper(_LSTransportMessage *message, _LSTransportC
 {
     if (_LSTransportMessageIsMonitorType(message))
     {
-        _LSTransportSendMessageMonitor(message, client, _LSMonitorMessageTypeTx, NULL);
+        _LSTransportSendMessageMonitor(message, client, _LSMonitorMessageTypeTx, NULL, NULL);
     }
 }
 
@@ -3998,15 +3998,23 @@ _LSTransportSendVectorRet(const struct iovec *iov, int iovcnt, unsigned long tot
  *******************************************************************************
  */
 static bool
-_LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *client, _LSMonitorMessageType type, LSError *lserror)
+_LSTransportSendMessageMonitor(_LSTransportMessage *message, _LSTransportClient *client, _LSMonitorMessageType type,
+                               const struct timespec *timestamp, LSError *lserror)
 {
     bool ret = true;
 
     _LSMonitorMessageData message_data;
-    ClockGetTime(&message_data.timestamp);
     /* Get a serial number from the shared memory area (global serial) */
     message_data.serial = _LSTransportShmGetSerial(client->transport->shm);
     message_data.type = type;
+    if (timestamp)
+    {
+        message_data.timestamp = *timestamp;
+    }
+    else
+    {
+        ClockGetTime(&message_data.timestamp);
+    }
 
     unsigned long message_data_size = sizeof(_LSMonitorMessageData);
 
@@ -4450,6 +4458,14 @@ bool
 _LSTransportSendMessage(_LSTransportMessage *message, _LSTransportClient *client,
                         LSMessageToken *token, LSError *lserror)
 {
+    /* current time to add proper timestamp into the monitor message copy */
+    struct timespec now;
+
+    if (client->transport->monitor)
+    {
+        ClockGetTime(&now);
+    }
+
     /* sets the token field in the message */
     bool ret = _LSTransportSendMessageRaw(message, client, true, token, false, lserror);
 
@@ -4458,7 +4474,7 @@ _LSTransportSendMessage(_LSTransportMessage *message, _LSTransportClient *client
     {
         if (_LSTransportMessageIsMonitorType(message))
         {
-            _LSTransportSendMessageMonitor(message, client, _LSMonitorMessageTypeTx, lserror);
+            _LSTransportSendMessageMonitor(message, client, _LSMonitorMessageTypeTx, &now, lserror);
         }
     }
 
@@ -4886,7 +4902,9 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
     unsigned long app_id_len = strlen_safe(applicationId) + 1;
     unsigned long total_size =  sizeof(_LSTransportMessageRaw) + category_len + method_len + payload_len + app_id_len;
 
-	/* header */
+    struct timespec now;
+
+    /* header */
     iov[0].iov_base = &header;
     iov[0].iov_len = sizeof(header);
 
@@ -4964,6 +4982,7 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
         if (transport->monitor)
         {
             monitor_serial = _LSTransportShmGetSerial(client->transport->shm);
+            ClockGetTime(&now);
         }
 
         LOG_LS_DEBUG("method call: token: %d, category: %s, method: %s, payload: %s\n", (int)msg_token, category, method, payload);
@@ -4999,9 +5018,9 @@ LSTransportSend(_LSTransport *transport, const char *service_name,
             LS_ASSERT(client->unique_name != NULL);
 
             _LSMonitorMessageData message_data;
-            ClockGetTime(&message_data.timestamp);
             message_data.serial = monitor_serial;
             message_data.type = _LSMonitorMessageTypeTx;
+            message_data.timestamp = now;
 
             unsigned long message_data_size = sizeof(_LSMonitorMessageData);
 
@@ -5454,7 +5473,7 @@ _LSTransportProcessIncomingMessages(_LSTransportClient *client, LSError *lserror
         {
             if (_LSTransportMessageIsMonitorType(tmsg))
             {
-                _LSTransportSendMessageMonitor(tmsg, client, _LSMonitorMessageTypeRx, lserror);
+                _LSTransportSendMessageMonitor(tmsg, client, _LSMonitorMessageTypeRx, NULL, lserror);
             }
         }
 

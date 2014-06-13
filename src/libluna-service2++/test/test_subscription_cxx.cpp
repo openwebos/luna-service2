@@ -16,6 +16,8 @@
 *
 * LICENSE@@@ */
 
+#include "util.hpp"
+
 #include <glib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -148,9 +150,9 @@ void serviceThreadFunc()
 
 void clientThreadFunc()
 {
-    GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
+    auto context = mk_ptr(g_main_context_new(), g_main_context_unref);
     LS::Handle client = LS::registerService();
-    client.attachToLoop(mainloop);
+    client.attachToLoop(context.get());
 
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
         R"({"subscribe":true})");
@@ -177,7 +179,6 @@ void clientThreadFunc()
     ++g_counter;
 
     call.cancel();
-    g_main_loop_unref(mainloop);
 }
 
 TEST(TestSubscriptionPoint, SubscriptionDisconnectTest)
@@ -185,44 +186,43 @@ TEST(TestSubscriptionPoint, SubscriptionDisconnectTest)
     std::thread serviceThread{serviceThreadFunc};
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
-    LS::Handle client = LS::registerService();
-    client.attachToLoop(mainloop);
+    auto context = mk_ptr(g_main_context_new(), g_main_context_unref);
+    {
+        LS::Handle client = LS::registerService();
+        client.attachToLoop(context.get());
 
-    LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
-        R"({"subscribe":true})");
+        LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
+            R"({"subscribe":true})");
 
-    auto reply = call.get();
-    ASSERT_TRUE(bool(reply)) << "No response from test service";
-    LS::JSONPayload replyJSON{reply.getPayload()};
-    ASSERT_TRUE(replyJSON.isValid());
-    bool returnValue = false, isSubscribed = false;
-    ASSERT_TRUE(replyJSON.get("returnValue", returnValue));
-    ASSERT_TRUE(returnValue);
-    ASSERT_TRUE(replyJSON.get("subscribed", isSubscribed));
-    ASSERT_TRUE(isSubscribed);
-    std::string serviceClass;
-    ASSERT_TRUE(replyJSON.get("class", serviceClass));
-    ASSERT_EQ(std::string(TEST_CLASS_NAME), serviceClass);
+        auto reply = call.get();
+        ASSERT_TRUE(bool(reply)) << "No response from test service";
+        LS::JSONPayload replyJSON{reply.getPayload()};
+        ASSERT_TRUE(replyJSON.isValid());
+        bool returnValue = false, isSubscribed = false;
+        ASSERT_TRUE(replyJSON.get("returnValue", returnValue));
+        ASSERT_TRUE(returnValue);
+        ASSERT_TRUE(replyJSON.get("subscribed", isSubscribed));
+        ASSERT_TRUE(isSubscribed);
+        std::string serviceClass;
+        ASSERT_TRUE(replyJSON.get("class", serviceClass));
+        ASSERT_EQ(std::string(TEST_CLASS_NAME), serviceClass);
 
-    reply = call.get(200);
-    ASSERT_TRUE(bool(reply)) << "No post from test service";
-    LS::JSONPayload postJSON{reply.getPayload()};
-    ASSERT_TRUE(postJSON.isValid());
-    int32_t postId{0};
-    ASSERT_TRUE(postJSON.get("id", postId));
-    ASSERT_LE(1, postId);
-
-    client.detach();
+        reply = call.get(800);
+        ASSERT_TRUE(bool(reply)) << "No post from test service";
+        LS::JSONPayload postJSON{reply.getPayload()};
+        ASSERT_TRUE(postJSON.isValid());
+        int32_t postId{0};
+        ASSERT_TRUE(postJSON.get("id", postId));
+        ASSERT_LE(1, postId);
+    }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    client = LS::registerService("com.palm.test_subscription_client");
-    client.attachToLoop(mainloop);
+    LS::Handle client = LS::registerService("com.palm.test_subscription_client");
+    client.attachToLoop(context.get());
 
-    call = client.callOneReply("palm://com.palm.test_subscription_service/testCalls/stopCall", "{}");
-    call.get(200);
-    g_main_loop_unref(mainloop);
+    LS::Call callStop = client.callOneReply("palm://com.palm.test_subscription_service/testCalls/stopCall", "{}");
+    callStop.get(200);
     serviceThread.join();
 
 }
@@ -232,9 +232,9 @@ TEST(TestSubscriptionPoint, SubscriptionCancelTest)
     std::thread serviceThread{serviceThreadFunc};
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    GMainLoop * mainloop = g_main_loop_new(nullptr, FALSE);
+    auto context = mk_ptr(g_main_context_new(), g_main_context_unref);
     LS::Handle client = LS::registerService("com.palm.test_subscription_client");
-    client.attachToLoop(mainloop);
+    client.attachToLoop(context.get());
 
     LS::Call call = client.callMultiReply("palm://com.palm.test_subscription_service/testCalls/subscribeCall",
         R"({"subscribe":true})");
@@ -264,9 +264,7 @@ TEST(TestSubscriptionPoint, SubscriptionCancelTest)
 
     call = client.callOneReply("palm://com.palm.test_subscription_service/testCalls/stopCall", "{}");
     call.get(200);
-    g_main_loop_unref(mainloop);
     serviceThread.join();
-
 }
 
 TEST(TestSubscriptionPoint, SubscriptionTestMultiClientTest)

@@ -16,7 +16,7 @@
 #
 # LICENSE@@@
 
-webos_add_compiler_flags(ALL -Wall "-std=gnu++0x")
+webos_add_compiler_flags(ALL -Wall "-std=c++11")
 add_executable(ls-performance ls-performance.cpp)
 target_link_libraries(ls-performance ${PROJECT_NAME})
 webos_build_program(NAME ls-performance)

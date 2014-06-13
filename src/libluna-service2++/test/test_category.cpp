@@ -190,7 +190,7 @@ TEST_F(TestCategory, ValidationWithRef)
     {
         SCOPED_TRACE("test against wrong param");
         ASSERT_NO_THROW({ call = sh.callOneReply("luna://com.palm.test/ping", "{\"abc\":3}"); });
-        ASSERT_NO_THROW({ reply = call.get(100); });
+        ASSERT_NO_THROW({ reply = call.get(1000); });
         EXPECT_FALSE(havePing);
         EXPECT_TRUE(bool(reply));
 

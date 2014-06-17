@@ -1304,6 +1304,20 @@ _LSDisconnectHandler(_LSTransportClient *client, _LSTransportDisconnectType type
         _send_not_running(sh, tokens_copy);
         _TokenListFree(tokens_copy);
     }
+    else
+    {
+        if (NULL != client->unique_name)
+        {
+            /* Remove client subscriptions from the catalog
+             */
+            _LSCatalogRemoveClientSubscriptions(sh->catalog, client);
+        }
+        else
+        {
+            LOG_LS_WARNING(MSGID_LS_NULL_CLIENT, 0,
+                           "Client disconnected before sending client info");
+        }
+    }
 }
 
 /* SERVER_STATUS */

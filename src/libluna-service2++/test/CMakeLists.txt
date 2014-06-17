@@ -41,6 +41,7 @@ set(INTEGRATION_TEST_SOURCES
     test_category
     "test_call\;test_call_service"
     test_subscription_cxx
+    test_disconnection
     category_notification
     "test_example++"
     metainfo_example

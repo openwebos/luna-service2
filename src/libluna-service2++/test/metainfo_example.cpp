@@ -49,9 +49,9 @@ public:
 
     ~TestMetaInfoService()
     {
-        detach();
         g_main_loop_quit(_mainLoop);
         _thread.join();
+        detach();
         g_main_loop_unref(_mainLoop);
         g_main_context_unref(_mainCtx);
     }

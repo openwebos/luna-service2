@@ -413,7 +413,8 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
     _LSTransportRemoveAllConnectionHash(client->transport, client);
 
     // Only examine the pending outgoing messages if we are a client that initiate the connection
-    if (!client->initiator)
+    const bool is_monitor = transport->monitor == client;
+    if (!client->initiator || is_monitor)
     {
         TRANSPORT_UNLOCK(&transport->lock);
         goto skip_pending;

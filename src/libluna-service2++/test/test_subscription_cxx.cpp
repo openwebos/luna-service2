@@ -33,6 +33,7 @@
 #include <gtest/gtest.h>
 
 #include <luna-service2/lunaservice.hpp>
+#include <payload.hpp>
 
 #define TEST_CLASS_NAME "TestService"
 std::atomic_uint g_counter{0};

@@ -19,6 +19,7 @@
 #include "subscription.hpp"
 #include "error.hpp"
 #include "handle.hpp"
+#include "payload.hpp"
 
 namespace LS {
 

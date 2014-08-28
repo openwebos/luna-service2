@@ -2698,13 +2698,13 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
     if (!service && !IsMediaService(service_name))
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(_LSTransportMessageGetClient(message));
-        LOG_LS_ERROR(MSGID_LSHUB_SERVICE_NOT_LISTED, 5,
+        LOG_LS_ERROR(MSGID_LSHUB_SERVICE_NOT_LISTED, 4,
                      PMLOGKS("SERVICE_NAME", service_name),
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                      PMLOGKS("APP_ID", app_id),
                      PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                     "Service not listed in service files");
+                     "Service not listed in service files (cmdline: %s)",
+                     _LSTransportCredGetCmdLine(cred));
 
         /* The service is not in a service file, so it doesn't exist
          * in the system and we should return error */
@@ -3188,12 +3188,12 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
         if (!_LSHubRemoveSignal(signal_map->method_map, full_path, client))
         {
             const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 4,
+            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 3,
                          PMLOGKS("PATH", full_path),
                          PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                          PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                         "Unable to remove signal");
+                         "Unable to remove signal (cmdline: %s)",
+                         _LSTransportCredGetCmdLine(cred));
         }
         g_free(full_path);
     }
@@ -3203,12 +3203,12 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
         if (!_LSHubRemoveSignal(signal_map->category_map, category, client))
         {
             const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 4,
+            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 3,
                          PMLOGKS("CATEGORY", category),
                          PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                          PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                         "Unable to remove signal");
+                         "Unable to remove signal (cmdline: %s)",
+                         _LSTransportCredGetCmdLine(cred));
         }
     }
 
@@ -3571,12 +3571,11 @@ _LSHubHandleMonitorRequest(_LSTransportMessage *message)
     if (g_conf_security_enabled && !LSHubIsClientMonitor(monitor_client))
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(monitor_client);
-        LOG_LS_ERROR(MSGID_LSHUB_NO_MONITOR_MESSAGE, 3,
+        LOG_LS_ERROR(MSGID_LSHUB_NO_MONITOR_MESSAGE, 2,
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                      PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                     "Monitor message not sent by monitor");
-
+                     "Monitor message not sent by monitor (cmdline: %s)",
+                     _LSTransportCredGetCmdLine(cred));
         return;
     }
 
@@ -3958,11 +3957,11 @@ _LSHubHandlePushRole(_LSTransportMessage *message)
            const  _LSTransportCred *cred = _LSTransportClientGetCred(sender_client);
 
             ret_code = lserror.error_code;
-            LOG_LS_ERROR(MSGID_LSHUB_CANT_PUSH_ROLE, 3,
+            LOG_LS_ERROR(MSGID_LSHUB_CANT_PUSH_ROLE, 2,
                          PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                          PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                         "Unable to push role");
+                         "Unable to push role (cmdline: %s)",
+                         _LSTransportCredGetCmdLine(cred));
             LOG_LSERROR(MSGID_LSHUB_CANT_PUSH_ROLE, &lserror);
         }
     }

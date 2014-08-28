@@ -1642,19 +1642,17 @@ LSHubIsClientAllowedToRequestName(const _LSTransportClient *client, const char *
             if (g_conf_security_enabled)
             {
                 /* service name is not in role file set, so deny request */
-                LOG_LS_ERROR(MSGID_LSHUB_NO_ROLE_FILE, 2,
+                LOG_LS_ERROR(MSGID_LSHUB_NO_ROLE_FILE, 1,
                              PMLOGKS("EXE", exe_path),
-                             PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
-                             "No role file for executable: \"%s\" (cmdline: \"%s\")",
+                             "No role file for executable: \"%s\" (cmdline: %s)",
                              exe_path, _LSTransportCredGetCmdLine(cred));
                 return false;
             }
             else
             {
-                LOG_LS_WARNING(MSGID_LSHUB_NO_ROLE_FILE, 2,
+                LOG_LS_WARNING(MSGID_LSHUB_NO_ROLE_FILE, 1,
                                PMLOGKS("EXE", exe_path),
-                               PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
-                               "Missing role file for executable: \"%s\" (cmdline: \"%s\")",
+                               "Missing role file for executable: \"%s\" (cmdline: %s)",
                                exe_path, _LSTransportCredGetCmdLine(cred));
                 return true;
             }
@@ -1678,11 +1676,10 @@ LSHubIsClientAllowedToRequestName(const _LSTransportClient *client, const char *
 
     if (g_conf_security_enabled)
     {
-        LOG_LS_ERROR(MSGID_LSHUB_NO_PERMISSION_FOR_NAME, 3,
+        LOG_LS_ERROR(MSGID_LSHUB_NO_PERMISSION_FOR_NAME, 2,
                      PMLOGKS("APP_ID", service_name),
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
-                     "Executable: \"%s\" (cmdline: \"%s\") "
+                     "Executable: \"%s\" (cmdline: %s) "
                      "does not have permission to register name: \"%s\"",
                      _LSTransportCredGetExePath(cred),
                      _LSTransportCredGetCmdLine(cred),
@@ -1692,11 +1689,10 @@ LSHubIsClientAllowedToRequestName(const _LSTransportClient *client, const char *
     }
     else
     {
-        LOG_LS_WARNING(MSGID_LSHUB_NO_PERMISSION_FOR_NAME, 3,
+        LOG_LS_WARNING(MSGID_LSHUB_NO_PERMISSION_FOR_NAME, 2,
                        PMLOGKS("APP_ID", service_name),
                        PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                       PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
-                       "Executable: \"%s\" (cmdline: \"%s\") "
+                       "Executable: \"%s\" (cmdline: %s) "
                        "does not have permission to register name: \"%s\"",
                        _LSTransportCredGetExePath(cred),
                        _LSTransportCredGetCmdLine(cred),
@@ -1813,26 +1809,24 @@ _LSHubPrintPermissionsMessage(const _LSTransportClient *client, const char *send
 
     if (inbound)
     {
-        LOG_LS_ERROR(MSGID_LSHUB_NO_INBOUND_PERMS, 5,
+        LOG_LS_ERROR(MSGID_LSHUB_NO_INBOUND_PERMS, 4,
                      PMLOGKS("DEST_APP_ID", dest_service_name),
                      PMLOGKS("SRC_APP_ID", sender_service_name),
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                      PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                     "Permissions does not allow inbound connections from \"%s\" to \"%s\"",
-                     sender_service_name, dest_service_name);
+                     "Permissions does not allow inbound connections from \"%s\" to \"%s\" (cmdline: %s)",
+                     sender_service_name, dest_service_name, _LSTransportCredGetCmdLine(cred));
     }
     else
     {
         /* outbound */
-        LOG_LS_ERROR(MSGID_LSHUB_NO_OUTBOUND_PERMS, 5,
+        LOG_LS_ERROR(MSGID_LSHUB_NO_OUTBOUND_PERMS, 4,
                      PMLOGKS("DEST_APP_ID", dest_service_name),
                      PMLOGKS("SRC_APP_ID", sender_service_name),
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                      PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                     "\"%s\" does not have sufficient outbound permissions to communicate with \"%s\"",
-                     sender_service_name, dest_service_name);
+                     "\"%s\" does not have sufficient outbound permissions to communicate with \"%s\" (cmdline: %s)",
+                     sender_service_name, dest_service_name, _LSTransportCredGetCmdLine(cred));
     }
 }
 
@@ -1842,12 +1836,12 @@ _LSHubPrintSignalPermissionsMessage(const _LSTransportClient *client)
     const char *service_name = _LSTransportClientGetServiceName(client);
     const _LSTransportCred *cred = _LSTransportClientGetCred(client);
 
-    LOG_LS_ERROR(MSGID_LSHUB_NO_SIGNAL_PERMS, 4,
+    LOG_LS_ERROR(MSGID_LSHUB_NO_SIGNAL_PERMS, 3,
                  PMLOGKS("APP_ID", service_name),
                  PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                 PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                  PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                 "\"%s\" is not allowed to send signals", service_name);
+                 "\"%s\" is not allowed to send signals (cmdline: %s)", service_name,
+                 _LSTransportCredGetCmdLine(cred));
 }
 
 /**

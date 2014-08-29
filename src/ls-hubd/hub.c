@@ -1811,9 +1811,13 @@ _LSHubCleanupSocketLocal(const char *unique_name)
  * connection or inet connection.
  *
  * @param  message  IN  request name message
+ *
+ * @return FALSE if client isn't allowed to register requested name
+ *         (for instance, by security reasons)
+ *         TRUE if succeeded.
  *******************************************************************************
  */
-static void
+static gboolean
 _LSHubHandleRequestName(_LSTransportMessage *message)
 {
     /* TODO: we need to make sure that we can't accidentally create
@@ -1830,7 +1834,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
     if (!client)
     {
         LOG_LS_ERROR(MSGID_LSHUB_NO_CLIENT, 0, "Unable to get client from message");
-        goto error;
+        return FALSE;
     }
 
     _LSTransportType transport_type = _LSTransportGetTransportType(client->transport);
@@ -1851,7 +1855,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
             LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
             LSErrorFree(&lserror);
         }
-        return;
+        return FALSE;
     }
 
     /* get service name */
@@ -1871,7 +1875,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
                 LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
-            return;
+            return FALSE;
         }
     }
     else
@@ -1890,7 +1894,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
                 LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
-            return;
+            return FALSE;
         }
     }
 
@@ -1905,7 +1909,8 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         {
             /* TODO: test that this is the right error condition */
             LOG_LS_ERROR(MSGID_LSHUB_UNAME_ERROR, 0, "Unable to create unique name");
-            goto error;
+            g_free(unique_name);
+            return FALSE;
         }
         close(temp_fd);
     }
@@ -1920,7 +1925,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         if (getpeername(fd, (struct sockaddr*) &addr, &addrlen) != 0)
         {
             LOG_LS_ERROR(MSGID_LSHUB_PEER_NAME_ERR, 0, "Getpeername failed");
-            goto error;
+            return FALSE;
         }
 
         /* inet -- port is sent by far side and is in the
@@ -1930,7 +1935,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
         if (!_LSTransportMessageGetInt32(&iter, &port))
         {
-            goto error;
+            return FALSE;
         }
 
         char inet_buf[INET_ADDRSTRLEN];
@@ -1967,8 +1972,8 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         /* TODO: can we do anything else if there's an error ? */
     }
 
-error:
     g_free(unique_name);
+    return TRUE;
 }
 
 static void
@@ -4113,10 +4118,11 @@ _LSHubHandleMessage(_LSTransportMessage* message, void *context)
     {
     case _LSTransportMessageTypeRequestNameLocal:
     case _LSTransportMessageTypeRequestNameInet:
-        _LSHubHandleRequestName(message);
-
-        /* tell the connecting client whether we have a monitor */
-        _LSHubSendMonitorStatus(message);
+        if (_LSHubHandleRequestName(message))
+        {
+            /* tell the connecting client whether we have a monitor */
+            _LSHubSendMonitorStatus(message);
+        }
         break;
 
     case _LSTransportMessageTypeNodeUp:

@@ -3517,7 +3517,26 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                     shutdown = true;
                     break;
                 }
-                else if (errno != EAGAIN && errno != EINTR)
+                else if (errno == EAGAIN || errno == EINTR)
+                {
+                    /* We don't retry immediately relying on the main loop
+                     * to signal socket readiness again.
+                     */
+                    break;
+                }
+                else if (errno == ECONNRESET)
+                {
+                    /* Client disappearance isn't LS2 problem */
+                    LOG_LS_WARNING(MSGID_LS_MSG_ERR, 4,
+                                   PMLOGKFV("ERROR_CODE", "%d", errno),
+                                   PMLOGKS("ERROR", g_strerror(errno)),
+                                   PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                                   PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                                   "Encountered ECONNRESET during recv: fd: %d", client->channel.fd);
+                    shutdown = true;
+                    break;
+                }
+                else
                 {
                     LOG_LS_ERROR(MSGID_LS_MSG_ERR, 4,
                                  PMLOGKFV("ERROR_CODE", "%d", errno),
@@ -3527,10 +3546,6 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                                  "Encountered error during recv: fd: %d", client->channel.fd);
                     shutdown = true;
                     break;
-                }
-                else
-                {
-                    break;  /* errno == EAGAIN || errno == EINTR */
                 }
             }
 

@@ -5137,6 +5137,20 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
                 g_queue_push_head(client->outgoing->queue, message);
                 goto Done;
             }
+            else if (errno == EPIPE)
+            {
+                /* Broken pipe is considered a normal situation, because it means
+                 * the peer has disconnected suddenly.
+                 */
+                LOG_LS_WARNING(MSGID_LS_SOCK_ERROR, 4,
+                               PMLOGKFV("ERROR_CODE", "%d", errno),
+                               PMLOGKS("ERROR", g_strerror(errno)),
+                               PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                               PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                               "Error when attempting to send to fd: %d", client->channel.fd);
+                _LSTransportMessageUnref(message);
+                goto Done;
+            }
             else
             {
                 /* TODO: Handle better */
@@ -5145,7 +5159,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
                              PMLOGKS("ERROR", g_strerror(errno)),
                              PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
                              PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
-                             "Error when attempting to fd: %d", client->channel.fd);
+                             "Error when attempting to send to fd: %d", client->channel.fd);
                 _LSTransportMessageUnref(message);
                 goto Done;     /* <eeh> You're going to return TRUE here.  Want that? */
             }

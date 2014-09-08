@@ -18,7 +18,7 @@
 
 description "Luna Private Hub service"
 
-start on (stopped bootmisc and stopped populate-volatile)
+start on stopped bootmisc
 stop on started start_update
 emits ls-hubd_private-ready
 

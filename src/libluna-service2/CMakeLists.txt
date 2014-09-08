@@ -54,6 +54,8 @@ set(LIBRARIES
     rt
     )
 
+add_definitions(-DDEFAULT_HUB_LOCAL_SOCKET_DIRECTORY="${WEBOS_INSTALL_RUNTIMEINFODIR}/luna-service2")
+
 # Enable LLtng
 if(WEBOS_LTTNG_ENABLED)
     add_definitions(-DHAS_LTTNG)

@@ -4445,6 +4445,17 @@ int main(int argc, char *argv[])
     }
     else
     {
+        const char *hub_local_dir = _LSGetHubLocalSocketDirectory(public);
+        if (g_mkdir_with_parents(hub_local_dir, 0755) == -1)
+        {
+            LOG_LS_ERROR(MSGID_LSHUB_MKDIR_ERROR, 3,
+                         PMLOGKS("PATH", hub_local_dir),
+                         PMLOGKFV("ERROR_CODE", "%d", errno),
+                         PMLOGKS("ERROR", g_strerror(errno)),
+                         "Unable to create directory");
+            exit(EXIT_FAILURE);
+        }
+
         const char *hub_local_addr = _LSGetHubLocalSocketAddress(public);
 
         LOG_LS_DEBUG("Using socket path: %s", hub_local_addr);

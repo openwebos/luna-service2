@@ -204,6 +204,8 @@ static void init_socket_addresses()
     private_hub_addr = g_strconcat(hub_socket_dir, "/", HUB_LOCAL_ADDRESS_PRIVATE_NAME, NULL);
 }
 
+static pthread_once_t socket_address_initialized = PTHREAD_ONCE_INIT;
+
 /**
  *******************************************************************************
  * @brief Get hub's socket address.
@@ -216,8 +218,24 @@ static void init_socket_addresses()
  */
 const char *_LSGetHubLocalSocketAddress(bool is_public_bus)
 {
-    static pthread_once_t initialized = PTHREAD_ONCE_INIT;
-    (void) pthread_once(&initialized, init_socket_addresses);
+    (void) pthread_once(&socket_address_initialized, init_socket_addresses);
 
     return is_public_bus ? public_hub_addr : private_hub_addr;
+}
+
+/**
+ *******************************************************************************
+ * @brief Get hub's socket directory.
+ *
+ * @param  is_public_bus     IN   if we are trying to connect to the public bus
+ * (private otherwise)
+ *
+ * @retval local socket directory
+ *******************************************************************************
+ */
+const char *_LSGetHubLocalSocketDirectory(bool is_public_bus)
+{
+    (void) pthread_once(&socket_address_initialized, init_socket_addresses);
+
+    return hub_socket_dir;
 }

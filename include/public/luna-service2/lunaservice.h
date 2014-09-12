@@ -213,6 +213,11 @@ typedef enum {
 	LUNA_METHOD_FLAG_VALIDATE_IN = (1 << 1),
 
 	/**
+	 * Constant to reprsent method with no flags turned on
+	 */
+	LUNA_METHOD_FLAGS_NONE = 0,
+
+	/**
 	 * Mask that covers all valid method flags. Anything outside treated as an
 	 * error.
 	 */
@@ -226,6 +231,11 @@ typedef enum {
  */
 typedef enum {
 	LUNA_SIGNAL_FLAG_DEPRECATED = (1 << 0),
+
+	/**
+	 * Constant to reprsent method with no flags turned on
+	 */
+	LUNA_SIGNAL_FLAGS_NONE = 0,
 } LSSignalFlags;
 
 /**
@@ -233,6 +243,11 @@ typedef enum {
  */
 typedef enum {
 	LUNA_PROPERTY_FLAG_DEPRECATED = (1 << 0),
+
+	/**
+	 * Constant to reprsent property with no flags turned on
+	 */
+	LUNA_PROPERTY_FLAGS_NONE = 0,
 } LSPropertyFlags;
 
 typedef struct {

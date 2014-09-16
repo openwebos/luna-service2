@@ -1811,9 +1811,13 @@ _LSHubCleanupSocketLocal(const char *unique_name)
  * connection or inet connection.
  *
  * @param  message  IN  request name message
+ *
+ * @return FALSE if client isn't allowed to register requested name
+ *         (for instance, by security reasons)
+ *         TRUE if succeeded.
  *******************************************************************************
  */
-static void
+static gboolean
 _LSHubHandleRequestName(_LSTransportMessage *message)
 {
     /* TODO: we need to make sure that we can't accidentally create
@@ -1830,7 +1834,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
     if (!client)
     {
         LOG_LS_ERROR(MSGID_LSHUB_NO_CLIENT, 0, "Unable to get client from message");
-        goto error;
+        return FALSE;
     }
 
     _LSTransportType transport_type = _LSTransportGetTransportType(client->transport);
@@ -1851,7 +1855,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
             LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
             LSErrorFree(&lserror);
         }
-        return;
+        return FALSE;
     }
 
     /* get service name */
@@ -1871,7 +1875,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
                 LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
-            return;
+            return FALSE;
         }
     }
     else
@@ -1890,7 +1894,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
                 LOG_LSERROR(MSGID_LSHUB_SENDMSG_ERROR, &lserror);
                 LSErrorFree(&lserror);
             }
-            return;
+            return FALSE;
         }
     }
 
@@ -1905,7 +1909,8 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         {
             /* TODO: test that this is the right error condition */
             LOG_LS_ERROR(MSGID_LSHUB_UNAME_ERROR, 0, "Unable to create unique name");
-            goto error;
+            g_free(unique_name);
+            return FALSE;
         }
         close(temp_fd);
     }
@@ -1920,7 +1925,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         if (getpeername(fd, (struct sockaddr*) &addr, &addrlen) != 0)
         {
             LOG_LS_ERROR(MSGID_LSHUB_PEER_NAME_ERR, 0, "Getpeername failed");
-            goto error;
+            return FALSE;
         }
 
         /* inet -- port is sent by far side and is in the
@@ -1930,7 +1935,7 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
 
         if (!_LSTransportMessageGetInt32(&iter, &port))
         {
-            goto error;
+            return FALSE;
         }
 
         char inet_buf[INET_ADDRSTRLEN];
@@ -1967,8 +1972,8 @@ _LSHubHandleRequestName(_LSTransportMessage *message)
         /* TODO: can we do anything else if there's an error ? */
     }
 
-error:
     g_free(unique_name);
+    return TRUE;
 }
 
 static void
@@ -2698,13 +2703,13 @@ _LSHubHandleQueryName(_LSTransportMessage *message)
     if (!service && !IsMediaService(service_name))
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(_LSTransportMessageGetClient(message));
-        LOG_LS_ERROR(MSGID_LSHUB_SERVICE_NOT_LISTED, 5,
+        LOG_LS_ERROR(MSGID_LSHUB_SERVICE_NOT_LISTED, 4,
                      PMLOGKS("SERVICE_NAME", service_name),
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                      PMLOGKS("APP_ID", app_id),
                      PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                     "Service not listed in service files");
+                     "Service not listed in service files (cmdline: %s)",
+                     _LSTransportCredGetCmdLine(cred));
 
         /* The service is not in a service file, so it doesn't exist
          * in the system and we should return error */
@@ -3188,12 +3193,12 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
         if (!_LSHubRemoveSignal(signal_map->method_map, full_path, client))
         {
             const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 4,
+            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 3,
                          PMLOGKS("PATH", full_path),
                          PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                          PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                         "Unable to remove signal");
+                         "Unable to remove signal (cmdline: %s)",
+                         _LSTransportCredGetCmdLine(cred));
         }
         g_free(full_path);
     }
@@ -3203,12 +3208,12 @@ _LSHubHandleSignalUnregister(_LSTransportMessage *message)
         if (!_LSHubRemoveSignal(signal_map->category_map, category, client))
         {
             const _LSTransportCred *cred = _LSTransportClientGetCred(client);
-            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 4,
+            LOG_LS_ERROR(MSGID_LSHUB_SIGNAL_ERR, 3,
                          PMLOGKS("CATEGORY", category),
                          PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                          PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                         "Unable to remove signal");
+                         "Unable to remove signal (cmdline: %s)",
+                         _LSTransportCredGetCmdLine(cred));
         }
     }
 
@@ -3571,12 +3576,11 @@ _LSHubHandleMonitorRequest(_LSTransportMessage *message)
     if (g_conf_security_enabled && !LSHubIsClientMonitor(monitor_client))
     {
         const _LSTransportCred *cred = _LSTransportClientGetCred(monitor_client);
-        LOG_LS_ERROR(MSGID_LSHUB_NO_MONITOR_MESSAGE, 3,
+        LOG_LS_ERROR(MSGID_LSHUB_NO_MONITOR_MESSAGE, 2,
                      PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                     PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                      PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                     "Monitor message not sent by monitor");
-
+                     "Monitor message not sent by monitor (cmdline: %s)",
+                     _LSTransportCredGetCmdLine(cred));
         return;
     }
 
@@ -3958,11 +3962,11 @@ _LSHubHandlePushRole(_LSTransportMessage *message)
            const  _LSTransportCred *cred = _LSTransportClientGetCred(sender_client);
 
             ret_code = lserror.error_code;
-            LOG_LS_ERROR(MSGID_LSHUB_CANT_PUSH_ROLE, 3,
+            LOG_LS_ERROR(MSGID_LSHUB_CANT_PUSH_ROLE, 2,
                          PMLOGKS("EXE", _LSTransportCredGetExePath(cred)),
-                         PMLOGKS("CMD", _LSTransportCredGetCmdLine(cred)),
                          PMLOGKFV("PID", LS_PID_PRINTF_FORMAT, LS_PID_PRINTF_CAST(_LSTransportCredGetPid(cred))),
-                         "Unable to push role");
+                         "Unable to push role (cmdline: %s)",
+                         _LSTransportCredGetCmdLine(cred));
             LOG_LSERROR(MSGID_LSHUB_CANT_PUSH_ROLE, &lserror);
         }
     }
@@ -4114,10 +4118,11 @@ _LSHubHandleMessage(_LSTransportMessage* message, void *context)
     {
     case _LSTransportMessageTypeRequestNameLocal:
     case _LSTransportMessageTypeRequestNameInet:
-        _LSHubHandleRequestName(message);
-
-        /* tell the connecting client whether we have a monitor */
-        _LSHubSendMonitorStatus(message);
+        if (_LSHubHandleRequestName(message))
+        {
+            /* tell the connecting client whether we have a monitor */
+            _LSHubSendMonitorStatus(message);
+        }
         break;
 
     case _LSTransportMessageTypeNodeUp:
@@ -4440,16 +4445,20 @@ int main(int argc, char *argv[])
     }
     else
     {
-        const char *hub_local_addr = NULL;
+        const char *hub_local_dir = _LSGetHubLocalSocketDirectory(public);
+        if (g_mkdir_with_parents(hub_local_dir, 0755) == -1)
+        {
+            LOG_LS_ERROR(MSGID_LSHUB_MKDIR_ERROR, 3,
+                         PMLOGKS("PATH", hub_local_dir),
+                         PMLOGKFV("ERROR_CODE", "%d", errno),
+                         PMLOGKS("ERROR", g_strerror(errno)),
+                         "Unable to create directory");
+            exit(EXIT_FAILURE);
+        }
 
-        if (public)
-        {
-            hub_local_addr = HUB_LOCAL_ADDRESS_PUBLIC;
-        }
-        else
-        {
-            hub_local_addr = HUB_LOCAL_ADDRESS_PRIVATE;
-        }
+        const char *hub_local_addr = _LSGetHubLocalSocketAddress(public);
+
+        LOG_LS_DEBUG("Using socket path: %s", hub_local_addr);
 
         /* everyone needs to be able to talk to the hub */
         if (!_LSTransportSetupListenerLocal(hub_transport, hub_local_addr, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, &lserror))

@@ -23,7 +23,6 @@
 #include "luna-service2++/handle.hpp"
 #include "luna-service2++/palm_service.hpp"
 #include "luna-service2++/call.hpp"
-#include "luna-service2++/payload.hpp"
 #include "luna-service2++/subscription.hpp"
 
 

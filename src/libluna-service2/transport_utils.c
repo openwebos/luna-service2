@@ -23,8 +23,12 @@
 #include "transport_utils.h"
 #include "base.h"
 
-int _ls_debug_tracing = 0;
+/* Hub socket's data */
+static char *hub_socket_dir = NULL;
+static char *public_hub_addr = NULL;
+static char *private_hub_addr = NULL;
 
+int _ls_debug_tracing = 0;
 
 int
 strlen_safe(const char *str)
@@ -183,4 +187,55 @@ _LSTransportFdSetNonBlock(int fd, bool *prev_state_blocking)
 {
     LS_ASSERT(fd >= 0);
     _LSTransportFdSetBlockingState(fd, false, prev_state_blocking);
+}
+
+static void init_socket_addresses()
+{
+    /*
+     * LS_HUB_LOCAL_SOCKET_DIRECTORY - environmental variable, which points to custom
+     * hubs' sockets directory, otherwise we try to find it in default, /tmp directory.
+     */
+    if (!(hub_socket_dir = getenv("LS_HUB_LOCAL_SOCKET_DIRECTORY")))
+    {
+        hub_socket_dir = HUB_LOCAL_SOCKET_DIRECTORY;
+    }
+
+    public_hub_addr = g_strconcat(hub_socket_dir, "/", HUB_LOCAL_ADDRESS_PUBLIC_NAME, NULL);
+    private_hub_addr = g_strconcat(hub_socket_dir, "/", HUB_LOCAL_ADDRESS_PRIVATE_NAME, NULL);
+}
+
+static pthread_once_t socket_address_initialized = PTHREAD_ONCE_INIT;
+
+/**
+ *******************************************************************************
+ * @brief Get hub's socket address.
+ *
+ * @param  is_public_bus     IN   if we are trying to connect to the public bus
+ * (private otherwise)
+ *
+ * @retval socket address
+ *******************************************************************************
+ */
+const char *_LSGetHubLocalSocketAddress(bool is_public_bus)
+{
+    (void) pthread_once(&socket_address_initialized, init_socket_addresses);
+
+    return is_public_bus ? public_hub_addr : private_hub_addr;
+}
+
+/**
+ *******************************************************************************
+ * @brief Get hub's socket directory.
+ *
+ * @param  is_public_bus     IN   if we are trying to connect to the public bus
+ * (private otherwise)
+ *
+ * @retval local socket directory
+ *******************************************************************************
+ */
+const char *_LSGetHubLocalSocketDirectory(bool is_public_bus)
+{
+    (void) pthread_once(&socket_address_initialized, init_socket_addresses);
+
+    return hub_socket_dir;
 }

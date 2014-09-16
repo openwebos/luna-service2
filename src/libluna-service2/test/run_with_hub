@@ -53,6 +53,8 @@ config_dir=`readlink -f $(dirname $config_file)`
 
 # Allocate a temporary directory for the hub configuration.
 conf_root=`mktemp -d /tmp/ls-hubd-conf.XXXXXXXX` || die "Failed to allocate temp directory"
+# Custom directory for hubs' sockets
+hub_dir=$conf_root/tmp
 
 cleanup()
 {
@@ -189,6 +191,8 @@ spawn_hubd()
 {
 	pubpriv=$1
 
+	mkdir -p $hub_dir
+
 	old_conf=$build_dir/Configured/files/conf/ls-${pubpriv}.conf
 	conf=$conf_root/etc/luna-service2/ls-${pubpriv}.conf && mkdir -p `dirname $conf`
 
@@ -209,21 +213,20 @@ spawn_hubd()
 	[[ $pubpriv == public ]] && pub_opt=-p
 
 	# Launch the hub
-	$build_dir/src/ls-hubd/ls-hubd -c $conf $pub_opt &
+	LS_HUB_LOCAL_SOCKET_DIRECTORY=$hub_dir $build_dir/src/ls-hubd/ls-hubd -c $conf $pub_opt &
 	[[ $? -eq 0 ]] || die "Failed to launch $pubpriv ls-hubd"
 	hub_pids+=($!)
 }
 
 # drop artifacts from prev. runs (not always we have clean shutdown)
-[ -S /tmp/com.palm.public_hub ] && rm /tmp/com.palm.public_hub
-[ -S /tmp/com.palm.private_hub ] && rm /tmp/com.palm.private_hub
+[ -S $hub_dir/com.palm.public_hub ] && rm $hub_dir/com.palm.public_hub
+[ -S $hub_dir/com.palm.private_hub ] && rm $hub_dir/com.palm.private_hub
 killall -KILL ls-hubd
-# TODO: introduce special ENV variable or config that will redirect from /tmp to any other folder
 
 spawn_hubd private
 spawn_hubd public
 
-while [[ ! -S /tmp/com.palm.private_hub || ! -S /tmp/com.palm.public_hub ]]; do
+while [[ ! -S $hub_dir/com.palm.private_hub || ! -S $hub_dir/com.palm.public_hub ]]; do
 	sleep 0.1
 done
 
@@ -231,13 +234,13 @@ run_custom_command
 
 for service in ${services_to_spawn_and_kill[@]}; do
 	echo "Launching $service"
-	$service &
+	LS_HUB_LOCAL_SOCKET_DIRECTORY=$hub_dir $service &
 	[[ $? -eq 0 ]] || die "Failed to start $service"
 	service_pid_to_kill+=($!)
 done
 for service in ${services_to_spawn[@]}; do
 	echo "Launching $service"
-	$service &
+	LS_HUB_LOCAL_SOCKET_DIRECTORY=$hub_dir $service &
 	[[ $? -eq 0 ]] || die "Failed to start $service"
 	service_pid+=($!)
 done

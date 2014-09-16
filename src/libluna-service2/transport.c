@@ -381,7 +381,7 @@ _LSTransportClientShutdownProcessQueue(_LSTransport *transport, _LSTransportOutg
  * @param  client       IN  client that is shutting down
  * @param  last_serial  IN  last serial processed
  * @param  type         IN  disconnect reason
- * $param  no_fail      IN  if true don't call failure callback for pending messages
+ * @param  no_fail      IN  if true don't call failure callback for pending messages
  *******************************************************************************
  */
 void
@@ -413,7 +413,8 @@ _LSTransportClientShutdown(_LSTransportClient *client, LSMessageToken last_seria
     _LSTransportRemoveAllConnectionHash(client->transport, client);
 
     // Only examine the pending outgoing messages if we are a client that initiate the connection
-    if (!client->initiator)
+    const bool is_monitor = transport->monitor == client;
+    if (!client->initiator || is_monitor)
     {
         TRANSPORT_UNLOCK(&transport->lock);
         goto skip_pending;
@@ -3218,7 +3219,7 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
     LOG_LS_DEBUG("%s: transport: %p, service_name: %s\n", __func__, transport, transport->service_name);
 
     bool ret = false;
-    const char *hub_addr = NULL;
+    const char *hub_addr = _LSGetHubLocalSocketAddress(public_bus);
 
     /* ignore SIGPIPE -- we'll handle the synchronous return val (EPIPE) */
     signal(SIGPIPE, SIG_IGN);
@@ -3237,14 +3238,7 @@ _LSTransportConnect(_LSTransport *transport, bool local, bool public_bus, LSErro
 
     transport->type = _LSTransportTypeLocal;
 
-    if (public_bus)
-    {
-        hub_addr = HUB_LOCAL_ADDRESS_PUBLIC;
-    }
-    else
-    {
-        hub_addr = HUB_LOCAL_ADDRESS_PRIVATE;
-    }
+    LOG_LS_DEBUG("Trying to find a hub at: %s", hub_addr);
 
     /* try to connect to the local hub */
     _LSTransportClient *hub = _LSTransportConnectClient(transport, HUB_NAME, hub_addr, -1, NULL, lserror);
@@ -3516,7 +3510,26 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                     shutdown = true;
                     break;
                 }
-                else if (errno != EAGAIN && errno != EINTR)
+                else if (errno == EAGAIN || errno == EINTR)
+                {
+                    /* We don't retry immediately relying on the main loop
+                     * to signal socket readiness again.
+                     */
+                    break;
+                }
+                else if (errno == ECONNRESET)
+                {
+                    /* Client disappearance isn't LS2 problem */
+                    LOG_LS_WARNING(MSGID_LS_MSG_ERR, 4,
+                                   PMLOGKFV("ERROR_CODE", "%d", errno),
+                                   PMLOGKS("ERROR", g_strerror(errno)),
+                                   PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                                   PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                                   "Encountered ECONNRESET during recv: fd: %d", client->channel.fd);
+                    shutdown = true;
+                    break;
+                }
+                else
                 {
                     LOG_LS_ERROR(MSGID_LS_MSG_ERR, 4,
                                  PMLOGKFV("ERROR_CODE", "%d", errno),
@@ -3526,10 +3539,6 @@ _LSTransportReceiveClient(GIOChannel *source, GIOCondition condition,
                                  "Encountered error during recv: fd: %d", client->channel.fd);
                     shutdown = true;
                     break;
-                }
-                else
-                {
-                    break;  /* errno == EAGAIN || errno == EINTR */
                 }
             }
 
@@ -5136,6 +5145,20 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
                 g_queue_push_head(client->outgoing->queue, message);
                 goto Done;
             }
+            else if (errno == EPIPE)
+            {
+                /* Broken pipe is considered a normal situation, because it means
+                 * the peer has disconnected suddenly.
+                 */
+                LOG_LS_WARNING(MSGID_LS_SOCK_ERROR, 4,
+                               PMLOGKFV("ERROR_CODE", "%d", errno),
+                               PMLOGKS("ERROR", g_strerror(errno)),
+                               PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
+                               PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
+                               "Error when attempting to send to fd: %d", client->channel.fd);
+                _LSTransportMessageUnref(message);
+                goto Done;
+            }
             else
             {
                 /* TODO: Handle better */
@@ -5144,7 +5167,7 @@ _LSTransportSendClient(GIOChannel *source, GIOCondition condition,
                              PMLOGKS("ERROR", g_strerror(errno)),
                              PMLOGKS("APP_ID", _LSTransportClientGetServiceName(client)),
                              PMLOGKS("UNIQUE_NAME", _LSTransportClientGetUniqueName(client)),
-                             "Error when attempting to fd: %d", client->channel.fd);
+                             "Error when attempting to send to fd: %d", client->channel.fd);
                 _LSTransportMessageUnref(message);
                 goto Done;     /* <eeh> You're going to return TRUE here.  Want that? */
             }

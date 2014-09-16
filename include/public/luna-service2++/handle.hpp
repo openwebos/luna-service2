@@ -38,7 +38,7 @@ namespace LS {
       &LS::Handle::methodWraper<cl_t, &cl_t::name>,     \
       static_cast<LSMethodFlags>(flags) },
 
-#define LS_CATEGORY_METHOD1(name) LS_CATEGORY_METHOD2(name,0)
+#define LS_CATEGORY_METHOD1(name) LS_CATEGORY_METHOD2(name, LUNA_METHOD_FLAGS_NONE)
 
 #define GET_METHOD_MACRO(_1,_2,NAME,...) NAME
 

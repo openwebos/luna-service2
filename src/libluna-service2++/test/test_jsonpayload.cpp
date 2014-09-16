@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include <luna-service2/lunaservice.hpp>
+#include <payload.hpp>
 
 
 TEST(TestJSONPayload, JSONPayloadGetTest)

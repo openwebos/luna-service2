@@ -20,6 +20,8 @@
 #ifndef _SUBSCRIPTION_H_
 #define _SUBSCRIPTION_H_
 
+#include "transport_message.h"
+
 typedef struct LSSubscriptionList LSSubscriptionList;
 typedef struct _Catalog _Catalog;
 
@@ -28,6 +30,8 @@ void _CatalogFree(_Catalog *catalog);
 
 bool _CatalogHandleCancel(_Catalog *catalog, LSMessage *cancelMsg,
                           LSError *lserror);
+
+void _LSCatalogRemoveClientSubscriptions(_Catalog *catalog, _LSTransportClient *client);
 
 bool _LSSubscriptionGetJson(LSHandle *sh, jvalue_ref *ret_obj,
                             LSError *lserror);

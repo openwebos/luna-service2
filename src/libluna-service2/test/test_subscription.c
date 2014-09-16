@@ -128,12 +128,6 @@ test_LSSubscriptionAddAndRemove(TestData *fixture, gconstpointer user_data)
     const char *key = "a/b";
 
     g_assert(LSSubscriptionAdd(&fixture->sh, key, fixture->message, &error));
-    g_assert_cmpint(fixture->message_ref_count, ==, 2);
-    g_assert_cmpint(fixture->lscall_call_count, ==, 1);
-    g_assert_cmpstr(fixture->lscall_uri, ==, "palm://com.palm.bus/signal/registerServerStatus");
-    char *expected_lscall_payload = g_strdup_printf("{\"serviceName\":\"%s\"}", fixture->message_sender);
-    g_assert_cmpstr(fixture->lscall_payload, ==, expected_lscall_payload);
-    g_free(expected_lscall_payload);
 
     LSSubscriptionIter *sub_iter = NULL;
     g_assert(LSSubscriptionAcquire(&fixture->sh, key, &sub_iter, &error));
@@ -351,12 +345,6 @@ test_LSSubscriptionProcess(TestData *fixture, gconstpointer user_data)
 
     g_assert(LSSubscriptionProcess(&fixture->sh, fixture->message, &subscribed, &error));
     g_assert(subscribed);
-    // verify that registerServerStatus signal sent (really subscribed)
-    g_assert_cmpint(fixture->lscall_call_count, ==, 1);
-    g_assert_cmpstr(fixture->lscall_uri, ==, "palm://com.palm.bus/signal/registerServerStatus");
-    char *expected_lscall_payload = g_strdup_printf("{\"serviceName\":\"%s\"}", fixture->message_sender);
-    g_assert_cmpstr(fixture->lscall_payload, ==, expected_lscall_payload);
-    g_free(expected_lscall_payload);
 }
 
 static void

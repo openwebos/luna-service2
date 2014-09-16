@@ -136,6 +136,7 @@
 #define MSGID_LS_NO_CATEGORY_TABLE              "LS_NO_CATEGORY_TABLE"  /** No category table for handler */
 #define MSGID_LS_NO_METHOD                      "LS_NO_METH"            /** Couldn't find method */
 #define MSGID_LS_NO_TOKEN                       "LS_NO_TOKEN"           /** No token in callmap */
+#define MSGID_LS_NULL_CLIENT                    "LS_NULL_CLIENT"        /** Client without client info */
 #define MSGID_LS_NULL_LS_ERROR                  "LS_NULL_LS_ERROR"      /** Null lserror in log function */
 #define MSGID_LS_OOM_ERR                        "LS_MEM"                /** Out of memory error */
 #define MSGID_LS_PARAMETER_IS_NULL              "LS_PARAM"              /** Parameter == NULL */
@@ -160,6 +161,7 @@
 #define MSGID_LS_TRANSPORT_INIT_ERR             "LS_TRANS_INIT"         /** Error during transport creation */
 #define MSGID_LS_TRANSPORT_CONNECT_ERR          "LS_TRANS"              /** Transport connection error */
 #define MSGID_LS_TRANSPORT_NETWORK_ERR          "LS_TRANS_NET"          /** Transport network error */
+#define MSGID_LS_UNAME_ERR                      "LS_UNAME_ERR"          /** Can't get unique name from the message */
 #define MSGID_LS_UNHANDLED_MSG                  "LS_UNHANDLD_MSG"       /** Unhandled message */
 #define MSGID_LS_UNKNOWN_FAILURE                "LS_UNKNOWN_FLR"        /** Unknown failure */
 #define MSGID_LS_UNKNOWN_GROUP                  "LS_UNKNOWN_GRP"        /** Found unknown group */

@@ -23,7 +23,6 @@
 #include <algorithm>
 
 #include "message.hpp"
-#include "payload.hpp"
 
 namespace LS {
 
